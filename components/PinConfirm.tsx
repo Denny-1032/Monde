@@ -26,10 +26,18 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
     if (next.length === 4) {
       setTimeout(() => {
         onConfirm(next);
-        setPin('');
       }, 200);
     }
   };
+
+  // Reset PIN when error changes (wrong PIN) or modal reopens
+  React.useEffect(() => {
+    if (error) setPin('');
+  }, [error]);
+
+  React.useEffect(() => {
+    if (visible) setPin('');
+  }, [visible]);
 
   const handleDelete = () => {
     setPin((p) => p.slice(0, -1));

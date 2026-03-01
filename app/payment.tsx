@@ -10,6 +10,7 @@ import { sanitizeText, validateAmount, getProviderInfo, isValidPhone } from '../
 import Button from '../components/Button';
 import Avatar from '../components/Avatar';
 import PinConfirm from '../components/PinConfirm';
+import * as Haptics from 'expo-haptics';
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -84,6 +85,7 @@ export default function PaymentScreen() {
     setShowPinConfirm(false);
 
     if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push({
         pathname: '/success',
         params: {

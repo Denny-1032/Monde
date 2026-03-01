@@ -192,3 +192,24 @@ DO $$ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- ============================================
+-- Auto-confirm synthetic emails (@monde.app)
+-- Required for phone+PIN auth to work without email verification
+-- ============================================
+CREATE OR REPLACE FUNCTION public.auto_confirm_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.email LIKE '%@monde.app' THEN
+    NEW.email_confirmed_at = now();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_confirm ON auth.users;
+
+CREATE TRIGGER on_auth_user_confirm
+  BEFORE INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_confirm_user();

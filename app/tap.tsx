@@ -10,6 +10,7 @@ import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import PinConfirm from '../components/PinConfirm';
 import { formatCurrency } from '../lib/helpers';
+import * as Haptics from 'expo-haptics';
 
 type TapMode = 'setup' | 'waiting' | 'success';
 
@@ -23,6 +24,9 @@ export default function TapScreen() {
   const [mode, setMode] = useState<TapMode>('setup');
   const [amount, setAmount] = useState('');
   const [isSending, setIsSending] = useState(true);
+  const [showPinConfirm, setShowPinConfirm] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const ringAnim = useRef(new Animated.Value(0)).current;
@@ -84,6 +88,7 @@ export default function TapScreen() {
     }
 
     setMode('success');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.push({
       pathname: '/success',
       params: {
@@ -103,9 +108,6 @@ export default function TapScreen() {
   };
 
   const handleDelete = () => setAmount((prev) => prev.slice(0, -1));
-  const [showPinConfirm, setShowPinConfirm] = useState(false);
-  const [pinError, setPinError] = useState('');
-  const [pinLoading, setPinLoading] = useState(false);
 
   const startTap = () => {
     const parsedAmount = parseFloat(amount);

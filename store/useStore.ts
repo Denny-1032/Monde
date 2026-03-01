@@ -179,7 +179,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (!sessionId || !isSupabaseConfigured) return;
     try {
       const { data } = await api.getTransactions(sessionId);
-      if (data.length > 0) set({ transactions: data });
+      set({ transactions: data });
     } catch (e) {
       console.error('Fetch transactions error:', e);
     }

@@ -66,7 +66,7 @@ export default function SuccessScreen() {
 
       <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
         <Button title="Back to Home" onPress={() => router.replace('/(tabs)')} size="lg" />
-        <Button title="New Transaction" onPress={() => router.back()} variant="outline" size="md" />
+        <Button title="New Transaction" onPress={() => router.replace('/payment')} variant="outline" size="md" />
       </Animated.View>
     </View>
   );
