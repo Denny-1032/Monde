@@ -7,6 +7,7 @@ import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../../consta
 import { useStore } from '../../store/useStore';
 import { formatCurrency } from '../../lib/helpers';
 import TransactionItem from '../../components/TransactionItem';
+import { HomeSkeleton } from '../../components/SkeletonLoader';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -24,6 +25,14 @@ export default function HomeScreen() {
     await Promise.all([fetchProfile(), fetchTransactions()]);
     setRefreshing(false);
   }, []);
+
+  if (!user) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+        <HomeSkeleton />
+      </View>
+    );
+  }
 
   return (
     <ScrollView

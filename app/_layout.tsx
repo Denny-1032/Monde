@@ -6,6 +6,7 @@ import { Colors } from '../constants/theme';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useStore } from '../store/useStore';
 import LockScreen from '../components/LockScreen';
+import OfflineBanner from '../components/OfflineBanner';
 
 const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -65,6 +66,7 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="dark" />
+      <OfflineBanner />
       {locked ? <LockScreen onUnlock={unlock} /> : null}
       <Stack
         screenOptions={{
