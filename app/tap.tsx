@@ -89,7 +89,7 @@ export default function TapScreen() {
 
     setMode('success');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.push({
+    router.replace({
       pathname: '/success',
       params: {
         amount: parsedAmount.toString(),

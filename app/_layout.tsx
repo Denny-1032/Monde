@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Colors } from '../constants/theme';
@@ -64,10 +64,8 @@ export default function RootLayout() {
   const { locked, unlock } = useAutoLock();
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <StatusBar style="dark" />
-      <OfflineBanner />
-      {locked ? <LockScreen onUnlock={unlock} /> : null}
       <Stack
         screenOptions={{
           headerShown: false,
@@ -87,6 +85,8 @@ export default function RootLayout() {
         <Stack.Screen name="change-pin" />
         <Stack.Screen name="success" options={{ animation: 'fade', gestureEnabled: false }} />
       </Stack>
-    </>
+      <OfflineBanner />
+      {locked ? <LockScreen onUnlock={unlock} /> : null}
+    </View>
   );
 }

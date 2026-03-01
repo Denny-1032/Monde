@@ -69,7 +69,7 @@ export const useStore = create<AppState>((set, get) => ({
           if (provider) set({ selectedProvider: provider as Provider });
         }
         const { data: txns } = await api.getTransactions(session.user.id);
-        if (txns.length > 0) set({ transactions: txns });
+        set({ transactions: txns });
       }
     } catch (e: any) {
       console.error('Session init error:', e);

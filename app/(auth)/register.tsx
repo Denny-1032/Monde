@@ -14,11 +14,13 @@ export default function RegisterScreen() {
   const [phone, setPhone] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [pin, setPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
 
   const canProceedStep0 = fullName.trim().length > 1 && isValidPhone(phone) && selectedProvider;
   const canProceedStep1 = isValidPin(pin);
+  const canProceedStep2 = isValidPin(confirmPin);
 
   // Auto-detect provider from phone prefix
   const handlePhoneChange = (value: string) => {
@@ -52,14 +54,18 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <TouchableOpacity style={styles.back} onPress={() => (step > 0 ? setStep(0) : router.back())}>
+      <TouchableOpacity style={styles.back} onPress={() => {
+        if (step === 2) { setConfirmPin(''); setError(''); setStep(1); }
+        else if (step === 1) { setPin(''); setError(''); setStep(0); }
+        else router.back();
+      }}>
         <Ionicons name="arrow-back" size={24} color={Colors.text} />
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{step === 0 ? 'Create account' : 'Set your PIN'}</Text>
+        <Text style={styles.title}>{step === 0 ? 'Create account' : step === 1 ? 'Set your PIN' : 'Confirm PIN'}</Text>
         <Text style={styles.subtitle}>
-          {step === 0 ? 'Enter your details to get started' : 'Choose a 4-digit PIN to secure your account'}
+          {step === 0 ? 'Enter your details to get started' : step === 1 ? 'Choose a 4-digit PIN to secure your account' : 'Re-enter your PIN to confirm'}
         </Text>
 
         {step === 0 ? (
@@ -125,7 +131,7 @@ export default function RegisterScreen() {
               style={{ marginTop: Spacing.lg }}
             />
           </>
-        ) : (
+        ) : step === 1 ? (
           <>
             <View style={styles.pinContainer}>
               <TextInput
@@ -146,12 +152,51 @@ export default function RegisterScreen() {
               </View>
             </View>
 
+            <Button
+              title="Continue"
+              onPress={() => { setError(''); setStep(2); }}
+              disabled={!canProceedStep1}
+              size="lg"
+              style={{ marginTop: Spacing.xl }}
+            />
+          </>
+        ) : (
+          <>
+            <View style={styles.pinContainer}>
+              <TextInput
+                style={styles.pinInput}
+                value={confirmPin}
+                onChangeText={(t) => {
+                  setConfirmPin(t.replace(/[^0-9]/g, '').slice(0, 4));
+                  setError('');
+                }}
+                keyboardType="number-pad"
+                maxLength={4}
+                secureTextEntry
+                autoFocus
+                placeholder="----"
+                placeholderTextColor={Colors.textLight}
+              />
+              <View style={styles.dots}>
+                {Array.from({ length: 4 }, (_, i) => (
+                  <View key={i} style={[styles.dot, i < confirmPin.length && styles.dotFilled]} />
+                ))}
+              </View>
+            </View>
+
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <Button
               title="Create Account"
-              onPress={handleRegister}
-              disabled={!canProceedStep1}
+              onPress={() => {
+                if (confirmPin !== pin) {
+                  setError('PINs do not match. Please try again.');
+                  setConfirmPin('');
+                  return;
+                }
+                handleRegister();
+              }}
+              disabled={!canProceedStep2}
               loading={isLoading}
               size="lg"
               style={{ marginTop: Spacing.xl }}

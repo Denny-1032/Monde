@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Platform, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,28 @@ import Button from '../components/Button';
 
 const { width } = Dimensions.get('window');
 const SCAN_SIZE = width * 0.7;
+
+function WebScanFallback({ onScan, onBack, onMyQR }: { onScan: (e: { data: string }) => void; onBack: () => void; onMyQR: () => void }) {
+  const [qrText, setQrText] = useState('');
+  return (
+    <View style={styles.centerContainer}>
+      <Ionicons name="qr-code-outline" size={64} color={Colors.primary} />
+      <Text style={styles.permTitle}>Scan QR Code</Text>
+      <Text style={styles.permText}>Camera scanning is not available on web. Paste QR code data below or use a mobile device.</Text>
+      <TextInput
+        style={styles.webInput}
+        value={qrText}
+        onChangeText={setQrText}
+        placeholder='Paste QR code data here'
+        placeholderTextColor={Colors.textLight}
+        multiline
+      />
+      <Button title="Process QR Data" onPress={() => { if (qrText.trim()) onScan({ data: qrText.trim() }); }} disabled={!qrText.trim()} size="lg" style={{ marginTop: Spacing.sm, width: '100%' }} />
+      <Button title="My QR Code" onPress={onMyQR} variant="outline" size="md" style={{ marginTop: Spacing.sm, width: '100%' }} />
+      <Button title="Go Back" onPress={onBack} variant="ghost" style={{ marginTop: Spacing.sm }} />
+    </View>
+  );
+}
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -56,6 +78,16 @@ export default function ScanScreen() {
         <Button title="Allow Camera" onPress={requestPermission} size="lg" style={{ marginTop: Spacing.lg }} />
         <Button title="Go Back" onPress={() => router.back()} variant="ghost" style={{ marginTop: Spacing.sm }} />
       </View>
+    );
+  }
+
+  if (Platform.OS === 'web') {
+    return (
+      <WebScanFallback
+        onScan={handleBarCodeScanned}
+        onBack={() => router.back()}
+        onMyQR={() => router.push('/receive')}
+      />
     );
   }
 
@@ -129,6 +161,20 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  webInput: {
+    width: '100%',
+    minHeight: 80,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+    textAlignVertical: 'top',
+    marginTop: Spacing.md,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
