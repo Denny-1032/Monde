@@ -8,6 +8,8 @@ import { useStore } from '../store/useStore';
 import { validateAmount } from '../lib/validation';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
+import PinConfirm from '../components/PinConfirm';
+import { formatCurrency } from '../lib/helpers';
 
 type TapMode = 'setup' | 'waiting' | 'success';
 
@@ -101,6 +103,9 @@ export default function TapScreen() {
   };
 
   const handleDelete = () => setAmount((prev) => prev.slice(0, -1));
+  const [showPinConfirm, setShowPinConfirm] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
 
   const startTap = () => {
     const parsedAmount = parseFloat(amount);
@@ -110,12 +115,28 @@ export default function TapScreen() {
         Alert.alert('Invalid Amount', check.error);
         return;
       }
+      // Require PIN for sending
+      setPinError('');
+      setShowPinConfirm(true);
     } else {
       if (!parsedAmount || parsedAmount <= 0) {
         Alert.alert('Enter Amount', 'Please enter an amount first.');
         return;
       }
+      setMode('waiting');
     }
+  };
+
+  const handlePinConfirmTap = async (pin: string) => {
+    const signIn = useStore.getState().signIn;
+    setPinLoading(true);
+    const authResult = await signIn(user?.phone || '', pin);
+    setPinLoading(false);
+    if (!authResult.success) {
+      setPinError('Incorrect PIN. Try again.');
+      return;
+    }
+    setShowPinConfirm(false);
     setMode('waiting');
   };
 
@@ -192,6 +213,16 @@ export default function TapScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <PinConfirm
+        visible={showPinConfirm}
+        title="Authorize Payment"
+        subtitle={`Send ${formatCurrency(parseFloat(amount) || 0)} via Tap to Pay`}
+        onConfirm={handlePinConfirmTap}
+        onCancel={() => { setShowPinConfirm(false); setPinError(''); }}
+        loading={pinLoading}
+        error={pinError}
+      />
     </View>
   );
 }

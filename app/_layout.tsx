@@ -1,9 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Colors } from '../constants/theme';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useStore } from '../store/useStore';
+import LockScreen from '../components/LockScreen';
+
+const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
 function useProtectedRoute() {
   const segments = useSegments();
@@ -30,12 +34,38 @@ function useProtectedRoute() {
   }, []);
 }
 
+function useAutoLock() {
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
+  const [locked, setLocked] = useState(false);
+  const backgroundTime = useRef<number | null>(null);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (!isAuthenticated) return;
+      if (state === 'background' || state === 'inactive') {
+        backgroundTime.current = Date.now();
+      } else if (state === 'active' && backgroundTime.current) {
+        const elapsed = Date.now() - backgroundTime.current;
+        backgroundTime.current = null;
+        if (elapsed >= LOCK_TIMEOUT_MS) {
+          setLocked(true);
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [isAuthenticated]);
+
+  return { locked, unlock: () => setLocked(false) };
+}
+
 export default function RootLayout() {
   useProtectedRoute();
+  const { locked, unlock } = useAutoLock();
 
   return (
     <>
       <StatusBar style="dark" />
+      {locked ? <LockScreen onUnlock={unlock} /> : null}
       <Stack
         screenOptions={{
           headerShown: false,

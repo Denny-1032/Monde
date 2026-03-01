@@ -1,0 +1,178 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useStore } from '../store/useStore';
+
+interface LockScreenProps {
+  onUnlock: () => void;
+}
+
+const KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
+
+export default function LockScreen({ onUnlock }: LockScreenProps) {
+  const user = useStore((s) => s.user);
+  const signIn = useStore((s) => s.signIn);
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleKey = (key: string) => {
+    if (loading || pin.length >= 4) return;
+    const next = pin + key;
+    setPin(next);
+    setError('');
+    if (next.length === 4) {
+      setTimeout(() => verifyPin(next), 200);
+    }
+  };
+
+  const handleDelete = () => {
+    setPin((p) => p.slice(0, -1));
+    setError('');
+  };
+
+  const verifyPin = async (enteredPin: string) => {
+    setLoading(true);
+    const result = await signIn(user?.phone || '', enteredPin);
+    setLoading(false);
+    if (result.success) {
+      onUnlock();
+    } else {
+      setError('Incorrect PIN');
+      setPin('');
+    }
+  };
+
+  const dots = Array.from({ length: 4 }, (_, i) => i < pin.length);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.logoCircle}>
+          <Text style={styles.logoText}>M</Text>
+        </View>
+        <Text style={styles.title}>Welcome back</Text>
+        <Text style={styles.subtitle}>{user?.full_name || 'Enter PIN to unlock'}</Text>
+      </View>
+
+      <View style={styles.dotsRow}>
+        {dots.map((filled, i) => (
+          <View key={i} style={[styles.dot, filled && styles.dotFilled]} />
+        ))}
+      </View>
+
+      {loading ? (
+        <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: Spacing.sm }} />
+      ) : null}
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <View style={styles.pad}>
+        {KEYS.map((row, i) => (
+          <View key={i} style={styles.row}>
+            {row.map((key, j) => (
+              <TouchableOpacity
+                key={j}
+                style={styles.key}
+                onPress={() => {
+                  if (key === 'del') handleDelete();
+                  else if (key) handleKey(key);
+                }}
+                activeOpacity={key ? 0.6 : 1}
+              >
+                {key === 'del' ? (
+                  <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                ) : (
+                  <Text style={styles.keyText}>{key}</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Colors.background,
+    zIndex: 999,
+    paddingTop: 80,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  logoCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  logoText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.white,
+  },
+  title: {
+    fontSize: FontSize.xl,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  subtitle: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    marginVertical: Spacing.lg,
+  },
+  dot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: Colors.border,
+  },
+  dotFilled: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  error: {
+    textAlign: 'center',
+    color: Colors.error,
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.sm,
+  },
+  pad: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingBottom: 40,
+    paddingHorizontal: Spacing.lg,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  key: {
+    width: 75,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: BorderRadius.full,
+  },
+  keyText: {
+    fontSize: FontSize.xl + 4,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+});

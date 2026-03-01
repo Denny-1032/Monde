@@ -9,6 +9,7 @@ import { formatCurrency } from '../lib/helpers';
 import { sanitizeText, validateAmount, getProviderInfo, isValidPhone } from '../lib/validation';
 import Button from '../components/Button';
 import Avatar from '../components/Avatar';
+import PinConfirm from '../components/PinConfirm';
 
 export default function PaymentScreen() {
   const router = useRouter();
@@ -32,6 +33,8 @@ export default function PaymentScreen() {
   const [amount, setAmount] = useState(params.amount || '');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPinConfirm, setShowPinConfirm] = useState(false);
+  const [pinError, setPinError] = useState('');
 
   const method = (params.method as 'qr' | 'nfc' | 'manual') || 'manual';
 
@@ -50,11 +53,26 @@ export default function PaymentScreen() {
     setStep('confirm');
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
+    setPinError('');
+    setShowPinConfirm(true);
+  };
+
+  const handlePinConfirm = async (pin: string) => {
+    // Verify PIN by re-authenticating
+    const phone = user?.phone || '';
+    const signIn = useStore.getState().signIn;
+    setLoading(true);
+    const authResult = await signIn(phone, pin);
+    if (!authResult.success) {
+      setLoading(false);
+      setPinError('Incorrect PIN. Try again.');
+      return;
+    }
+
     const parsedAmount = parseFloat(amount);
     const safeName = sanitizeText(recipientName) || 'Unknown';
     const safeNote = note ? sanitizeText(note) : undefined;
-    setLoading(true);
     const result = await sendPayment(
       recipientPhone.replace(/[^0-9+]/g, ''),
       safeName,
@@ -63,6 +81,7 @@ export default function PaymentScreen() {
       safeNote,
     );
     setLoading(false);
+    setShowPinConfirm(false);
 
     if (result.success) {
       router.push({
@@ -80,6 +99,7 @@ export default function PaymentScreen() {
   };
 
   return (
+    <>
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <KeyboardAvoidingView style={[styles.container, { paddingTop: insets.top + 10 }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* Header */}
@@ -195,6 +215,17 @@ export default function PaymentScreen() {
       )}
     </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
+
+    <PinConfirm
+      visible={showPinConfirm}
+      title="Authorize Payment"
+      subtitle={`Send ${formatCurrency(parseFloat(amount) || 0)} to ${recipientName || 'recipient'}`}
+      onConfirm={handlePinConfirm}
+      onCancel={() => { setShowPinConfirm(false); setPinError(''); }}
+      loading={loading}
+      error={pinError}
+    />
+    </>
   );
 }
 
