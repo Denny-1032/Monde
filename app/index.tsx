@@ -35,13 +35,14 @@ export default function SplashScreen() {
 
   useEffect(() => {
     if (!ready) return;
+    // Ensure splash shows for at least 2 seconds total
     const timer = setTimeout(() => {
       if (isAuthenticated) {
         router.replace('/(tabs)');
       } else {
         router.replace('/(auth)/welcome');
       }
-    }, 800);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [ready, isAuthenticated]);
 

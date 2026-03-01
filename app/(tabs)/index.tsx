@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } 
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../../constants/theme';
+import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useStore } from '../../store/useStore';
 import { formatCurrency } from '../../lib/helpers';
 import TransactionItem from '../../components/TransactionItem';

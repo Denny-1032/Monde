@@ -115,6 +115,20 @@ export async function lookupRecipient(phone: string) {
   return data;
 }
 
+export async function searchProfilesByPhone(phone: string): Promise<{ data: { id: string; phone: string; full_name: string; avatar_url?: string }[] }> {
+  if (!isSupabaseConfigured) return { data: [] };
+
+  const formatted = phone.startsWith('+260') ? phone : phone.startsWith('260') ? `+${phone}` : `+260${phone.replace(/^0/, '')}`;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, phone, full_name, avatar_url')
+    .ilike('phone', `%${formatted.slice(-9)}%`)
+    .limit(5);
+
+  if (error) return { data: [] };
+  return { data: data || [] };
+}
+
 // ============================================
 // Transaction Functions
 // ============================================

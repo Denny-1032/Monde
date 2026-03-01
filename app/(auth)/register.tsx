@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../../constants/theme';
+import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useStore } from '../../store/useStore';
 import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
 import Button from '../../components/Button';
@@ -14,23 +14,17 @@ export default function RegisterScreen() {
   const { signUp, isLoading } = useStore();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
 
-  const canProceedStep0 = fullName.trim().length > 1 && isValidPhone(phone) && selectedProvider;
+  const canProceedStep0 = fullName.trim().length > 1 && isValidPhone(phone);
   const canProceedStep1 = isValidPin(pin);
   const canProceedStep2 = isValidPin(confirmPin);
 
-  // Auto-detect provider from phone prefix
   const handlePhoneChange = (value: string) => {
     setPhone(value);
-    if (!selectedProvider) {
-      const detected = detectProvider(value);
-      if (detected) setSelectedProvider(detected);
-    }
   };
 
   const handleRegister = async () => {
@@ -40,11 +34,12 @@ export default function RegisterScreen() {
       setError('Please enter a valid name.');
       return;
     }
+    const detected = detectProvider(phone);
     const result = await signUp(
       phone,
       pin,
       safeName,
-      selectedProvider || 'airtel'
+      detected || 'airtel'
     );
     if (result.success) {
       router.replace('/(tabs)');
@@ -78,8 +73,6 @@ export default function RegisterScreen() {
                 style={styles.input}
                 value={fullName}
                 onChangeText={setFullName}
-                placeholder="e.g. Chanda Mwila"
-                placeholderTextColor={Colors.textLight}
                 autoCapitalize="words"
               />
             </View>
@@ -94,34 +87,9 @@ export default function RegisterScreen() {
                   style={[styles.input, styles.phoneInput]}
                   value={phone}
                   onChangeText={handlePhoneChange}
-                  placeholder="97 123 4567"
-                  placeholderTextColor={Colors.textLight}
                   keyboardType="phone-pad"
                   maxLength={10}
                 />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Primary provider</Text>
-              <View style={styles.providerGrid}>
-                {Providers.map((p) => (
-                  <TouchableOpacity
-                    key={p.id}
-                    style={[
-                      styles.providerChip,
-                      selectedProvider === p.id && { borderColor: p.color, backgroundColor: p.color + '15' },
-                    ]}
-                    onPress={() => setSelectedProvider(p.id)}
-                  >
-                    <View style={[styles.providerDot, { backgroundColor: p.color }]} />
-                    <Text
-                      style={[styles.providerLabel, selectedProvider === p.id && { color: p.color, fontWeight: '700' }]}
-                    >
-                      {p.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
               </View>
             </View>
 
@@ -299,32 +267,6 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
-  },
-  providerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  providerChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm + 2,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    gap: Spacing.sm,
-  },
-  providerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  providerLabel: {
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    fontWeight: '500',
   },
   dotsRow: {
     flexDirection: 'row',

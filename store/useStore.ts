@@ -79,18 +79,22 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const { session } = await api.getSession();
       if (session?.user) {
-        set({ sessionId: session.user.id, isAuthenticated: true });
-        const { data: profile } = await api.getProfile(session.user.id);
-        if (profile) {
-          set({ user: profile });
-          const provider = Providers.find((p) => p.id === profile.provider);
-          if (provider) set({ selectedProvider: provider as Provider });
+        const uid = session.user.id;
+        set({ sessionId: uid, isAuthenticated: true });
+        // Fetch profile, transactions, and linked accounts in parallel
+        const [profileRes, txnRes, accountsRes] = await Promise.all([
+          api.getProfile(uid),
+          api.getTransactions(uid),
+          api.getLinkedAccounts(uid),
+        ]);
+        if (profileRes.data) {
+          const provider = Providers.find((p) => p.id === profileRes.data!.provider);
+          set({
+            user: profileRes.data,
+            selectedProvider: provider ? (provider as Provider) : undefined,
+          });
         }
-        const { data: txns } = await api.getTransactions(session.user.id);
-        set({ transactions: txns });
-        // Fetch linked accounts
-        const { data: accounts } = await api.getLinkedAccounts(session.user.id);
-        set({ linkedAccounts: accounts });
+        set({ transactions: txnRes.data, linkedAccounts: accountsRes.data });
       }
     } catch (e: any) {
       console.error('Session init error:', e);
