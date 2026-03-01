@@ -5,8 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useStore } from '../../store/useStore';
+import { isValidPhone } from '../../lib/validation';
 
 const LAST_PHONE_KEY = 'monde_last_phone';
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 30;
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -16,6 +19,8 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(true);
   const [loadingPhone, setLoadingPhone] = useState(true);
+  const [attempts, setAttempts] = useState(0);
+  const [lockoutEnd, setLockoutEnd] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -34,6 +39,12 @@ export default function LoginScreen() {
 
   const handleKey = (key: string) => {
     if (isLoading) return;
+    const now = Date.now();
+    if (attempts >= MAX_ATTEMPTS && now < lockoutEnd) {
+      const secsLeft = Math.ceil((lockoutEnd - now) / 1000);
+      setError(`Too many attempts. Try again in ${secsLeft}s.`);
+      return;
+    }
     if (pin.length < 4) {
       const newPin = pin + key;
       setPin(newPin);
@@ -55,7 +66,14 @@ export default function LoginScreen() {
       } catch {}
       router.replace('/(tabs)');
     } else {
-      setError(result.error || 'Invalid credentials. Please try again.');
+      const newAttempts = attempts + 1;
+      setAttempts(newAttempts);
+      if (newAttempts >= MAX_ATTEMPTS) {
+        setLockoutEnd(Date.now() + LOCKOUT_SECONDS * 1000);
+        setError(`Too many attempts. Locked for ${LOCKOUT_SECONDS}s.`);
+      } else {
+        setError(`Invalid PIN. ${MAX_ATTEMPTS - newAttempts} attempts remaining.`);
+      }
       setPin('');
     }
   };
@@ -65,7 +83,7 @@ export default function LoginScreen() {
     setError('');
   };
 
-  const canProceedToPin = phone.length >= 9;
+  const canProceedToPin = isValidPhone(phone);
 
   const dots = Array.from({ length: 4 }, (_, i) => i < pin.length);
 

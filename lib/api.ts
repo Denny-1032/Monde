@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { Transaction, UserProfile } from '../constants/types';
+import { pinToPassword, sanitizeText } from './validation';
 
 // ============================================
 // Auth Functions
@@ -12,30 +13,32 @@ function phoneToEmail(phone: string): string {
   return `${phone.replace(/[^0-9]/g, '')}@monde.app`;
 }
 
-export async function signUpWithPhone(phone: string, password: string, metadata: {
+export async function signUpWithPhone(phone: string, pin: string, metadata: {
   full_name: string;
   provider: string;
 }) {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
   const email = phoneToEmail(phone);
+  const securePassword = pinToPassword(pin);
   const { data, error } = await supabase.auth.signUp({
     email,
-    password,
+    password: securePassword,
     options: {
-      data: { ...metadata, phone },
+      data: { full_name: sanitizeText(metadata.full_name), provider: metadata.provider, phone },
     },
   });
   return { data, error: error?.message };
 }
 
-export async function signInWithPhone(phone: string, password: string) {
+export async function signInWithPhone(phone: string, pin: string) {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
   const email = phoneToEmail(phone);
+  const securePassword = pinToPassword(pin);
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password,
+    password: securePassword,
   });
   return { data, error: error?.message };
 }

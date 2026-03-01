@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../../constants/theme';
 import { useStore } from '../../store/useStore';
+import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
 import Button from '../../components/Button';
 
 export default function RegisterScreen() {
@@ -16,15 +17,29 @@ export default function RegisterScreen() {
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
 
-  const canProceedStep0 = fullName.trim().length > 1 && phone.length >= 10 && selectedProvider;
-  const canProceedStep1 = pin.length === 4;
+  const canProceedStep0 = fullName.trim().length > 1 && isValidPhone(phone) && selectedProvider;
+  const canProceedStep1 = isValidPin(pin);
+
+  // Auto-detect provider from phone prefix
+  const handlePhoneChange = (value: string) => {
+    setPhone(value);
+    if (!selectedProvider) {
+      const detected = detectProvider(value);
+      if (detected) setSelectedProvider(detected);
+    }
+  };
 
   const handleRegister = async () => {
     setError('');
+    const safeName = sanitizeText(fullName);
+    if (safeName.length < 2) {
+      setError('Please enter a valid name.');
+      return;
+    }
     const result = await signUp(
       phone,
       pin,
-      fullName.trim(),
+      safeName,
       selectedProvider || 'airtel'
     );
     if (result.success) {
@@ -70,7 +85,7 @@ export default function RegisterScreen() {
                 <TextInput
                   style={[styles.input, styles.phoneInput]}
                   value={phone}
-                  onChangeText={setPhone}
+                  onChangeText={handlePhoneChange}
                   placeholder="97 123 4567"
                   placeholderTextColor={Colors.textLight}
                   keyboardType="phone-pad"

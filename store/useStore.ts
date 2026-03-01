@@ -29,6 +29,7 @@ type AppState = {
   fetchProfile: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
   sendPayment: (recipientPhone: string, recipientName: string, amount: number, method: 'qr' | 'nfc' | 'manual', note?: string) => Promise<{ success: boolean; error?: string }>;
+  updateProvider: (providerId: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 };
 
@@ -235,6 +236,26 @@ export const useStore = create<AppState>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  updateProvider: async (providerId) => {
+    const { user, sessionId } = get();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    if (isSupabaseConfigured && sessionId) {
+      try {
+        const { error } = await api.updateProfile(sessionId, { provider: providerId });
+        if (error) return { success: false, error: error as string };
+      } catch (e: any) {
+        return { success: false, error: e?.message || 'Update failed' };
+      }
+    }
+
+    set({
+      user: { ...user, provider: providerId },
+      selectedProvider: Providers.find((p) => p.id === providerId) as Provider || get().selectedProvider,
+    });
+    return { success: true };
   },
 
   logout: async () => {

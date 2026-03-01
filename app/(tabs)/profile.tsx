@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,8 +36,22 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
+  const updateProvider = useStore((s) => s.updateProvider);
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
 
   const provider = Providers.find((p) => p.id === user?.provider);
+
+  const handleChangeProvider = async (providerId: string) => {
+    setShowProviderPicker(false);
+    if (providerId === user?.provider) return;
+    const result = await updateProvider(providerId);
+    if (result.success) {
+      const p = Providers.find((pr) => pr.id === providerId);
+      Alert.alert('Provider Updated', `Switched to ${p?.name || providerId}.`);
+    } else {
+      Alert.alert('Error', result.error || 'Failed to update provider.');
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -75,7 +89,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.menuGroup}>
           <MenuItem icon="person-outline" label="Edit Profile" onPress={() => {}} />
-          <MenuItem icon="swap-horizontal-outline" label="Change Provider" subtitle={provider?.name} onPress={() => {}} />
+          <MenuItem icon="swap-horizontal-outline" label="Change Provider" subtitle={provider?.name} onPress={() => setShowProviderPicker(true)} />
           <MenuItem icon="key-outline" label="Change PIN" onPress={() => {}} />
         </View>
       </View>
@@ -105,6 +119,39 @@ export default function ProfileScreen() {
       </View>
 
       <Text style={styles.version}>Monde v1.0.0</Text>
+
+      {/* Provider Picker Modal */}
+      <Modal visible={showProviderPicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Switch Provider</Text>
+            <Text style={styles.modalSubtitle}>Select your primary mobile money or bank provider</Text>
+            {Providers.map((p) => (
+              <TouchableOpacity
+                key={p.id}
+                style={[
+                  styles.providerOption,
+                  user?.provider === p.id && styles.providerOptionActive,
+                ]}
+                onPress={() => handleChangeProvider(p.id)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.providerOptionDot, { backgroundColor: p.color }]} />
+                <Text style={[
+                  styles.providerOptionText,
+                  user?.provider === p.id && { color: p.color, fontWeight: '700' },
+                ]}>{p.name}</Text>
+                {user?.provider === p.id ? (
+                  <Ionicons name="checkmark-circle" size={20} color={p.color} />
+                ) : null}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.modalCancel} onPress={() => setShowProviderPicker(false)}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -215,5 +262,62 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
     paddingBottom: 30,
     marginTop: Spacing.md,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  modalSubtitle: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
+  },
+  providerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.xs,
+  },
+  providerOptionActive: {
+    backgroundColor: Colors.primary + '08',
+  },
+  providerOptionDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  providerOptionText: {
+    flex: 1,
+    fontSize: FontSize.md,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  modalCancel: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  modalCancelText: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
 });

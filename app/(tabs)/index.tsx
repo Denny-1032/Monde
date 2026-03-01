@@ -49,7 +49,7 @@ export default function HomeScreen() {
         <Text style={styles.balanceLabel}>Available Balance</Text>
         <Text style={styles.balanceAmount}>{formatCurrency(user?.balance || 0)}</Text>
         <View style={styles.balanceProvider}>
-          <View style={styles.providerDot} />
+          <View style={[styles.providerDot, { backgroundColor: Providers.find((p) => p.id === user?.provider)?.color || Colors.white }]} />
           <Text style={styles.providerText}>
             {Providers.find((p) => p.id === user?.provider)?.name || 'Airtel Money'}
           </Text>

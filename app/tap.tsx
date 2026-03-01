@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useStore } from '../store/useStore';
+import { validateAmount } from '../lib/validation';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 
@@ -102,9 +103,18 @@ export default function TapScreen() {
   const handleDelete = () => setAmount((prev) => prev.slice(0, -1));
 
   const startTap = () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Enter Amount', 'Please enter an amount first.');
-      return;
+    const parsedAmount = parseFloat(amount);
+    if (isSending) {
+      const check = validateAmount(parsedAmount, user?.balance || 0);
+      if (!check.valid) {
+        Alert.alert('Invalid Amount', check.error);
+        return;
+      }
+    } else {
+      if (!parsedAmount || parsedAmount <= 0) {
+        Alert.alert('Enter Amount', 'Please enter an amount first.');
+        return;
+      }
     }
     setMode('waiting');
   };

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { formatCurrency } from '../lib/helpers';
+import { sanitizeText, validateAmount, getProviderInfo, isValidPhone } from '../lib/validation';
 import Button from '../components/Button';
 import Avatar from '../components/Avatar';
 
@@ -34,16 +35,16 @@ export default function PaymentScreen() {
 
   const method = (params.method as 'qr' | 'nfc' | 'manual') || 'manual';
 
-  const canReview = recipientPhone.trim().length >= 9 && parseFloat(amount) > 0;
+  const recipientProvider = getProviderInfo(recipientPhone);
+  const senderProvider = Providers.find((p) => p.id === user?.provider);
+  const isCrossProvider = recipientProvider && senderProvider && recipientProvider.id !== senderProvider.id;
+  const canReview = isValidPhone(recipientPhone) && parseFloat(amount) > 0;
 
   const handleReview = () => {
     const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
-      return;
-    }
-    if (parsedAmount > (user?.balance || 0)) {
-      Alert.alert('Insufficient Balance', 'You do not have enough funds for this transaction.');
+    const check = validateAmount(parsedAmount, user?.balance || 0);
+    if (!check.valid) {
+      Alert.alert('Invalid Amount', check.error);
       return;
     }
     setStep('confirm');
@@ -51,13 +52,15 @@ export default function PaymentScreen() {
 
   const handleConfirm = async () => {
     const parsedAmount = parseFloat(amount);
+    const safeName = sanitizeText(recipientName) || 'Unknown';
+    const safeNote = note ? sanitizeText(note) : undefined;
     setLoading(true);
     const result = await sendPayment(
-      recipientPhone,
-      recipientName || 'Unknown',
+      recipientPhone.replace(/[^0-9+]/g, ''),
+      safeName,
       parsedAmount,
       method,
-      note || undefined,
+      safeNote,
     );
     setLoading(false);
 
@@ -168,6 +171,18 @@ export default function PaymentScreen() {
                 <Ionicons name={method === 'qr' ? 'qr-code-outline' : method === 'nfc' ? 'wifi-outline' : 'send-outline'} size={16} color={Colors.textSecondary} />
                 <Text style={styles.confirmMetaText}>via {method === 'qr' ? 'QR Code' : method === 'nfc' ? 'Tap to Pay' : 'Manual'}</Text>
               </View>
+              {recipientProvider ? (
+                <View style={styles.confirmMetaItem}>
+                  <View style={[styles.providerDot, { backgroundColor: recipientProvider.color }]} />
+                  <Text style={styles.confirmMetaText}>{recipientProvider.name}</Text>
+                  {isCrossProvider ? (
+                    <View style={styles.crossBadge}>
+                      <Ionicons name="swap-horizontal" size={12} color={Colors.secondary} />
+                      <Text style={styles.crossBadgeText}>Cross-provider</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -296,6 +311,26 @@ const styles = StyleSheet.create({
   confirmMetaText: {
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
+  },
+  providerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  crossBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.secondary + '15',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+    marginLeft: Spacing.xs,
+  },
+  crossBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    color: Colors.secondary,
   },
   confirmActions: {
     gap: Spacing.sm,
