@@ -14,14 +14,20 @@ function useProtectedRoute() {
   const segments = useSegments();
   const router = useRouter();
   const isAuthenticated = useStore((s) => s.isAuthenticated);
-  const { initSession, setAuthenticated, logout: storeLogout } = useStore();
+  const clearSession = useStore((s) => s.clearSession);
+  const initSession = useStore((s) => s.initSession);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Skip INITIAL_SESSION — splash screen handles boot via initSession()
+      if (event === 'INITIAL_SESSION') return;
+
+      // Use clearSession (not logout) to avoid calling signOut() again
+      // which would fire another SIGNED_OUT event and create an infinite loop
       if (event === 'SIGNED_OUT' || !session) {
-        storeLogout();
+        clearSession();
         const inAuth = segments[0] === '(auth)';
         if (!inAuth) {
           router.replace('/(auth)/welcome');

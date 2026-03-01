@@ -23,6 +23,7 @@ type AppState = {
   setError: (error: string | null) => void;
 
   // Supabase-connected actions
+  clearSession: () => void;
   initSession: () => Promise<void>;
   signUp: (phone: string, password: string, fullName: string, provider: string) => Promise<{ success: boolean; error?: string }>;
   signIn: (phone: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -54,6 +55,14 @@ export const useStore = create<AppState>((set, get) => ({
       user: state.user ? { ...state.user, balance: state.user.balance + amount } : null,
     })),
   setError: (error) => set({ error }),
+
+  clearSession: () => set({
+    user: null,
+    isAuthenticated: false,
+    transactions: [],
+    sessionId: null,
+    error: null,
+  }),
 
   initSession: async () => {
     if (!isSupabaseConfigured) return;
