@@ -85,7 +85,7 @@ export default function PaymentScreen() {
     setShowPinConfirm(false);
 
     if (result.success) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace({
         pathname: '/success',
         params: {

@@ -73,7 +73,7 @@ export default function ProfileScreen() {
 
       {/* Profile Card */}
       <View style={styles.profileCard}>
-        <Avatar name={user?.full_name || 'U'} size={64} />
+        <Avatar name={user?.full_name || 'U'} size={64} imageUrl={user?.avatar_url} />
         <View style={styles.profileInfo}>
           <Text style={styles.profileName}>{user?.full_name}</Text>
           <Text style={styles.profilePhone}>{formatPhone(user?.phone || '')}</Text>

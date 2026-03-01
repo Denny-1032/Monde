@@ -47,7 +47,13 @@
           "cameraPermission": "Monde needs camera access to scan QR codes for payments."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Monde needs photo access to set your profile picture."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
