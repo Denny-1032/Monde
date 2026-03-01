@@ -61,12 +61,6 @@ export default function HomeScreen() {
           <Ionicons name={balanceHidden ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.white} style={{ opacity: 0.7 }} />
         </View>
         <Text style={styles.balanceAmount}>{balanceHidden ? 'K ••••••' : formatCurrency(user?.balance || 0)}</Text>
-        <View style={styles.balanceProvider}>
-          <View style={[styles.providerDot, { backgroundColor: Providers.find((p) => p.id === user?.provider)?.color || Colors.white }]} />
-          <Text style={styles.providerText}>
-            {Providers.find((p) => p.id === user?.provider)?.name || 'Airtel Money'}
-          </Text>
-        </View>
       </TouchableOpacity>
 
       {/* Quick Actions - THE 2 KEY FEATURES */}
@@ -213,28 +207,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.white,
     marginTop: Spacing.xs,
-  },
-  balanceProvider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: Spacing.xs + 2,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.full,
-    alignSelf: 'flex-start',
-  },
-  providerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.white,
-  },
-  providerText: {
-    fontSize: FontSize.xs,
-    color: Colors.white,
-    fontWeight: '600',
   },
   actionsContainer: {
     paddingHorizontal: Spacing.lg,

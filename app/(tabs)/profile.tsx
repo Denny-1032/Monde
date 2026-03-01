@@ -91,7 +91,6 @@ export default function ProfileScreen() {
           <MenuItem icon="person-outline" label="Edit Profile" onPress={() => router.push('/edit-profile')} />
           <MenuItem icon="wallet-outline" label="Linked Accounts" subtitle="Manage your payment accounts" onPress={() => router.push('/linked-accounts')} />
           <MenuItem icon="swap-horizontal-outline" label="Change Provider" subtitle={provider?.name} onPress={() => setShowProviderPicker(true)} />
-          <MenuItem icon="key-outline" label="Change PIN" onPress={() => router.push('/change-pin')} />
         </View>
       </View>
 
@@ -99,7 +98,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Preferences</Text>
         <View style={styles.menuGroup}>
           <MenuItem icon="notifications-outline" label="Notifications" onPress={() => Alert.alert('Notifications', 'Push notifications coming in a future update.')} />
-          <MenuItem icon="shield-checkmark-outline" label="Security" onPress={() => router.push('/change-pin')} />
+          <MenuItem icon="shield-checkmark-outline" label="Security" subtitle="PIN & biometrics" onPress={() => router.push('/security')} />
           <MenuItem icon="language-outline" label="Language" subtitle="English" onPress={() => Alert.alert('Language', 'Additional languages coming soon.')} />
         </View>
       </View>

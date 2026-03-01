@@ -96,9 +96,11 @@ export default function ChangePinScreen() {
       } else {
         setLoading(false);
       }
-      Alert.alert('PIN Changed', 'Your PIN has been updated successfully.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      // Navigate back immediately, then show confirmation
+      router.back();
+      setTimeout(() => {
+        Alert.alert('PIN Changed', 'Your PIN has been updated successfully.');
+      }, 300);
     }
   };
 

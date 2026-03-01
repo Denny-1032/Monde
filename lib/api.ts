@@ -43,6 +43,19 @@ export async function signInWithPhone(phone: string, pin: string) {
   return { data, error: error?.message };
 }
 
+export async function verifyPin(phone: string, pin: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+
+  const email = phoneToEmail(phone);
+  const securePassword = pinToPassword(pin);
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password: securePassword,
+  });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 export async function signOut() {
   if (!isSupabaseConfigured) return;
   await supabase.auth.signOut();

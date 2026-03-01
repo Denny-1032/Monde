@@ -125,12 +125,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
     marginBottom: Spacing.md,
+    alignItems: 'center',
   },
   filterChip: {
-    paddingVertical: Spacing.sm,
+    paddingVertical: 6,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.surfaceAlt,
+    height: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterActive: {
     backgroundColor: Colors.primary,
@@ -139,6 +143,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: '600',
     color: Colors.textSecondary,
+    lineHeight: 18,
   },
   filterTextActive: {
     color: Colors.white,

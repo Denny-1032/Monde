@@ -9,6 +9,7 @@ import { formatCurrency, formatPhone } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import PinConfirm from '../components/PinConfirm';
+import { verifyPin } from '../lib/api';
 
 const QUICK_AMOUNTS = [50, 100, 200, 500, 1000, 5000];
 
@@ -65,10 +66,8 @@ export default function WithdrawScreen() {
   };
 
   const handlePinConfirm = async (pin: string) => {
-    // Verify PIN by re-authenticating
     const phone = user?.phone || '';
-    const signIn = useStore.getState().signIn;
-    const { success: pinOk } = await signIn(phone, pin);
+    const { success: pinOk } = await verifyPin(phone, pin);
     if (!pinOk) {
       setPinError('Incorrect PIN');
       return;
