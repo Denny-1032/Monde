@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { Colors, BorderRadius, FontSize, Spacing } from '../constants/theme';
 
 type ButtonProps = {
@@ -25,13 +25,7 @@ export default function Button({
   style,
   textStyle,
 }: ButtonProps) {
-  const buttonStyles = [
-    styles.base,
-    styles[variant],
-    styles[`size_${size}`],
-    disabled && styles.disabled,
-    style,
-  ];
+  const isDisabled = disabled || loading;
 
   const labelStyles = [
     styles.label,
@@ -42,11 +36,17 @@ export default function Button({
   ];
 
   return (
-    <TouchableOpacity
-      style={buttonStyles}
+    <Pressable
+      style={({ pressed }) => [
+        styles.base,
+        styles[variant],
+        styles[`size_${size}`],
+        isDisabled && styles.disabled,
+        pressed && !isDisabled && styles.pressed,
+        style,
+      ]}
       onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.7}
+      disabled={isDisabled}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'outline' || variant === 'ghost' ? Colors.primary : Colors.white} />
@@ -56,7 +56,7 @@ export default function Button({
           <Text style={labelStyles}>{title}</Text>
         </>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -66,6 +66,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   primary: {
     backgroundColor: Colors.primary,
