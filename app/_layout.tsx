@@ -1,9 +1,38 @@
-import React from 'react';
-import { Stack } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Colors } from '../constants/theme';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useStore } from '../store/useStore';
+
+function useProtectedRoute() {
+  const segments = useSegments();
+  const router = useRouter();
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
+  const { initSession, setAuthenticated, logout: storeLogout } = useStore();
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        storeLogout();
+        const inAuth = segments[0] === '(auth)';
+        if (!inAuth) {
+          router.replace('/(auth)/welcome');
+        }
+      } else if (event === 'SIGNED_IN' && session) {
+        await initSession();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+}
 
 export default function RootLayout() {
+  useProtectedRoute();
+
   return (
     <>
       <StatusBar style="dark" />

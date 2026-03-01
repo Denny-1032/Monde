@@ -1,23 +1,37 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, FontSize, Spacing } from '../constants/theme';
 import { useStore } from '../store/useStore';
 
 export default function SplashScreen() {
   const router = useRouter();
-  const isAuthenticated = useStore((s) => s.isAuthenticated);
+  const { isAuthenticated, initSession } = useStore();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        await initSession();
+      } catch (e) {
+        console.error('Session init failed:', e);
+      }
+      setReady(true);
+    };
+    bootstrap();
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
     const timer = setTimeout(() => {
       if (isAuthenticated) {
         router.replace('/(tabs)');
       } else {
         router.replace('/(auth)/welcome');
       }
-    }, 1500);
+    }, 800);
     return () => clearTimeout(timer);
-  }, [isAuthenticated]);
+  }, [ready, isAuthenticated]);
 
   return (
     <View style={styles.container}>

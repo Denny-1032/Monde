@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
 import { useStore } from '../store/useStore';
-import { formatCurrency, generateTransactionId } from '../lib/helpers';
+import { formatCurrency } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import Avatar from '../components/Avatar';
@@ -22,8 +22,7 @@ export default function PaymentScreen() {
   }>();
 
   const user = useStore((s) => s.user);
-  const addTransaction = useStore((s) => s.addTransaction);
-  const updateBalance = useStore((s) => s.updateBalance);
+  const sendPayment = useStore((s) => s.sendPayment);
 
   const [step, setStep] = useState<'details' | 'amount' | 'confirm'>(params.recipientName ? (params.amount ? 'confirm' : 'amount') : 'details');
   const [recipientName, setRecipientName] = useState(params.recipientName || '');
@@ -32,7 +31,7 @@ export default function PaymentScreen() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const method = (params.method as 'qr' | 'nfc') || 'qr';
+  const method = (params.method as 'qr' | 'nfc' | 'manual') || 'manual';
 
   const handleKeyPress = (key: string) => {
     if (key === '.' && amount.includes('.')) return;
@@ -43,7 +42,7 @@ export default function PaymentScreen() {
 
   const handleDelete = () => setAmount((prev) => prev.slice(0, -1));
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid amount.');
@@ -55,22 +54,16 @@ export default function PaymentScreen() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      addTransaction({
-        id: generateTransactionId(),
-        type: 'send',
-        amount: parsedAmount,
-        currency: 'ZMW',
-        recipient_name: recipientName || 'Unknown',
-        recipient_phone: recipientPhone,
-        provider: params.provider || user?.provider || 'airtel',
-        status: 'completed',
-        method,
-        note: note || undefined,
-        created_at: new Date().toISOString(),
-      });
-      updateBalance(-parsedAmount);
-      setLoading(false);
+    const result = await sendPayment(
+      recipientPhone,
+      recipientName || 'Unknown',
+      parsedAmount,
+      method,
+      note || undefined,
+    );
+    setLoading(false);
+
+    if (result.success) {
       router.push({
         pathname: '/success',
         params: {
@@ -80,7 +73,9 @@ export default function PaymentScreen() {
           method,
         },
       });
-    }, 1500);
+    } else {
+      Alert.alert('Payment Failed', result.error || 'Something went wrong.');
+    }
   };
 
   return (

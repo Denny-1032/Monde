@@ -2,9 +2,17 @@
 -- 002: Transactions Table
 -- ============================================
 
-CREATE TYPE public.transaction_type AS ENUM ('send', 'receive', 'payment');
-CREATE TYPE public.transaction_status AS ENUM ('pending', 'completed', 'failed');
-CREATE TYPE public.payment_method AS ENUM ('qr', 'nfc', 'manual');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transaction_type') THEN
+    CREATE TYPE public.transaction_type AS ENUM ('send', 'receive', 'payment');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transaction_status') THEN
+    CREATE TYPE public.transaction_status AS ENUM ('pending', 'completed', 'failed');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method') THEN
+    CREATE TYPE public.payment_method AS ENUM ('qr', 'nfc', 'manual');
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -41,18 +49,28 @@ CREATE INDEX IF NOT EXISTS idx_transactions_sender_type ON public.transactions(s
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
 -- Users can view transactions where they are sender or recipient
-CREATE POLICY "Users can view own transactions"
-  ON public.transactions FOR SELECT
-  USING (
-    auth.uid() = sender_id OR auth.uid() = recipient_id
-  );
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can view own transactions' AND tablename = 'transactions') THEN
+    CREATE POLICY "Users can view own transactions"
+      ON public.transactions FOR SELECT
+      USING (auth.uid() = sender_id OR auth.uid() = recipient_id);
+  END IF;
+END $$;
 
 -- Users can create transactions where they are the sender
-CREATE POLICY "Users can create transactions as sender"
-  ON public.transactions FOR INSERT
-  WITH CHECK (auth.uid() = sender_id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can create transactions as sender' AND tablename = 'transactions') THEN
+    CREATE POLICY "Users can create transactions as sender"
+      ON public.transactions FOR INSERT
+      WITH CHECK (auth.uid() = sender_id);
+  END IF;
+END $$;
 
 -- Only system (via functions) can update transaction status
-CREATE POLICY "Users can update own pending transactions"
-  ON public.transactions FOR UPDATE
-  USING (auth.uid() = sender_id AND status = 'pending');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update own pending transactions' AND tablename = 'transactions') THEN
+    CREATE POLICY "Users can update own pending transactions"
+      ON public.transactions FOR UPDATE
+      USING (auth.uid() = sender_id AND status = 'pending');
+  END IF;
+END $$;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
@@ -7,21 +7,32 @@ import { useStore } from '../../store/useStore';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const setAuthenticated = useStore((s) => s.setAuthenticated);
+  const { signIn, isLoading } = useStore();
+  const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [showPhoneInput, setShowPhoneInput] = useState(true);
 
   const handleKey = (key: string) => {
+    if (isLoading) return;
     if (pin.length < 4) {
       const newPin = pin + key;
       setPin(newPin);
       setError('');
       if (newPin.length === 4) {
-        setTimeout(() => {
-          setAuthenticated(true);
-          router.replace('/(tabs)');
-        }, 300);
+        handleLogin(newPin);
       }
+    }
+  };
+
+  const handleLogin = async (enteredPin: string) => {
+    const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+    const result = await signIn(formattedPhone, enteredPin);
+    if (result.success) {
+      router.replace('/(tabs)');
+    } else {
+      setError(result.error || 'Invalid credentials. Please try again.');
+      setPin('');
     }
   };
 
@@ -29,6 +40,8 @@ export default function LoginScreen() {
     setPin((prev) => prev.slice(0, -1));
     setError('');
   };
+
+  const canProceedToPin = phone.length >= 9;
 
   const dots = Array.from({ length: 4 }, (_, i) => i < pin.length);
 
@@ -45,40 +58,76 @@ export default function LoginScreen() {
           <Text style={styles.logoText}>M</Text>
         </View>
         <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Enter your 4-digit PIN</Text>
+        <Text style={styles.subtitle}>
+          {showPhoneInput ? 'Enter your phone number' : 'Enter your 4-digit PIN'}
+        </Text>
       </View>
 
-      <View style={styles.dots}>
-        {dots.map((filled, i) => (
-          <View key={i} style={[styles.dot, filled && styles.dotFilled]} />
-        ))}
-      </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.pad}>
-        {KEYS.map((row, i) => (
-          <View key={i} style={styles.row}>
-            {row.map((key, j) => (
-              <TouchableOpacity
-                key={j}
-                style={styles.key}
-                onPress={() => {
-                  if (key === 'del') handleDelete();
-                  else if (key) handleKey(key);
-                }}
-                activeOpacity={key ? 0.6 : 1}
-              >
-                {key === 'del' ? (
-                  <Ionicons name="backspace-outline" size={26} color={Colors.text} />
-                ) : (
-                  <Text style={styles.keyText}>{key}</Text>
-                )}
-              </TouchableOpacity>
+      {showPhoneInput ? (
+        <View style={styles.phoneSection}>
+          <View style={styles.phoneRow}>
+            <View style={styles.prefix}>
+              <Text style={styles.prefixText}>+260</Text>
+            </View>
+            <TextInput
+              style={styles.phoneInput}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="97 123 4567"
+              placeholderTextColor={Colors.textLight}
+              keyboardType="phone-pad"
+              maxLength={10}
+              autoFocus
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.continueBtn, !canProceedToPin && styles.continueBtnDisabled]}
+            onPress={() => setShowPhoneInput(false)}
+            disabled={!canProceedToPin}
+          >
+            <Text style={[styles.continueBtnText, !canProceedToPin && { opacity: 0.5 }]}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <View style={styles.dots}>
+            {dots.map((filled, i) => (
+              <View key={i} style={[styles.dot, filled && styles.dotFilled]} />
             ))}
           </View>
-        ))}
-      </View>
+
+          {isLoading ? (
+            <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: Spacing.md }} />
+          ) : null}
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <View style={styles.pad}>
+            {KEYS.map((row, i) => (
+              <View key={i} style={styles.row}>
+                {row.map((key, j) => (
+                  <TouchableOpacity
+                    key={j}
+                    style={styles.key}
+                    onPress={() => {
+                      if (key === 'del') handleDelete();
+                      else if (key) handleKey(key);
+                    }}
+                    activeOpacity={key ? 0.6 : 1}
+                  >
+                    {key === 'del' ? (
+                      <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                    ) : (
+                      <Text style={styles.keyText}>{key}</Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -170,5 +219,55 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xl + 4,
     fontWeight: '500',
     color: Colors.text,
+  },
+  phoneSection: {
+    paddingHorizontal: Spacing.xl,
+    marginTop: Spacing.xl,
+    gap: Spacing.lg,
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  prefix: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    justifyContent: 'center',
+  },
+  prefixText: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md - 2,
+    fontSize: FontSize.md,
+    color: Colors.text,
+  },
+  continueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+  },
+  continueBtnDisabled: {
+    opacity: 0.5,
+  },
+  continueBtnText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: FontSize.md,
   },
 });

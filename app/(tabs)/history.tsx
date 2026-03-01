@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SectionList } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SectionList, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,7 +32,15 @@ export default function HistoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const transactions = useStore((s) => s.transactions);
+  const fetchTransactions = useStore((s) => s.fetchTransactions);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchTransactions();
+    setRefreshing(false);
+  }, []);
 
   const filtered = transactions.filter((txn) => {
     if (filter === 'sent') return txn.type === 'send';
@@ -83,6 +91,9 @@ export default function HistoryScreen() {
         )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="receipt-outline" size={48} color={Colors.textLight} />

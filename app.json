@@ -29,7 +29,10 @@
         "CAMERA",
         "NFC",
         "VIBRATE"
-      ]
+      ],
+      "softwareKeyboardLayoutMode": "pan",
+      "allowBackup": true,
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png",

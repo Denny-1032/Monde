@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,13 +13,25 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
   const transactions = useStore((s) => s.transactions);
+  const fetchProfile = useStore((s) => s.fetchProfile);
+  const fetchTransactions = useStore((s) => s.fetchTransactions);
   const recentTransactions = transactions.slice(0, 5);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchProfile(), fetchTransactions()]);
+    setRefreshing(false);
+  }, []);
 
   return (
     <ScrollView
       style={[styles.container, { paddingTop: insets.top + 10 }]}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />
+      }
     >
       {/* Header */}
       <View style={styles.header}>

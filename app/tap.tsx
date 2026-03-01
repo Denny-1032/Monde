@@ -14,6 +14,7 @@ export default function TapScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
+  const sendPayment = useStore((s) => s.sendPayment);
   const addTransaction = useStore((s) => s.addTransaction);
   const updateBalance = useStore((s) => s.updateBalance);
   const [mode, setMode] = useState<TapMode>('setup');
@@ -52,21 +53,33 @@ export default function TapScreen() {
     }
   }, [mode]);
 
-  const simulatePayment = () => {
+  const simulatePayment = async () => {
     const parsedAmount = parseFloat(amount) || 100;
-    addTransaction({
-      id: Date.now().toString(),
-      type: isSending ? 'send' : 'receive',
-      amount: parsedAmount,
-      currency: 'ZMW',
-      recipient_name: 'Nearby Device',
-      recipient_phone: '',
-      provider: user?.provider || 'airtel',
-      status: 'completed',
-      method: 'nfc',
-      created_at: new Date().toISOString(),
-    });
-    updateBalance(isSending ? -parsedAmount : parsedAmount);
+
+    if (isSending) {
+      const result = await sendPayment('', 'Nearby Device', parsedAmount, 'nfc');
+      if (!result.success) {
+        Alert.alert('Payment Failed', result.error || 'Transfer failed.');
+        setMode('setup');
+        return;
+      }
+    } else {
+      // Receive mode — local only (simulated incoming)
+      addTransaction({
+        id: Date.now().toString(),
+        type: 'receive',
+        amount: parsedAmount,
+        currency: 'ZMW',
+        recipient_name: 'Nearby Device',
+        recipient_phone: '',
+        provider: user?.provider || 'airtel',
+        status: 'completed',
+        method: 'nfc',
+        created_at: new Date().toISOString(),
+      });
+      updateBalance(parsedAmount);
+    }
+
     setMode('success');
     router.push({
       pathname: '/success',

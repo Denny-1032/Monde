@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { Transaction, UserProfile, Provider } from '../constants/types';
 import { Providers } from '../constants/theme';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import * as api from '../lib/api';
 
 type AppState = {
   user: UserProfile | null;
@@ -8,6 +10,8 @@ type AppState = {
   isAuthenticated: boolean;
   isLoading: boolean;
   selectedProvider: Provider | null;
+  sessionId: string | null;
+  error: string | null;
 
   setUser: (user: UserProfile | null) => void;
   setTransactions: (transactions: Transaction[]) => void;
@@ -16,91 +20,26 @@ type AppState = {
   setLoading: (value: boolean) => void;
   setSelectedProvider: (provider: Provider | null) => void;
   updateBalance: (amount: number) => void;
-  logout: () => void;
+  setError: (error: string | null) => void;
+
+  // Supabase-connected actions
+  initSession: () => Promise<void>;
+  signUp: (phone: string, password: string, fullName: string, provider: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (phone: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  fetchProfile: () => Promise<void>;
+  fetchTransactions: () => Promise<void>;
+  sendPayment: (recipientPhone: string, recipientName: string, amount: number, method: 'qr' | 'nfc' | 'manual', note?: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
 };
 
-const MOCK_USER: UserProfile = {
-  id: '1',
-  phone: '+260971234567',
-  full_name: 'Monde User',
-  provider: 'airtel',
-  balance: 2450.0,
-  currency: 'ZMW',
-  created_at: new Date().toISOString(),
-};
-
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: '1',
-    type: 'send',
-    amount: 150.0,
-    currency: 'ZMW',
-    recipient_name: 'Chanda Mwila',
-    recipient_phone: '+260976543210',
-    provider: 'airtel',
-    status: 'completed',
-    method: 'qr',
-    note: 'Lunch',
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: '2',
-    type: 'receive',
-    amount: 500.0,
-    currency: 'ZMW',
-    recipient_name: 'Bwalya Mutale',
-    recipient_phone: '+260965432109',
-    provider: 'mtn',
-    status: 'completed',
-    method: 'nfc',
-    created_at: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: '3',
-    type: 'payment',
-    amount: 85.0,
-    currency: 'ZMW',
-    recipient_name: 'Shoprite Levy',
-    recipient_phone: '',
-    provider: 'airtel',
-    status: 'completed',
-    method: 'qr',
-    note: 'Groceries',
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: '4',
-    type: 'receive',
-    amount: 1200.0,
-    currency: 'ZMW',
-    recipient_name: 'Mulenga Kapwepwe',
-    recipient_phone: '+260951234567',
-    provider: 'zamtel',
-    status: 'completed',
-    method: 'qr',
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: '5',
-    type: 'send',
-    amount: 300.0,
-    currency: 'ZMW',
-    recipient_name: 'Temwani Phiri',
-    recipient_phone: '+260977654321',
-    provider: 'airtel',
-    status: 'completed',
-    method: 'nfc',
-    note: 'Rent share',
-    created_at: new Date(Date.now() - 259200000).toISOString(),
-  },
-];
-
-export const useStore = create<AppState>((set) => ({
-  user: MOCK_USER,
-  transactions: MOCK_TRANSACTIONS,
+export const useStore = create<AppState>((set, get) => ({
+  user: null,
+  transactions: [],
   isAuthenticated: false,
   isLoading: false,
   selectedProvider: Providers[0] as Provider,
+  sessionId: null,
+  error: null,
 
   setUser: (user) => set({ user }),
   setTransactions: (transactions) => set({ transactions }),
@@ -113,5 +52,201 @@ export const useStore = create<AppState>((set) => ({
     set((state) => ({
       user: state.user ? { ...state.user, balance: state.user.balance + amount } : null,
     })),
-  logout: () => set({ user: null, isAuthenticated: false, transactions: [] }),
+  setError: (error) => set({ error }),
+
+  initSession: async () => {
+    if (!isSupabaseConfigured) return;
+    set({ isLoading: true });
+    try {
+      const { session } = await api.getSession();
+      if (session?.user) {
+        set({ sessionId: session.user.id, isAuthenticated: true });
+        const { data: profile } = await api.getProfile(session.user.id);
+        if (profile) {
+          set({ user: profile });
+          const provider = Providers.find((p) => p.id === profile.provider);
+          if (provider) set({ selectedProvider: provider as Provider });
+        }
+        const { data: txns } = await api.getTransactions(session.user.id);
+        if (txns.length > 0) set({ transactions: txns });
+      }
+    } catch (e: any) {
+      console.error('Session init error:', e);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  signUp: async (phone, password, fullName, provider) => {
+    if (!isSupabaseConfigured) {
+      // Offline mock registration
+      const mockUser: UserProfile = {
+        id: Date.now().toString(),
+        phone: phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`,
+        full_name: fullName,
+        provider,
+        balance: 0.00,
+        currency: 'ZMW',
+        created_at: new Date().toISOString(),
+      };
+      set({ user: mockUser, isAuthenticated: true, sessionId: mockUser.id });
+      return { success: true };
+    }
+
+    set({ isLoading: true, error: null });
+    try {
+      const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+      const { data, error } = await api.signUpWithPhone(formattedPhone, password, {
+        full_name: fullName,
+        provider,
+      });
+      if (error) {
+        set({ error: error as string });
+        return { success: false, error: error as string };
+      }
+      if (data?.user) {
+        set({ sessionId: data.user.id, isAuthenticated: true });
+        // Profile is auto-created by the database trigger
+        await get().fetchProfile();
+      }
+      return { success: true };
+    } catch (e: any) {
+      const msg = e?.message || 'Registration failed';
+      set({ error: msg });
+      return { success: false, error: msg };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  signIn: async (phone, password) => {
+    if (!isSupabaseConfigured) {
+      // Offline mock login
+      const mockUser: UserProfile = {
+        id: '1',
+        phone: phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`,
+        full_name: 'Monde User',
+        provider: 'airtel',
+        balance: 2450.00,
+        currency: 'ZMW',
+        created_at: new Date().toISOString(),
+      };
+      set({ user: mockUser, isAuthenticated: true, sessionId: '1' });
+      return { success: true };
+    }
+
+    set({ isLoading: true, error: null });
+    try {
+      const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+      const { data, error } = await api.signInWithPhone(formattedPhone, password);
+      if (error) {
+        set({ error: error as string });
+        return { success: false, error: error as string };
+      }
+      if (data?.user) {
+        set({ sessionId: data.user.id, isAuthenticated: true });
+        await get().fetchProfile();
+        await get().fetchTransactions();
+      }
+      return { success: true };
+    } catch (e: any) {
+      const msg = e?.message || 'Login failed';
+      set({ error: msg });
+      return { success: false, error: msg };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchProfile: async () => {
+    const sessionId = get().sessionId;
+    if (!sessionId || !isSupabaseConfigured) return;
+    try {
+      const { data: profile } = await api.getProfile(sessionId);
+      if (profile) {
+        set({ user: profile });
+        const provider = Providers.find((p) => p.id === profile.provider);
+        if (provider) set({ selectedProvider: provider as Provider });
+      }
+    } catch (e) {
+      console.error('Fetch profile error:', e);
+    }
+  },
+
+  fetchTransactions: async () => {
+    const sessionId = get().sessionId;
+    if (!sessionId || !isSupabaseConfigured) return;
+    try {
+      const { data } = await api.getTransactions(sessionId);
+      if (data.length > 0) set({ transactions: data });
+    } catch (e) {
+      console.error('Fetch transactions error:', e);
+    }
+  },
+
+  sendPayment: async (recipientPhone, recipientName, amount, method, note) => {
+    const { user, sessionId } = get();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    if (amount > user.balance) {
+      return { success: false, error: 'Insufficient balance' };
+    }
+
+    if (!isSupabaseConfigured || !sessionId) {
+      // Offline mock payment
+      const txn: Transaction = {
+        id: Date.now().toString(),
+        type: 'send',
+        amount,
+        currency: 'ZMW',
+        recipient_name: recipientName,
+        recipient_phone: recipientPhone,
+        provider: user.provider,
+        status: 'completed',
+        method,
+        note,
+        created_at: new Date().toISOString(),
+      };
+      set((state) => ({
+        transactions: [txn, ...state.transactions],
+        user: state.user ? { ...state.user, balance: state.user.balance - amount } : null,
+      }));
+      return { success: true };
+    }
+
+    set({ isLoading: true });
+    try {
+      const result = await api.processPayment({
+        senderId: sessionId,
+        recipientPhone,
+        amount,
+        method,
+        note,
+      });
+      if (!result.success) {
+        return { success: false, error: result.error || 'Payment failed' };
+      }
+      // Refresh data from server
+      await get().fetchProfile();
+      await get().fetchTransactions();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Payment failed' };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  logout: async () => {
+    if (isSupabaseConfigured) {
+      await api.signOut();
+    }
+    set({
+      user: null,
+      isAuthenticated: false,
+      transactions: [],
+      sessionId: null,
+      error: null,
+    });
+  },
 }));

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../../constants/theme';
@@ -8,29 +8,31 @@ import Button from '../../components/Button';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { setUser, setAuthenticated } = useStore();
+  const { signUp, isLoading } = useStore();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [step, setStep] = useState(0);
+  const [error, setError] = useState('');
 
   const canProceedStep0 = fullName.trim().length > 1 && phone.length >= 10 && selectedProvider;
   const canProceedStep1 = pin.length === 4;
 
-  const handleRegister = () => {
-    const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-    setUser({
-      id: Date.now().toString(),
-      phone: formattedPhone,
-      full_name: fullName.trim(),
-      provider: selectedProvider || 'airtel',
-      balance: 2450.0,
-      currency: 'ZMW',
-      created_at: new Date().toISOString(),
-    });
-    setAuthenticated(true);
-    router.replace('/(tabs)');
+  const handleRegister = async () => {
+    setError('');
+    const result = await signUp(
+      phone,
+      pin,
+      fullName.trim(),
+      selectedProvider || 'airtel'
+    );
+    if (result.success) {
+      router.replace('/(tabs)');
+    } else {
+      setError(result.error || 'Registration failed. Please try again.');
+      Alert.alert('Registration Error', result.error || 'Something went wrong.');
+    }
   };
 
   return (
@@ -129,10 +131,13 @@ export default function RegisterScreen() {
               </View>
             </View>
 
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
             <Button
               title="Create Account"
               onPress={handleRegister}
               disabled={!canProceedStep1}
+              loading={isLoading}
               size="lg"
               style={{ marginTop: Spacing.xl }}
             />
@@ -262,5 +267,11 @@ const styles = StyleSheet.create({
   dotFilled: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+  },
+  errorText: {
+    color: Colors.error,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    marginTop: Spacing.md,
   },
 });

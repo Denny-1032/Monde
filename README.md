@@ -32,6 +32,7 @@ Monde is a mobile payment app focused on two core features: **QR Code payments**
 - Node.js 18+
 - Expo CLI (`npm install -g expo-cli`)
 - Android Studio (for Android emulator) or Expo Go on your phone
+- Supabase project (free tier works)
 
 ### Installation
 
@@ -57,6 +58,31 @@ Create a `.env` file with:
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### Database Setup
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Go to **SQL Editor** in your Supabase dashboard
+3. Run `supabase/migrations/000_repair.sql` (idempotent — safe to run multiple times)
+4. This single script creates all tables, enums, RLS policies, functions, and seed data
+
+Alternatively, run migrations individually in order: `001` → `002` → `003` → `004` → `005`
+
+### Build Android APK
+
+```bash
+# Install EAS CLI
+npm install -g eas-cli
+
+# Login to Expo
+eas login
+
+# Build preview APK
+eas build --platform android --profile preview
+
+# Build production AAB
+eas build --platform android --profile production
 ```
 
 ## Project Structure
@@ -96,6 +122,16 @@ Monde/
 
 ### Receive Money (1 tap)
 1. Tap "Receive" → QR code displayed → Done
+
+## Supabase Integration
+
+The app connects to Supabase for:
+- **Auth** — Phone + password sign-up/sign-in via `supabase.auth`
+- **Database** — Profiles, transactions, providers tables with RLS
+- **Realtime** — Live transaction and balance updates
+- **RPC** — Atomic `process_payment()` function for safe transfers
+
+The app gracefully falls back to offline mock mode if Supabase is not configured.
 
 ## License
 
