@@ -97,18 +97,18 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Preferences</Text>
         <View style={styles.menuGroup}>
-          <MenuItem icon="notifications-outline" label="Notifications" onPress={() => {}} />
-          <MenuItem icon="shield-checkmark-outline" label="Security" onPress={() => {}} />
-          <MenuItem icon="language-outline" label="Language" subtitle="English" onPress={() => {}} />
+          <MenuItem icon="notifications-outline" label="Notifications" onPress={() => Alert.alert('Notifications', 'Push notifications coming in a future update.')} />
+          <MenuItem icon="shield-checkmark-outline" label="Security" onPress={() => router.push('/change-pin')} />
+          <MenuItem icon="language-outline" label="Language" subtitle="English" onPress={() => Alert.alert('Language', 'Additional languages coming soon.')} />
         </View>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Support</Text>
         <View style={styles.menuGroup}>
-          <MenuItem icon="help-circle-outline" label="Help & FAQ" onPress={() => {}} />
-          <MenuItem icon="chatbubble-outline" label="Contact Support" onPress={() => {}} />
-          <MenuItem icon="document-text-outline" label="Terms & Privacy" onPress={() => {}} />
+          <MenuItem icon="help-circle-outline" label="Help & FAQ" onPress={() => Alert.alert('Help', 'For support, email help@monde.app')} />
+          <MenuItem icon="chatbubble-outline" label="Contact Support" onPress={() => Alert.alert('Contact', 'Email: support@monde.app\nPhone: +260 211 000 000')} />
+          <MenuItem icon="document-text-outline" label="Terms & Privacy" onPress={() => Alert.alert('Terms & Privacy', 'By using Monde you agree to our Terms of Service and Privacy Policy. Full documents available at monde.app/legal')} />
         </View>
       </View>
 
