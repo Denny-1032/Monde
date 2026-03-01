@@ -7,6 +7,8 @@ import { useStore } from '../../store/useStore';
 import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
 import Button from '../../components/Button';
 
+const PIN_KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
+
 export default function RegisterScreen() {
   const router = useRouter();
   const { signUp, isLoading } = useStore();
@@ -133,74 +135,95 @@ export default function RegisterScreen() {
           </>
         ) : step === 1 ? (
           <>
-            <View style={styles.pinContainer}>
-              <TextInput
-                style={styles.pinInput}
-                value={pin}
-                onChangeText={(t) => setPin(t.replace(/[^0-9]/g, '').slice(0, 4))}
-                keyboardType="number-pad"
-                maxLength={4}
-                secureTextEntry
-                autoFocus
-                placeholder="----"
-                placeholderTextColor={Colors.textLight}
-              />
-              <View style={styles.dots}>
-                {Array.from({ length: 4 }, (_, i) => (
-                  <View key={i} style={[styles.dot, i < pin.length && styles.dotFilled]} />
-                ))}
-              </View>
+            <View style={styles.dotsRow}>
+              {Array.from({ length: 4 }, (_, i) => (
+                <View key={i} style={[styles.dot, i < pin.length && styles.dotFilled]} />
+              ))}
             </View>
 
-            <Button
-              title="Continue"
-              onPress={() => { setError(''); setStep(2); }}
-              disabled={!canProceedStep1}
-              size="lg"
-              style={{ marginTop: Spacing.xl }}
-            />
+            <View style={styles.pad}>
+              {PIN_KEYS.map((row, i) => (
+                <View key={i} style={styles.padRow}>
+                  {row.map((key, j) => (
+                    <TouchableOpacity
+                      key={j}
+                      style={styles.padKey}
+                      onPress={() => {
+                        if (key === 'del') { setPin((p) => p.slice(0, -1)); }
+                        else if (key && pin.length < 4) { setPin((p) => p + key); }
+                      }}
+                      activeOpacity={key ? 0.6 : 1}
+                    >
+                      {key === 'del' ? (
+                        <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                      ) : (
+                        <Text style={styles.padKeyText}>{key}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
+
+            <View style={{ paddingHorizontal: Spacing.lg }}>
+              <Button
+                title="Continue"
+                onPress={() => { setError(''); setStep(2); }}
+                disabled={!canProceedStep1}
+                size="lg"
+              />
+            </View>
           </>
         ) : (
           <>
-            <View style={styles.pinContainer}>
-              <TextInput
-                style={styles.pinInput}
-                value={confirmPin}
-                onChangeText={(t) => {
-                  setConfirmPin(t.replace(/[^0-9]/g, '').slice(0, 4));
-                  setError('');
-                }}
-                keyboardType="number-pad"
-                maxLength={4}
-                secureTextEntry
-                autoFocus
-                placeholder="----"
-                placeholderTextColor={Colors.textLight}
-              />
-              <View style={styles.dots}>
-                {Array.from({ length: 4 }, (_, i) => (
-                  <View key={i} style={[styles.dot, i < confirmPin.length && styles.dotFilled]} />
-                ))}
-              </View>
+            <View style={styles.dotsRow}>
+              {Array.from({ length: 4 }, (_, i) => (
+                <View key={i} style={[styles.dot, i < confirmPin.length && styles.dotFilled]} />
+              ))}
             </View>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <Button
-              title="Create Account"
-              onPress={() => {
-                if (confirmPin !== pin) {
-                  setError('PINs do not match. Please try again.');
-                  setConfirmPin('');
-                  return;
-                }
-                handleRegister();
-              }}
-              disabled={!canProceedStep2}
-              loading={isLoading}
-              size="lg"
-              style={{ marginTop: Spacing.xl }}
-            />
+            <View style={styles.pad}>
+              {PIN_KEYS.map((row, i) => (
+                <View key={i} style={styles.padRow}>
+                  {row.map((key, j) => (
+                    <TouchableOpacity
+                      key={j}
+                      style={styles.padKey}
+                      onPress={() => {
+                        if (key === 'del') { setConfirmPin((p) => p.slice(0, -1)); setError(''); }
+                        else if (key && confirmPin.length < 4) { setConfirmPin((p) => p + key); setError(''); }
+                      }}
+                      activeOpacity={key ? 0.6 : 1}
+                    >
+                      {key === 'del' ? (
+                        <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                      ) : (
+                        <Text style={styles.padKeyText}>{key}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
+
+            <View style={{ paddingHorizontal: Spacing.lg }}>
+              <Button
+                title="Create Account"
+                onPress={() => {
+                  if (confirmPin !== pin) {
+                    setError('PINs do not match. Please try again.');
+                    setConfirmPin('');
+                    return;
+                  }
+                  handleRegister();
+                }}
+                disabled={!canProceedStep2}
+                loading={isLoading}
+                size="lg"
+              />
+            </View>
           </>
         )}
       </ScrollView>
@@ -303,19 +326,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '500',
   },
-  pinContainer: {
-    alignItems: 'center',
-    marginTop: Spacing.xxl,
-  },
-  pinInput: {
-    position: 'absolute',
-    opacity: 0,
-    width: 200,
-    height: 50,
-  },
-  dots: {
+  dotsRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: Spacing.md,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   dot: {
     width: 20,
@@ -327,6 +343,26 @@ const styles = StyleSheet.create({
   dotFilled: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+  },
+  pad: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  padRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  padKey: {
+    width: 75,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: BorderRadius.full,
+  },
+  padKeyText: {
+    fontSize: FontSize.xl + 4,
+    fontWeight: '500',
+    color: Colors.text,
   },
   errorText: {
     color: Colors.error,
