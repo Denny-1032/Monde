@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { AppState, AppStateStatus, View } from 'react-native';
+import { AppState, AppStateStatus, View, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Colors } from '../constants/theme';
@@ -7,6 +7,14 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useStore } from '../store/useStore';
 import LockScreen from '../components/LockScreen';
 import OfflineBanner from '../components/OfflineBanner';
+
+// Load Ionicons font for web
+if (Platform.OS === 'web') {
+  const link = document.createElement('link');
+  link.href = 'https://unpkg.com/ionicons@7.1.0/dist/css/ionicons.min.css';
+  link.rel = 'stylesheet';
+  document.head.appendChild(link);
+}
 
 const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
