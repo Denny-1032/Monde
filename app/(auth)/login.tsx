@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useStore } from '../../store/useStore';
+
+const LAST_PHONE_KEY = 'monde_last_phone';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -12,6 +15,22 @@ export default function LoginScreen() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [showPhoneInput, setShowPhoneInput] = useState(true);
+  const [loadingPhone, setLoadingPhone] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = Platform.OS === 'web'
+          ? localStorage.getItem(LAST_PHONE_KEY)
+          : await SecureStore.getItemAsync(LAST_PHONE_KEY);
+        if (saved) {
+          setPhone(saved);
+          setShowPhoneInput(false); // Skip straight to PIN
+        }
+      } catch {}
+      setLoadingPhone(false);
+    })();
+  }, []);
 
   const handleKey = (key: string) => {
     if (isLoading) return;
@@ -29,6 +48,11 @@ export default function LoginScreen() {
     const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
     const result = await signIn(formattedPhone, enteredPin);
     if (result.success) {
+      // Save phone for next login
+      try {
+        if (Platform.OS === 'web') localStorage.setItem(LAST_PHONE_KEY, phone);
+        else await SecureStore.setItemAsync(LAST_PHONE_KEY, phone);
+      } catch {}
       router.replace('/(tabs)');
     } else {
       setError(result.error || 'Invalid credentials. Please try again.');
@@ -59,8 +83,14 @@ export default function LoginScreen() {
         </View>
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.subtitle}>
-          {showPhoneInput ? 'Enter your phone number' : 'Enter your 4-digit PIN'}
+          {loadingPhone ? '' : showPhoneInput ? 'Enter your phone number' : 'Enter your 4-digit PIN'}
         </Text>
+        {!showPhoneInput && phone ? (
+          <TouchableOpacity onPress={() => setShowPhoneInput(true)} style={styles.changePhone}>
+            <Text style={styles.changePhoneText}>+260{phone.replace(/^0/, '')}  </Text>
+            <Ionicons name="create-outline" size={14} color={Colors.primary} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {showPhoneInput ? (
@@ -269,5 +299,19 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: '600',
     fontSize: FontSize.md,
+  },
+  changePhone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.primary + '10',
+    borderRadius: BorderRadius.full,
+  },
+  changePhoneText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });

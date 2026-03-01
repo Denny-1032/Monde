@@ -1,7 +1,23 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, FontSize } from '../../constants/theme';
+import { Colors, FontSize, Spacing } from '../../constants/theme';
+
+function PayButton() {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      style={styles.payBtn}
+      onPress={() => router.push('/payment')}
+      activeOpacity={0.8}
+    >
+      <View style={styles.payBtnInner}>
+        <Ionicons name="send" size={24} color={Colors.white} />
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -14,7 +30,7 @@ export default function TabLayout() {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.borderLight,
           borderTopWidth: 1,
-          height: 60,
+          height: 64,
           paddingBottom: 8,
           paddingTop: 4,
         },
@@ -29,6 +45,13 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="pay"
+        options={{
+          title: 'Pay',
+          tabBarButton: () => <PayButton />,
         }}
       />
       <Tabs.Screen
@@ -48,3 +71,25 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  payBtn: {
+    top: -16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
+  },
+  payBtnInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+});

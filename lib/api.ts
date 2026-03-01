@@ -3,7 +3,14 @@ import { Transaction, UserProfile } from '../constants/types';
 
 // ============================================
 // Auth Functions
+// Uses email auth with phone-derived emails
+// (no SMS provider needed — works out of the box)
 // ============================================
+
+function phoneToEmail(phone: string): string {
+  // Convert +260971234567 → 260971234567@monde.app
+  return `${phone.replace(/[^0-9]/g, '')}@monde.app`;
+}
 
 export async function signUpWithPhone(phone: string, password: string, metadata: {
   full_name: string;
@@ -11,11 +18,12 @@ export async function signUpWithPhone(phone: string, password: string, metadata:
 }) {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
+  const email = phoneToEmail(phone);
   const { data, error } = await supabase.auth.signUp({
-    phone,
+    email,
     password,
     options: {
-      data: metadata,
+      data: { ...metadata, phone },
     },
   });
   return { data, error: error?.message };
@@ -24,8 +32,9 @@ export async function signUpWithPhone(phone: string, password: string, metadata:
 export async function signInWithPhone(phone: string, password: string) {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
+  const email = phoneToEmail(phone);
   const { data, error } = await supabase.auth.signInWithPassword({
-    phone,
+    email,
     password,
   });
   return { data, error: error?.message };

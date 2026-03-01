@@ -23,6 +23,12 @@ export default function SuccessScreen() {
       Animated.spring(scaleAnim, { toValue: 1, tension: 50, friction: 6, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
     ]).start();
+
+    // Auto-return to home after 4 seconds
+    const autoReturn = setTimeout(() => {
+      router.replace('/(tabs)');
+    }, 4000);
+    return () => clearTimeout(autoReturn);
   }, []);
 
   const isSend = params.type === 'send';

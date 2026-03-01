@@ -97,13 +97,33 @@ export default function TransactionDetailScreen() {
         {/* Details */}
         <View style={styles.detailsCard}>
           <DetailRow label="Type" value={typeLabel} />
-          <DetailRow label="Method" value={txn.method === 'qr' ? 'QR Code' : txn.method === 'nfc' ? 'Tap to Pay' : 'Manual'} icon={txn.method === 'qr' ? 'qr-code-outline' : 'wifi-outline'} />
+          <DetailRow label="Method" value={txn.method === 'qr' ? 'QR Code' : txn.method === 'nfc' ? 'Tap to Pay' : 'Manual'} icon={txn.method === 'qr' ? 'qr-code-outline' : txn.method === 'nfc' ? 'wifi-outline' : 'send-outline'} />
           <DetailRow label="Provider" value={provider?.name || txn.provider} dotColor={provider?.color} />
           <DetailRow label="Date" value={formattedDate} />
           <DetailRow label="Time" value={formattedTime} />
           <DetailRow label="Transaction ID" value={txn.id} mono />
           {txn.note ? <DetailRow label="Note" value={txn.note} /> : null}
         </View>
+
+        {/* Quick action: Send Again (1-tap resend) */}
+        {txn.type === 'send' && txn.recipient_phone ? (
+          <TouchableOpacity
+            style={styles.sendAgainBtn}
+            onPress={() => router.push({
+              pathname: '/payment',
+              params: {
+                recipientName: txn.recipient_name,
+                recipientPhone: txn.recipient_phone,
+                amount: txn.amount.toString(),
+                method: txn.method,
+              },
+            })}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="repeat-outline" size={20} color={Colors.white} />
+            <Text style={styles.sendAgainText}>Send Again</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -245,5 +265,20 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FontSize.md,
     color: Colors.textLight,
+  },
+  sendAgainBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  sendAgainText: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: Colors.white,
   },
 });
