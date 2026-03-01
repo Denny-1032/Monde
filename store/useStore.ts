@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Transaction, UserProfile, Provider } from '../constants/types';
+import { Transaction, UserProfile, Provider, LinkedAccount } from '../constants/types';
 import { Providers } from '../constants/theme';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as api from '../lib/api';
@@ -7,6 +7,7 @@ import * as api from '../lib/api';
 type AppState = {
   user: UserProfile | null;
   transactions: Transaction[];
+  linkedAccounts: LinkedAccount[];
   isAuthenticated: boolean;
   isLoading: boolean;
   selectedProvider: Provider | null;
@@ -30,13 +31,20 @@ type AppState = {
   fetchProfile: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
   sendPayment: (recipientPhone: string, recipientName: string, amount: number, method: 'qr' | 'nfc' | 'manual', note?: string) => Promise<{ success: boolean; error?: string }>;
+  topUp: (amount: number, provider: string, note?: string) => Promise<{ success: boolean; error?: string }>;
+  withdraw: (amount: number, provider: string, destinationPhone?: string, note?: string) => Promise<{ success: boolean; error?: string }>;
   updateProvider: (providerId: string) => Promise<{ success: boolean; error?: string }>;
+  fetchLinkedAccounts: () => Promise<void>;
+  addLinkedAccount: (provider: string, accountName: string, accountPhone: string, isDefault?: boolean) => Promise<{ success: boolean; error?: string }>;
+  removeLinkedAccount: (accountId: string) => Promise<{ success: boolean; error?: string }>;
+  setDefaultLinkedAccount: (accountId: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 };
 
 export const useStore = create<AppState>((set, get) => ({
   user: null,
   transactions: [],
+  linkedAccounts: [],
   isAuthenticated: false,
   isLoading: false,
   selectedProvider: Providers[0] as Provider,
@@ -60,6 +68,7 @@ export const useStore = create<AppState>((set, get) => ({
     user: null,
     isAuthenticated: false,
     transactions: [],
+    linkedAccounts: [],
     sessionId: null,
     error: null,
   }),
@@ -79,6 +88,9 @@ export const useStore = create<AppState>((set, get) => ({
         }
         const { data: txns } = await api.getTransactions(session.user.id);
         set({ transactions: txns });
+        // Fetch linked accounts
+        const { data: accounts } = await api.getLinkedAccounts(session.user.id);
+        set({ linkedAccounts: accounts });
       }
     } catch (e: any) {
       console.error('Session init error:', e);
@@ -247,6 +259,105 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  topUp: async (amount, provider, note) => {
+    const { user, sessionId } = get();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    if (!isSupabaseConfigured || !sessionId) {
+      // Offline mock top-up
+      const txn: Transaction = {
+        id: Date.now().toString(),
+        type: 'topup',
+        amount,
+        currency: 'ZMW',
+        recipient_name: 'Monde Wallet',
+        recipient_phone: user.phone,
+        provider,
+        status: 'completed',
+        method: 'wallet',
+        note: note || `Top up from ${provider}`,
+        created_at: new Date().toISOString(),
+      };
+      set((state) => ({
+        transactions: [txn, ...state.transactions],
+        user: state.user ? { ...state.user, balance: state.user.balance + amount } : null,
+      }));
+      return { success: true };
+    }
+
+    set({ isLoading: true });
+    try {
+      const result = await api.processTopUp({
+        userId: sessionId,
+        amount,
+        provider,
+        note,
+      });
+      if (!result.success) {
+        return { success: false, error: result.error || 'Top-up failed' };
+      }
+      await get().fetchProfile();
+      await get().fetchTransactions();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Top-up failed' };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  withdraw: async (amount, provider, destinationPhone, note) => {
+    const { user, sessionId } = get();
+    if (!user) return { success: false, error: 'Not authenticated' };
+
+    if (amount > user.balance) {
+      return { success: false, error: 'Insufficient balance' };
+    }
+
+    if (!isSupabaseConfigured || !sessionId) {
+      // Offline mock withdraw
+      const txn: Transaction = {
+        id: Date.now().toString(),
+        type: 'withdraw',
+        amount,
+        currency: 'ZMW',
+        recipient_name: provider,
+        recipient_phone: destinationPhone || user.phone,
+        provider,
+        status: 'completed',
+        method: 'wallet',
+        note: note || `Withdraw to ${provider}`,
+        created_at: new Date().toISOString(),
+      };
+      set((state) => ({
+        transactions: [txn, ...state.transactions],
+        user: state.user ? { ...state.user, balance: state.user.balance - amount } : null,
+      }));
+      return { success: true };
+    }
+
+    set({ isLoading: true });
+    try {
+      const result = await api.processWithdraw({
+        userId: sessionId,
+        amount,
+        provider,
+        destinationPhone,
+        note,
+      });
+      if (!result.success) {
+        return { success: false, error: result.error || 'Withdrawal failed' };
+      }
+      await get().fetchProfile();
+      await get().fetchTransactions();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Withdrawal failed' };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
   updateProvider: async (providerId) => {
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
@@ -267,6 +378,86 @@ export const useStore = create<AppState>((set, get) => ({
     return { success: true };
   },
 
+  fetchLinkedAccounts: async () => {
+    const { sessionId } = get();
+    if (!sessionId || !isSupabaseConfigured) return;
+    try {
+      const { data } = await api.getLinkedAccounts(sessionId);
+      set({ linkedAccounts: data });
+    } catch (e) {
+      // Silently fail — linked accounts are optional
+    }
+  },
+
+  addLinkedAccount: async (provider, accountName, accountPhone, isDefault) => {
+    const { sessionId } = get();
+    if (!sessionId) return { success: false, error: 'Not authenticated' };
+
+    if (!isSupabaseConfigured) {
+      // Offline mock
+      const mock: any = {
+        id: Date.now().toString(),
+        user_id: sessionId,
+        provider,
+        account_name: accountName,
+        account_phone: accountPhone,
+        is_default: isDefault || false,
+        is_verified: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      set((state) => ({ linkedAccounts: [mock, ...state.linkedAccounts] }));
+      return { success: true };
+    }
+
+    try {
+      const result = await api.addLinkedAccount({
+        userId: sessionId,
+        provider,
+        accountName,
+        accountPhone,
+        isDefault,
+      });
+      if (!result.success) return { success: false, error: result.error };
+      await get().fetchLinkedAccounts();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Failed to add account' };
+    }
+  },
+
+  removeLinkedAccount: async (accountId) => {
+    if (!isSupabaseConfigured) {
+      set((state) => ({ linkedAccounts: state.linkedAccounts.filter((a) => a.id !== accountId) }));
+      return { success: true };
+    }
+    try {
+      const result = await api.deleteLinkedAccount(accountId);
+      if (!result.success) return { success: false, error: result.error };
+      set((state) => ({ linkedAccounts: state.linkedAccounts.filter((a) => a.id !== accountId) }));
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Failed to remove account' };
+    }
+  },
+
+  setDefaultLinkedAccount: async (accountId) => {
+    if (!isSupabaseConfigured) {
+      set((state) => ({
+        linkedAccounts: state.linkedAccounts.map((a) => ({ ...a, is_default: a.id === accountId })),
+      }));
+      return { success: true };
+    }
+    try {
+      const result = await api.updateLinkedAccount(accountId, { is_default: true });
+      if (!result.success) return { success: false, error: result.error };
+      await get().fetchLinkedAccounts();
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Failed to set default' };
+    }
+  },
+
   logout: async () => {
     if (isSupabaseConfigured) {
       await api.signOut();
@@ -275,6 +466,7 @@ export const useStore = create<AppState>((set, get) => ({
       user: null,
       isAuthenticated: false,
       transactions: [],
+      linkedAccounts: [],
       sessionId: null,
       error: null,
     });

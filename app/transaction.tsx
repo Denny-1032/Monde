@@ -35,15 +35,17 @@ export default function TransactionDetailScreen() {
 
   const isReceive = txn.type === 'receive';
   const isPayment = txn.type === 'payment';
+  const isTopUp = txn.type === 'topup';
+  const isWithdraw = txn.type === 'withdraw';
   const provider = Providers.find((p) => p.id === txn.provider);
 
   const statusColor =
     txn.status === 'completed' ? Colors.success :
     txn.status === 'failed' ? Colors.error : Colors.warning;
 
-  const typeLabel = isReceive ? 'Received' : isPayment ? 'Payment' : 'Sent';
-  const amountPrefix = isReceive ? '+' : '-';
-  const amountColor = isReceive ? Colors.success : Colors.text;
+  const typeLabel = isTopUp ? 'Top Up' : isWithdraw ? 'Withdrawal' : isReceive ? 'Received' : isPayment ? 'Payment' : 'Sent';
+  const amountPrefix = (isReceive || isTopUp) ? '+' : '-';
+  const amountColor = (isReceive || isTopUp) ? Colors.success : Colors.text;
 
   const date = new Date(txn.created_at);
   const formattedDate = date.toLocaleDateString('en-ZM', {
@@ -79,7 +81,7 @@ export default function TransactionDetailScreen() {
           <Avatar
             name={txn.recipient_name}
             size={64}
-            color={isReceive ? Colors.success : isPayment ? Colors.secondary : Colors.primaryLight}
+            color={isTopUp ? Colors.success : isWithdraw ? Colors.secondary : isReceive ? Colors.success : isPayment ? Colors.secondary : Colors.primaryLight}
           />
           <Text style={styles.recipientName}>{txn.recipient_name}</Text>
           {txn.recipient_phone ? (
@@ -103,7 +105,7 @@ export default function TransactionDetailScreen() {
         {/* Details */}
         <View style={styles.detailsCard}>
           <DetailRow label="Type" value={typeLabel} />
-          <DetailRow label="Method" value={txn.method === 'qr' ? 'QR Code' : txn.method === 'nfc' ? 'Tap to Pay' : 'Manual'} icon={txn.method === 'qr' ? 'qr-code-outline' : txn.method === 'nfc' ? 'wifi-outline' : 'send-outline'} />
+          <DetailRow label="Method" value={txn.method === 'wallet' ? 'Wallet Transfer' : txn.method === 'qr' ? 'QR Code' : txn.method === 'nfc' ? 'Tap to Pay' : 'Manual'} icon={txn.method === 'wallet' ? 'wallet-outline' : txn.method === 'qr' ? 'qr-code-outline' : txn.method === 'nfc' ? 'wifi-outline' : 'send-outline'} />
           <DetailRow label="Provider" value={provider?.name || txn.provider} dotColor={provider?.color} />
           <DetailRow label="Date" value={formattedDate} />
           <DetailRow label="Time" value={formattedTime} />

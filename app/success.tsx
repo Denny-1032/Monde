@@ -32,7 +32,36 @@ export default function SuccessScreen() {
   }, []);
 
   const isSend = params.type === 'send';
+  const isTopUp = params.type === 'topup';
+  const isWithdraw = params.type === 'withdraw';
   const isNfc = params.method === 'nfc';
+  const isWallet = params.method === 'wallet';
+
+  const getTitle = () => {
+    if (isTopUp) return 'Wallet Topped Up!';
+    if (isWithdraw) return 'Withdrawal Complete!';
+    if (isSend) return 'Money Sent!';
+    return 'Money Received!';
+  };
+
+  const getSubtitle = () => {
+    if (isTopUp) return `from ${params.recipientName}`;
+    if (isWithdraw) return `to ${params.recipientName}`;
+    if (isSend) return `to ${params.recipientName}`;
+    return `from ${params.recipientName}`;
+  };
+
+  const getMethodLabel = () => {
+    if (isWallet) return 'Wallet Transfer';
+    if (isNfc) return 'Tap to Pay';
+    return 'QR Code';
+  };
+
+  const getMethodIcon = (): any => {
+    if (isWallet) return 'wallet-outline';
+    if (isNfc) return 'wifi-outline';
+    return 'qr-code-outline';
+  };
 
   return (
     <View style={styles.container}>
@@ -42,24 +71,14 @@ export default function SuccessScreen() {
         </Animated.View>
 
         <Animated.View style={[styles.details, { opacity: fadeAnim }]}>
-          <Text style={styles.title}>
-            {isSend ? 'Money Sent!' : 'Money Received!'}
-          </Text>
+          <Text style={styles.title}>{getTitle()}</Text>
           <Text style={styles.amount}>
             {formatCurrency(parseFloat(params.amount || '0'))}
           </Text>
-          <Text style={styles.recipient}>
-            {isSend ? `to ${params.recipientName}` : `from ${params.recipientName}`}
-          </Text>
+          <Text style={styles.recipient}>{getSubtitle()}</Text>
           <View style={styles.methodBadge}>
-            <Ionicons
-              name={isNfc ? 'wifi-outline' : 'qr-code-outline'}
-              size={14}
-              color={Colors.primary}
-            />
-            <Text style={styles.methodText}>
-              via {isNfc ? 'Tap to Pay' : 'QR Code'}
-            </Text>
+            <Ionicons name={getMethodIcon()} size={14} color={Colors.primary} />
+            <Text style={styles.methodText}>via {getMethodLabel()}</Text>
           </View>
         </Animated.View>
       </View>

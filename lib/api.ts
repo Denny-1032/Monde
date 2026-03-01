@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { Transaction, UserProfile } from '../constants/types';
+import { Transaction, UserProfile, LinkedAccount } from '../constants/types';
 import { pinToPassword, sanitizeText } from './validation';
 
 // ============================================
@@ -154,6 +154,121 @@ export async function processPayment(params: {
 
   if (error) return { success: false, error: error.message };
   return data;
+}
+
+// ============================================
+// Wallet Functions (Top-Up / Withdraw)
+// ============================================
+
+export async function processTopUp(params: {
+  userId: string;
+  amount: number;
+  provider: string;
+  note?: string;
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  const { data, error } = await supabase.rpc('process_topup', {
+    p_user_id: params.userId,
+    p_amount: params.amount,
+    p_provider: params.provider,
+    p_note: params.note || null,
+  });
+
+  if (error) return { success: false, error: error.message };
+  return data;
+}
+
+export async function processWithdraw(params: {
+  userId: string;
+  amount: number;
+  provider: string;
+  destinationPhone?: string;
+  note?: string;
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  const { data, error } = await supabase.rpc('process_withdraw', {
+    p_user_id: params.userId,
+    p_amount: params.amount,
+    p_provider: params.provider,
+    p_destination_phone: params.destinationPhone || null,
+    p_note: params.note || null,
+  });
+
+  if (error) return { success: false, error: error.message };
+  return data;
+}
+
+// ============================================
+// Linked Accounts
+// ============================================
+
+export async function getLinkedAccounts(userId: string): Promise<{ data: LinkedAccount[]; error?: string }> {
+  if (!isSupabaseConfigured) return { data: [] };
+
+  const { data, error } = await supabase
+    .from('linked_accounts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) return { data: [], error: error.message };
+  return { data: (data || []) as LinkedAccount[] };
+}
+
+export async function addLinkedAccount(params: {
+  userId: string;
+  provider: string;
+  accountName: string;
+  accountPhone: string;
+  isDefault?: boolean;
+}): Promise<{ success: boolean; data?: LinkedAccount; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  const { data, error } = await supabase
+    .from('linked_accounts')
+    .insert({
+      user_id: params.userId,
+      provider: params.provider,
+      account_name: params.accountName,
+      account_phone: params.accountPhone,
+      is_default: params.isDefault || false,
+      is_verified: true, // Auto-verify for now (real verification would involve OTP)
+    })
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, data: data as LinkedAccount };
+}
+
+export async function updateLinkedAccount(
+  accountId: string,
+  updates: { account_name?: string; is_default?: boolean }
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  const { error } = await supabase
+    .from('linked_accounts')
+    .update(updates)
+    .eq('id', accountId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function deleteLinkedAccount(accountId: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  const { error } = await supabase
+    .from('linked_accounts')
+    .delete()
+    .eq('id', accountId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }
 
 // ============================================

@@ -7,14 +7,14 @@ export type Provider = {
 
 export type Transaction = {
   id: string;
-  type: 'send' | 'receive' | 'payment';
+  type: 'send' | 'receive' | 'payment' | 'topup' | 'withdraw';
   amount: number;
   currency: string;
   recipient_name: string;
   recipient_phone: string;
   provider: string;
   status: 'pending' | 'completed' | 'failed';
-  method: 'qr' | 'nfc' | 'manual';
+  method: 'qr' | 'nfc' | 'manual' | 'wallet';
   note?: string;
   created_at: string;
 };
@@ -28,6 +28,18 @@ export type UserProfile = {
   currency: string;
   avatar_url?: string;
   created_at: string;
+};
+
+export type LinkedAccount = {
+  id: string;
+  user_id: string;
+  provider: string;
+  account_name: string;
+  account_phone: string;
+  is_default: boolean;
+  is_verified: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type PaymentRequest = {

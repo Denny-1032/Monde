@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SectionList, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SectionList, RefreshControl, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import { useStore } from '../../store/useStore';
 import { Transaction } from '../../constants/types';
 import TransactionItem from '../../components/TransactionItem';
 
-type FilterType = 'all' | 'sent' | 'received' | 'payments';
+type FilterType = 'all' | 'sent' | 'received' | 'topup' | 'withdraw';
 
 function groupByDate(transactions: Transaction[]) {
   const groups: Record<string, Transaction[]> = {};
@@ -45,7 +45,8 @@ export default function HistoryScreen() {
   const filtered = transactions.filter((txn) => {
     if (filter === 'sent') return txn.type === 'send';
     if (filter === 'received') return txn.type === 'receive';
-    if (filter === 'payments') return txn.type === 'payment';
+    if (filter === 'topup') return txn.type === 'topup';
+    if (filter === 'withdraw') return txn.type === 'withdraw';
     return true;
   });
 
@@ -55,7 +56,8 @@ export default function HistoryScreen() {
     { key: 'all', label: 'All' },
     { key: 'sent', label: 'Sent' },
     { key: 'received', label: 'Received' },
-    { key: 'payments', label: 'Payments' },
+    { key: 'topup', label: 'Top Ups' },
+    { key: 'withdraw', label: 'Withdrawals' },
   ];
 
   return (
@@ -63,7 +65,7 @@ export default function HistoryScreen() {
       <Text style={styles.screenTitle}>Activity</Text>
 
       {/* Filter Chips */}
-      <View style={styles.filterRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {filters.map((f) => (
           <TouchableOpacity
             key={f.key}
@@ -73,7 +75,7 @@ export default function HistoryScreen() {
             <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       <SectionList
         sections={sections}

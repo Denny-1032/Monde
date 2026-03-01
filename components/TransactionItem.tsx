@@ -14,17 +14,19 @@ type Props = {
 export default function TransactionItem({ transaction, onPress }: Props) {
   const isReceive = transaction.type === 'receive';
   const isPayment = transaction.type === 'payment';
+  const isTopUp = transaction.type === 'topup';
+  const isWithdraw = transaction.type === 'withdraw';
 
-  const iconName = isReceive ? 'arrow-down-circle' : isPayment ? 'cart' : 'arrow-up-circle';
-  const amountColor = isReceive ? Colors.success : Colors.text;
-  const amountPrefix = isReceive ? '+' : '-';
+  const iconName = isTopUp ? 'wallet' : isWithdraw ? 'arrow-up-circle' : isReceive ? 'arrow-down-circle' : isPayment ? 'cart' : 'arrow-up-circle';
+  const amountColor = (isReceive || isTopUp) ? Colors.success : Colors.text;
+  const amountPrefix = (isReceive || isTopUp) ? '+' : '-';
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.6}>
       <Avatar
         name={transaction.recipient_name}
         size={42}
-        color={isReceive ? Colors.success : isPayment ? Colors.secondary : Colors.primaryLight}
+        color={isTopUp ? Colors.success : isWithdraw ? Colors.secondary : isReceive ? Colors.success : isPayment ? Colors.secondary : Colors.primaryLight}
       />
       <View style={styles.details}>
         <Text style={styles.name} numberOfLines={1}>
@@ -32,7 +34,7 @@ export default function TransactionItem({ transaction, onPress }: Props) {
         </Text>
         <View style={styles.meta}>
           <Ionicons
-            name={transaction.method === 'qr' ? 'qr-code-outline' : transaction.method === 'nfc' ? 'wifi-outline' : 'send-outline'}
+            name={transaction.method === 'wallet' ? 'wallet-outline' : transaction.method === 'qr' ? 'qr-code-outline' : transaction.method === 'nfc' ? 'wifi-outline' : 'send-outline'}
             size={12}
             color={Colors.textLight}
           />

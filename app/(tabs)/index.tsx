@@ -102,11 +102,11 @@ export default function HomeScreen() {
 
         {/* Secondary Actions */}
         <View style={styles.secondaryRow}>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/receive')} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/top-up')} activeOpacity={0.7}>
             <View style={[styles.secondaryIcon, { backgroundColor: Colors.success + '15' }]}>
-              <Ionicons name="arrow-down-circle" size={22} color={Colors.success} />
+              <Ionicons name="wallet" size={20} color={Colors.success} />
             </View>
-            <Text style={styles.secondaryLabel}>Receive</Text>
+            <Text style={styles.secondaryLabel}>Top Up</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/payment')} activeOpacity={0.7}>
             <View style={[styles.secondaryIcon, { backgroundColor: Colors.primary + '15' }]}>
@@ -114,11 +114,17 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.secondaryLabel}>Send</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/(tabs)/history')} activeOpacity={0.7}>
-            <View style={[styles.secondaryIcon, { backgroundColor: Colors.accent + '15' }]}>
-              <Ionicons name="receipt" size={20} color={Colors.accent} />
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/withdraw')} activeOpacity={0.7}>
+            <View style={[styles.secondaryIcon, { backgroundColor: Colors.secondary + '15' }]}>
+              <Ionicons name="arrow-up-circle" size={22} color={Colors.secondary} />
             </View>
-            <Text style={styles.secondaryLabel}>History</Text>
+            <Text style={styles.secondaryLabel}>Withdraw</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/receive')} activeOpacity={0.7}>
+            <View style={[styles.secondaryIcon, { backgroundColor: Colors.accent + '15' }]}>
+              <Ionicons name="arrow-down-circle" size={22} color={Colors.accent} />
+            </View>
+            <Text style={styles.secondaryLabel}>Receive</Text>
           </TouchableOpacity>
         </View>
       </View>
