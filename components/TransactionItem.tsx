@@ -32,7 +32,7 @@ export default function TransactionItem({ transaction, onPress }: Props) {
         </Text>
         <View style={styles.meta}>
           <Ionicons
-            name={transaction.method === 'qr' ? 'qr-code-outline' : 'wifi-outline'}
+            name={transaction.method === 'qr' ? 'qr-code-outline' : transaction.method === 'nfc' ? 'wifi-outline' : 'send-outline'}
             size={12}
             color={Colors.textLight}
           />
