@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Share } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,7 +64,13 @@ export default function TransactionDetailScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Transaction Details</Text>
-        <View style={{ width: 32 }} />
+        <TouchableOpacity onPress={() => {
+          Share.share({
+            message: `Monde Receipt\n${typeLabel} ${formatCurrency(txn.amount)}\nTo: ${txn.recipient_name}${txn.recipient_phone ? '\nPhone: ' + txn.recipient_phone : ''}\nDate: ${formattedDate} ${formattedTime}\nStatus: ${txn.status}\nRef: ${txn.id}`,
+          }).catch(() => {});
+        }}>
+          <Ionicons name="share-outline" size={22} color={Colors.primary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

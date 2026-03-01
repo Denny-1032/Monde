@@ -51,6 +51,8 @@ export default function RootLayout() {
         <Stack.Screen name="receive" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="tap" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="transaction" />
+        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="change-pin" />
         <Stack.Screen name="success" options={{ animation: 'fade', gestureEnabled: false }} />
       </Stack>
     </>

@@ -88,9 +88,9 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.menuGroup}>
-          <MenuItem icon="person-outline" label="Edit Profile" onPress={() => {}} />
+          <MenuItem icon="person-outline" label="Edit Profile" onPress={() => router.push('/edit-profile')} />
           <MenuItem icon="swap-horizontal-outline" label="Change Provider" subtitle={provider?.name} onPress={() => setShowProviderPicker(true)} />
-          <MenuItem icon="key-outline" label="Change PIN" onPress={() => {}} />
+          <MenuItem icon="key-outline" label="Change PIN" onPress={() => router.push('/change-pin')} />
         </View>
       </View>
 

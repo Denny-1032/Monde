@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ export default function HomeScreen() {
   const fetchTransactions = useStore((s) => s.fetchTransactions);
   const recentTransactions = transactions.slice(0, 5);
   const [refreshing, setRefreshing] = useState(false);
+  const [balanceHidden, setBalanceHidden] = useState(true);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -45,16 +46,19 @@ export default function HomeScreen() {
       </View>
 
       {/* Balance Card */}
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Available Balance</Text>
-        <Text style={styles.balanceAmount}>{formatCurrency(user?.balance || 0)}</Text>
+      <TouchableOpacity style={styles.balanceCard} activeOpacity={0.9} onPress={() => setBalanceHidden(!balanceHidden)}>
+        <View style={styles.balanceRow}>
+          <Text style={styles.balanceLabel}>Available Balance</Text>
+          <Ionicons name={balanceHidden ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.white} style={{ opacity: 0.7 }} />
+        </View>
+        <Text style={styles.balanceAmount}>{balanceHidden ? 'K ••••••' : formatCurrency(user?.balance || 0)}</Text>
         <View style={styles.balanceProvider}>
           <View style={[styles.providerDot, { backgroundColor: Providers.find((p) => p.id === user?.provider)?.color || Colors.white }]} />
           <Text style={styles.providerText}>
             {Providers.find((p) => p.id === user?.provider)?.name || 'Airtel Money'}
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Quick Actions - THE 2 KEY FEATURES */}
       <View style={styles.actionsContainer}>
@@ -131,6 +135,10 @@ export default function HomeScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="receipt-outline" size={40} color={Colors.textLight} />
               <Text style={styles.emptyText}>No transactions yet</Text>
+              <TouchableOpacity style={styles.emptyCta} onPress={() => router.push('/payment')} activeOpacity={0.7}>
+                <Ionicons name="send" size={16} color={Colors.primary} />
+                <Text style={styles.emptyCtaText}>Send your first payment</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -174,6 +182,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   balanceLabel: {
     fontSize: FontSize.sm,
@@ -297,5 +310,20 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FontSize.sm,
     color: Colors.textLight,
+  },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.primary + '10',
+    borderRadius: BorderRadius.full,
+  },
+  emptyCtaText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });

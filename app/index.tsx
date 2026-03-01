@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, FontSize, Spacing } from '../constants/theme';
 import { useStore } from '../store/useStore';
@@ -8,8 +8,20 @@ export default function SplashScreen() {
   const router = useRouter();
   const { isAuthenticated, initSession } = useStore();
   const [ready, setReady] = useState(false);
+  const logoScale = useRef(new Animated.Value(0.3)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Animate splash
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(logoScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
+        Animated.timing(logoOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.timing(textOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
+
     const bootstrap = async () => {
       try {
         await initSession();
@@ -35,13 +47,15 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.logoContainer}>
+      <Animated.View style={[styles.logoContainer, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
         <View style={styles.logoCircle}>
           <Text style={styles.logoText}>M</Text>
         </View>
+      </Animated.View>
+      <Animated.View style={{ opacity: textOpacity, alignItems: 'center' }}>
         <Text style={styles.appName}>Monde</Text>
         <Text style={styles.tagline}>Pay. Tap. Done.</Text>
-      </View>
+      </Animated.View>
     </View>
   );
 }
