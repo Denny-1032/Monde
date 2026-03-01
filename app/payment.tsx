@@ -296,7 +296,10 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     marginTop: Spacing.lg,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
     elevation: 3,
   },
   confirmName: {

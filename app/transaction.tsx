@@ -182,7 +182,10 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     marginBottom: Spacing.md,
-    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
   recipientName: {
