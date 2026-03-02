@@ -3,48 +3,50 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useColors } from '../../constants/useColors';
 import Button from '../../components/Button';
 
 export default function WelcomeScreen() {
+  const colors = useColors();
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.hero}>
         <View style={styles.logoCircle}>
-          <Text style={styles.logoText}>M</Text>
+          <Text style={[styles.logoText, { color: colors.white }]}>M</Text>
         </View>
-        <Text style={styles.title}>Monde</Text>
-        <Text style={styles.subtitle}>The simplest way to send & receive money in Zambia</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Monde</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>The simplest way to send & receive money in Zambia</Text>
 
         <View style={styles.features}>
           <View style={styles.featureRow}>
-            <View style={styles.featureIcon}>
-              <Ionicons name="qr-code" size={22} color={Colors.primary} />
+            <View style={[styles.featureIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="qr-code" size={22} color={colors.primary} />
             </View>
             <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>Scan QR Code</Text>
-              <Text style={styles.featureDesc}>Point, scan, pay — in seconds</Text>
+              <Text style={[styles.featureTitle, { color: colors.text }]}>Scan QR Code</Text>
+              <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>Point, scan, pay — in seconds</Text>
             </View>
           </View>
 
           <View style={styles.featureRow}>
-            <View style={styles.featureIcon}>
-              <Ionicons name="wifi" size={22} color={Colors.primary} />
+            <View style={[styles.featureIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="wifi" size={22} color={colors.primary} />
             </View>
             <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>Tap to Pay</Text>
-              <Text style={styles.featureDesc}>Hold phones together to pay instantly</Text>
+              <Text style={[styles.featureTitle, { color: colors.text }]}>Tap to Pay</Text>
+              <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>Hold phones together to pay instantly</Text>
             </View>
           </View>
 
           <View style={styles.featureRow}>
-            <View style={styles.featureIcon}>
-              <Ionicons name="globe-outline" size={22} color={Colors.primary} />
+            <View style={[styles.featureIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="globe-outline" size={22} color={colors.primary} />
             </View>
             <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>All Providers</Text>
-              <Text style={styles.featureDesc}>Airtel, MTN, Zamtel, FNB & more</Text>
+              <Text style={[styles.featureTitle, { color: colors.text }]}>All Providers</Text>
+              <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>Airtel, MTN, Zamtel, FNB & more</Text>
             </View>
           </View>
         </View>
@@ -66,7 +68,6 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     paddingTop: 80,
     paddingBottom: 40,
     paddingHorizontal: Spacing.lg,
@@ -87,17 +88,14 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 38,
     fontWeight: '800',
-    color: Colors.white,
   },
   title: {
     fontSize: FontSize.hero,
     fontWeight: '800',
-    color: Colors.text,
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: Spacing.sm,
     maxWidth: 260,
@@ -117,7 +115,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primary + '12',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -127,11 +124,9 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.text,
   },
   featureDesc: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   actions: {

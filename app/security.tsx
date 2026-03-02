@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useTheme } from '../constants/ThemeContext';
+import { useColors } from '../constants/useColors';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 
@@ -17,6 +18,7 @@ export default function SecurityScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState<string>('Fingerprint');
   const { mode, setMode, isDark } = useTheme();
+  const colors = useColors();
 
   useEffect(() => {
     checkBiometrics();
@@ -84,13 +86,13 @@ export default function SecurityScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Security</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Security</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -98,32 +100,32 @@ export default function SecurityScreen() {
       <View style={styles.content}>
         {/* PIN Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>PIN</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>PIN</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/change-pin')} activeOpacity={0.6}>
               <View style={styles.menuIcon}>
-                <Ionicons name="key-outline" size={20} color={Colors.primary} />
+                <Ionicons name="key-outline" size={20} color={colors.primary} />
               </View>
               <View style={styles.menuContent}>
-                <Text style={styles.menuLabel}>Change PIN</Text>
-                <Text style={styles.menuSub}>Update your 4-digit security PIN</Text>
+                <Text style={[styles.menuLabel, { color: colors.text }]}>Change PIN</Text>
+                <Text style={[styles.menuSub, { color: colors.textSecondary }]}>Update your 4-digit security PIN</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+              <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Biometric Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Biometric Authentication</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Biometric Authentication</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.menuItem}>
-              <View style={[styles.menuIcon, { backgroundColor: Colors.success + '12' }]}>
-                <Ionicons name="finger-print-outline" size={20} color={Colors.success} />
+              <View style={[styles.menuIcon, { backgroundColor: colors.success + '12' }]}>
+                <Ionicons name="finger-print-outline" size={20} color={colors.success} />
               </View>
               <View style={styles.menuContent}>
-                <Text style={styles.menuLabel}>{biometricType}</Text>
-                <Text style={styles.menuSub}>
+                <Text style={[styles.menuLabel, { color: colors.text }]}>{biometricType}</Text>
+                <Text style={[styles.menuSub, { color: colors.textSecondary }]}>
                   {biometricAvailable
                     ? `Use ${biometricType.toLowerCase()} to authorize transactions`
                     : Platform.OS === 'web'
@@ -135,8 +137,8 @@ export default function SecurityScreen() {
                 value={biometricEnabled}
                 onValueChange={handleBiometricToggle}
                 disabled={!biometricAvailable}
-                trackColor={{ false: Colors.borderLight, true: Colors.success + '60' }}
-                thumbColor={biometricEnabled ? Colors.success : Colors.textLight}
+                trackColor={{ false: colors.borderLight, true: colors.success + '60' }}
+                thumbColor={biometricEnabled ? colors.success : colors.textLight}
               />
             </View>
           </View>
@@ -144,15 +146,15 @@ export default function SecurityScreen() {
 
         {/* Appearance Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.menuItem}>
-              <View style={[styles.menuIcon, { backgroundColor: Colors.secondary + '12' }]}>
-                <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={Colors.secondary} />
+              <View style={[styles.menuIcon, { backgroundColor: colors.secondary + '12' }]}>
+                <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colors.secondary} />
               </View>
               <View style={styles.menuContent}>
-                <Text style={styles.menuLabel}>Dark Mode</Text>
-                <Text style={styles.menuSub}>
+                <Text style={[styles.menuLabel, { color: colors.text }]}>Dark Mode</Text>
+                <Text style={[styles.menuSub, { color: colors.textSecondary }]}>
                   {mode === 'system' ? 'Following system setting' : mode === 'dark' ? 'Always dark' : 'Always light'}
                 </Text>
               </View>
@@ -161,16 +163,16 @@ export default function SecurityScreen() {
               {(['light', 'system', 'dark'] as const).map((opt) => (
                 <TouchableOpacity
                   key={opt}
-                  style={[styles.themeOption, mode === opt && styles.themeOptionActive]}
+                  style={[styles.themeOption, { backgroundColor: mode === opt ? colors.primary : colors.surfaceAlt }]}
                   onPress={() => setMode(opt)}
                   activeOpacity={0.7}
                 >
                   <Ionicons
                     name={opt === 'light' ? 'sunny-outline' : opt === 'dark' ? 'moon-outline' : 'phone-portrait-outline'}
                     size={16}
-                    color={mode === opt ? Colors.white : Colors.textSecondary}
+                    color={mode === opt ? colors.white : colors.textSecondary}
                   />
-                  <Text style={[styles.themeOptionText, mode === opt && styles.themeOptionTextActive]}>
+                  <Text style={[styles.themeOptionText, { color: mode === opt ? colors.white : colors.textSecondary }]}>
                     {opt.charAt(0).toUpperCase() + opt.slice(1)}
                   </Text>
                 </TouchableOpacity>
@@ -181,8 +183,8 @@ export default function SecurityScreen() {
 
         {/* Info */}
         <View style={styles.infoCard}>
-          <Ionicons name="shield-checkmark" size={20} color={Colors.primary} />
-          <Text style={styles.infoText}>
+          <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             Your PIN is securely encrypted and never stored in plain text. Biometric data is processed on-device and never leaves your phone.
           </Text>
         </View>
@@ -194,7 +196,6 @@ export default function SecurityScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -207,7 +208,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   content: {
     paddingHorizontal: Spacing.lg,
@@ -218,13 +218,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FontSize.sm,
     fontWeight: '700',
-    color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.sm,
   },
   card: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
@@ -239,7 +237,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.primary + '12',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -249,18 +246,15 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.text,
   },
   menuSub: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
     marginTop: 1,
   },
   infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.sm,
-    backgroundColor: Colors.primary + '08',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginTop: Spacing.md,
@@ -268,7 +262,6 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     lineHeight: 20,
   },
   themeToggle: {
@@ -285,17 +278,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: Spacing.sm + 2,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.surfaceAlt,
-  },
-  themeOptionActive: {
-    backgroundColor: Colors.primary,
   },
   themeOptionText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  themeOptionTextActive: {
-    color: Colors.white,
   },
 });

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { parseQRData } from '../lib/helpers';
 import Button from '../components/Button';
 
@@ -11,18 +12,19 @@ const { width } = Dimensions.get('window');
 const SCAN_SIZE = width * 0.7;
 
 function WebScanFallback({ onScan, onBack, onMyQR }: { onScan: (e: { data: string }) => void; onBack: () => void; onMyQR: () => void }) {
+  const colors = useColors();
   const [qrText, setQrText] = useState('');
   return (
-    <View style={styles.centerContainer}>
-      <Ionicons name="qr-code-outline" size={64} color={Colors.primary} />
-      <Text style={styles.permTitle}>Scan QR Code</Text>
-      <Text style={styles.permText}>Camera scanning is not available on web. Paste QR code data below or use a mobile device.</Text>
+    <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+      <Ionicons name="qr-code-outline" size={64} color={colors.primary} />
+      <Text style={[styles.permTitle, { color: colors.text }]}>Scan QR Code</Text>
+      <Text style={[styles.permText, { color: colors.textSecondary }]}>Camera scanning is not available on web. Paste QR code data below or use a mobile device.</Text>
       <TextInput
-        style={styles.webInput}
+        style={[styles.webInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
         value={qrText}
         onChangeText={setQrText}
         placeholder='Paste QR code data here'
-        placeholderTextColor={Colors.textLight}
+        placeholderTextColor={colors.textLight}
         multiline
       />
       <Button title="Process QR Data" onPress={() => { if (qrText.trim()) onScan({ data: qrText.trim() }); }} disabled={!qrText.trim()} size="lg" style={{ marginTop: Spacing.sm, width: '100%' }} />
@@ -33,6 +35,7 @@ function WebScanFallback({ onScan, onBack, onMyQR }: { onScan: (e: { data: strin
 }
 
 export default function ScanScreen() {
+  const colors = useColors();
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -63,18 +66,18 @@ export default function ScanScreen() {
 
   if (!permission) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.permText}>Requesting camera permission...</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.permText, { color: colors.textSecondary }]}>Requesting camera permission...</Text>
       </View>
     );
   }
 
   if (!permission.granted) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="camera-outline" size={64} color={Colors.textLight} />
-        <Text style={styles.permTitle}>Camera Access Needed</Text>
-        <Text style={styles.permText}>Monde needs camera access to scan QR codes for payments</Text>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <Ionicons name="camera-outline" size={64} color={colors.textLight} />
+        <Text style={[styles.permTitle, { color: colors.text }]}>Camera Access Needed</Text>
+        <Text style={[styles.permText, { color: colors.textSecondary }]}>Monde needs camera access to scan QR codes for payments</Text>
         <Button title="Allow Camera" onPress={requestPermission} size="lg" style={{ marginTop: Spacing.lg }} />
         <Button title="Go Back" onPress={() => router.back()} variant="ghost" style={{ marginTop: Spacing.sm }} />
       </View>
@@ -145,7 +148,6 @@ const styles = StyleSheet.create({
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
@@ -154,25 +156,20 @@ const styles = StyleSheet.create({
   permTitle: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
     textAlign: 'center',
   },
   permText: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
   },
   webInput: {
     width: '100%',
     minHeight: 80,
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: FontSize.sm,
-    color: Colors.text,
     textAlignVertical: 'top',
     marginTop: Spacing.md,
   },

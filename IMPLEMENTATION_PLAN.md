@@ -17,6 +17,7 @@
 | 9 | Clean dead code: `updateProvider`, `selectedProvider`, `ProviderPicker` | ✅ DONE | Removed from store; ProviderPicker unused |
 | 10 | Fix `searchProfilesByPhone` double-call in payment screen | ✅ DONE | Single call, reuse results |
 | 11 | Add send-to-self prevention | ✅ DONE | Client-side + server-side (migration 010) |
+| 11b | Fix Security Advisor issues (search_path, view security, amount constraint) | ✅ DONE | Migration `011_security_advisor_fixes.sql` |
 
 ## Phase 2: Core Feature Completion
 

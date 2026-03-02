@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 
 export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(true);
@@ -49,13 +50,14 @@ export function useNetworkStatus() {
 }
 
 export default function OfflineBanner() {
+  const colors = useColors();
   const isOnline = useNetworkStatus();
 
   if (isOnline) return null;
 
   return (
     <View style={styles.banner}>
-      <Ionicons name="cloud-offline-outline" size={16} color={Colors.white} />
+      <Ionicons name="cloud-offline-outline" size={16} color={colors.white} />
       <Text style={styles.text}>You're offline — some features may be unavailable</Text>
     </View>
   );

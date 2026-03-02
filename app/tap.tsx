@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { validateAmount } from '../lib/validation';
 import NumPad from '../components/NumPad';
@@ -16,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 type TapMode = 'setup' | 'waiting' | 'success';
 
 export default function TapScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
@@ -143,13 +145,13 @@ export default function TapScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Tap to Pay <Text style={styles.demoBadge}>DEMO</Text></Text>
+        <Text style={[styles.title, { color: colors.text }]}>Tap to Pay <Text style={styles.demoBadge}>DEMO</Text></Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -161,20 +163,20 @@ export default function TapScreen() {
               style={[styles.toggleBtn, isSending && styles.toggleActive]}
               onPress={() => setIsSending(true)}
             >
-              <Ionicons name="arrow-up-circle" size={20} color={isSending ? Colors.white : Colors.textSecondary} />
-              <Text style={[styles.toggleText, isSending && styles.toggleTextActive]}>Send</Text>
+              <Ionicons name="arrow-up-circle" size={20} color={isSending ? colors.white : colors.textSecondary} />
+              <Text style={[styles.toggleText, isSending && { color: colors.white }]}>Send</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.toggleBtn, !isSending && styles.toggleActiveReceive]}
+              style={[styles.toggleBtn, !isSending && { backgroundColor: colors.success }]}
               onPress={() => setIsSending(false)}
             >
-              <Ionicons name="arrow-down-circle" size={20} color={!isSending ? Colors.white : Colors.textSecondary} />
-              <Text style={[styles.toggleText, !isSending && styles.toggleTextActive]}>Receive</Text>
+              <Ionicons name="arrow-down-circle" size={20} color={!isSending ? colors.white : colors.textSecondary} />
+              <Text style={[styles.toggleText, !isSending && { color: colors.white }]}>Receive</Text>
             </TouchableOpacity>
           </View>
 
           {/* Amount Display */}
-          <Text style={styles.amountDisplay}>K{amount || '0'}</Text>
+          <Text style={[styles.amountDisplay, { color: colors.text }]}>K{amount || '0'}</Text>
 
           {/* NumPad */}
           <NumPad onPress={handleKeyPress} onDelete={handleDelete} />
@@ -201,17 +203,17 @@ export default function TapScreen() {
                 },
               ]}
             />
-            <View style={styles.tapInner}>
-              <Ionicons name="wifi" size={48} color={Colors.white} />
+            <View style={[styles.tapInner, { backgroundColor: colors.primary }]}>
+              <Ionicons name="wifi" size={48} color={colors.white} />
             </View>
           </Animated.View>
-          <Text style={styles.waitingTitle}>
+          <Text style={[styles.waitingTitle, { color: colors.text }]}>
             {isSending ? 'Hold near receiver\'s phone' : 'Waiting for sender...'}
           </Text>
-          <Text style={styles.waitingAmount}>K{amount}</Text>
-          <Text style={styles.waitingHint}>Keep devices close until transfer completes</Text>
+          <Text style={[styles.waitingAmount, { color: colors.primary }]}>K{amount}</Text>
+          <Text style={[styles.waitingHint, { color: colors.textSecondary }]}>Keep devices close until transfer completes</Text>
           <TouchableOpacity style={styles.cancelBtn} onPress={() => setMode('setup')}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={[styles.cancelText, { color: colors.error }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -232,7 +234,6 @@ export default function TapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -245,7 +246,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   setupContainer: {
     flex: 1,
@@ -254,7 +254,6 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     marginHorizontal: Spacing.lg,
-    backgroundColor: Colors.surfaceAlt,
     borderRadius: BorderRadius.full,
     padding: 4,
     marginBottom: Spacing.lg,
@@ -271,21 +270,14 @@ const styles = StyleSheet.create({
   toggleActive: {
     backgroundColor: Colors.primary,
   },
-  toggleActiveReceive: {
-    backgroundColor: Colors.success,
-  },
   toggleText: {
     fontSize: FontSize.md,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
-  toggleTextActive: {
-    color: Colors.white,
-  },
   amountDisplay: {
     fontSize: 48,
     fontWeight: '800',
-    color: Colors.text,
     textAlign: 'center',
     marginBottom: Spacing.lg,
   },
@@ -318,25 +310,21 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   waitingTitle: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
     textAlign: 'center',
   },
   waitingAmount: {
     fontSize: FontSize.hero,
     fontWeight: '800',
-    color: Colors.primary,
     marginTop: Spacing.sm,
   },
   waitingHint: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: Spacing.md,
     textAlign: 'center',
   },
@@ -348,7 +336,6 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.error,
   },
   demoBadge: {
     fontSize: FontSize.xs,

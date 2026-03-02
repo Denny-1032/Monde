@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
+import { Colors, Spacing, FontSize, BorderRadius, ColorScheme } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { Transaction } from '../constants/types';
 import { formatCurrency, formatDate } from '../lib/helpers';
 import Avatar from './Avatar';
@@ -12,13 +13,14 @@ type Props = {
 };
 
 export default function TransactionItem({ transaction, onPress }: Props) {
+  const colors = useColors();
   const isReceive = transaction.type === 'receive';
   const isPayment = transaction.type === 'payment';
   const isTopUp = transaction.type === 'topup';
   const isWithdraw = transaction.type === 'withdraw';
 
   const iconName = isTopUp ? 'wallet' : isWithdraw ? 'arrow-up-circle' : isReceive ? 'arrow-down-circle' : isPayment ? 'cart' : 'arrow-up-circle';
-  const amountColor = (isReceive || isTopUp) ? Colors.success : Colors.text;
+  const amountColor = (isReceive || isTopUp) ? colors.success : colors.text;
   const amountPrefix = (isReceive || isTopUp) ? '+' : '-';
 
   return (
@@ -32,19 +34,19 @@ export default function TransactionItem({ transaction, onPress }: Props) {
       <Avatar
         name={transaction.recipient_name}
         size={42}
-        color={isTopUp ? Colors.success : isWithdraw ? Colors.secondary : isReceive ? Colors.success : isPayment ? Colors.secondary : Colors.primaryLight}
+        color={isTopUp ? colors.success : isWithdraw ? colors.secondary : isReceive ? colors.success : isPayment ? colors.secondary : colors.primaryLight}
       />
       <View style={styles.details}>
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
           {transaction.recipient_name}
         </Text>
         <View style={styles.meta}>
           <Ionicons
             name={transaction.method === 'wallet' ? 'wallet-outline' : transaction.method === 'qr' ? 'qr-code-outline' : transaction.method === 'nfc' ? 'wifi-outline' : 'send-outline'}
             size={12}
-            color={Colors.textLight}
+            color={colors.textLight}
           />
-          <Text style={styles.metaText}>{formatDate(transaction.created_at)}</Text>
+          <Text style={[styles.metaText, { color: colors.textLight }]}>{formatDate(transaction.created_at)}</Text>
         </View>
       </View>
       <Text style={[styles.amount, { color: amountColor }]}>
@@ -68,7 +70,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.text,
   },
   meta: {
     flexDirection: 'row',
@@ -78,7 +79,6 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: FontSize.xs,
-    color: Colors.textLight,
   },
   amount: {
     fontSize: FontSize.md,

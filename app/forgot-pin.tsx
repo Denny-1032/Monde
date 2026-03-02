@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { isValidPhone, isValidPin, pinToPassword } from '../lib/validation';
 import { requestPinReset, resetPinWithToken } from '../lib/api';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -12,6 +13,7 @@ import Button from '../components/Button';
 type Step = 'phone' | 'verify' | 'newpin' | 'confirm' | 'done';
 
 export default function ForgotPinScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<Step>('phone');
@@ -104,11 +106,11 @@ export default function ForgotPinScreen() {
       case 'phone':
         return (
           <View style={styles.stepContainer}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="call-outline" size={32} color={Colors.primary} />
+            <View style={[styles.iconCircle, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="call-outline" size={32} color={colors.primary} />
             </View>
-            <Text style={styles.stepTitle}>Reset Your PIN</Text>
-            <Text style={styles.stepDesc}>Enter the phone number associated with your Monde account.</Text>
+            <Text style={[styles.stepTitle, { color: colors.text }]}>Reset Your PIN</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Enter the phone number associated with your Monde account.</Text>
 
             <View style={styles.phoneRow}>
               <View style={styles.prefix}>
@@ -139,11 +141,11 @@ export default function ForgotPinScreen() {
       case 'verify':
         return (
           <View style={styles.stepContainer}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="mail-outline" size={32} color={Colors.primary} />
+            <View style={[styles.iconCircle, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="mail-outline" size={32} color={colors.primary} />
             </View>
-            <Text style={styles.stepTitle}>Enter Verification Code</Text>
-            <Text style={styles.stepDesc}>
+            <Text style={[styles.stepTitle, { color: colors.text }]}>Enter Verification Code</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>
               We've sent a verification code to your phone number. Enter it below.
             </Text>
 
@@ -167,7 +169,7 @@ export default function ForgotPinScreen() {
             />
 
             <TouchableOpacity style={styles.resendBtn} onPress={handleRequestReset} disabled={loading}>
-              <Text style={styles.resendText}>Didn't receive a code? Resend</Text>
+              <Text style={[styles.resendText, { color: colors.primary }]}>Didn't receive a code? Resend</Text>
             </TouchableOpacity>
           </View>
         );
@@ -175,11 +177,11 @@ export default function ForgotPinScreen() {
       case 'newpin':
         return (
           <View style={styles.stepContainer}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="key-outline" size={32} color={Colors.primary} />
+            <View style={[styles.iconCircle, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="key-outline" size={32} color={colors.primary} />
             </View>
-            <Text style={styles.stepTitle}>Create New PIN</Text>
-            <Text style={styles.stepDesc}>Enter a new 4-digit PIN for your account.</Text>
+            <Text style={[styles.stepTitle, { color: colors.text }]}>Create New PIN</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Enter a new 4-digit PIN for your account.</Text>
 
             <TextInput
               style={styles.codeInput}
@@ -206,11 +208,11 @@ export default function ForgotPinScreen() {
       case 'confirm':
         return (
           <View style={styles.stepContainer}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="checkmark-circle-outline" size={32} color={Colors.primary} />
+            <View style={[styles.iconCircle, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="checkmark-circle-outline" size={32} color={colors.primary} />
             </View>
-            <Text style={styles.stepTitle}>Confirm New PIN</Text>
-            <Text style={styles.stepDesc}>Re-enter your new 4-digit PIN to confirm.</Text>
+            <Text style={[styles.stepTitle, { color: colors.text }]}>Confirm New PIN</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Re-enter your new 4-digit PIN to confirm.</Text>
 
             <TextInput
               style={styles.codeInput}
@@ -238,11 +240,11 @@ export default function ForgotPinScreen() {
       case 'done':
         return (
           <View style={styles.stepContainer}>
-            <View style={[styles.iconCircle, { backgroundColor: Colors.success + '15' }]}>
-              <Ionicons name="checkmark-done" size={32} color={Colors.success} />
+            <View style={[styles.iconCircle, { backgroundColor: colors.success + '15' }]}>
+              <Ionicons name="checkmark-done" size={32} color={colors.success} />
             </View>
-            <Text style={styles.stepTitle}>PIN Reset Successful</Text>
-            <Text style={styles.stepDesc}>Your PIN has been updated. You can now log in with your new PIN.</Text>
+            <Text style={[styles.stepTitle, { color: colors.text }]}>PIN Reset Successful</Text>
+            <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Your PIN has been updated. You can now log in with your new PIN.</Text>
 
             <Button title="Go to Login" onPress={handleDone} size="lg" />
           </View>
@@ -252,15 +254,15 @@ export default function ForgotPinScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Forgot PIN</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Forgot PIN</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -285,7 +287,6 @@ export default function ForgotPinScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -298,7 +299,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   progressRow: {
     flexDirection: 'row',
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: Colors.borderLight, // stays static for inactive dots
   },
   progressDotActive: {
     backgroundColor: Colors.primary,
@@ -326,7 +326,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.primary + '12',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
@@ -334,13 +333,11 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   stepDesc: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: Spacing.xl,
@@ -401,7 +398,6 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   resendText: {
-    color: Colors.primary,
     fontSize: FontSize.sm,
     fontWeight: '600',
   },

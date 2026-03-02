@@ -62,8 +62,8 @@
       "eas": {
         "projectId": "monde-pay"
       },
-      "SUPABASE_URL": "https://dxpjbqlgivkpbbbvhexb.supabase.co",
-      "SUPABASE_ANON_KEY": "process.env.SUPABASE_ANON_KEY"
+      "SUPABASE_URL": "process.env.EXPO_PUBLIC_SUPABASE_URL",
+      "SUPABASE_ANON_KEY": "process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY"
     },
     "owner": "denny-1032",
     "description": "Monde - The simplest way to send & receive money in Zambia via QR Code and Tap to Pay. Supports Airtel, MTN, Zamtel, FNB, Zanaco, and Absa.",

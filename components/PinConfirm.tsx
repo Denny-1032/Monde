@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 
@@ -24,6 +25,7 @@ const MAX_PIN_ATTEMPTS = 5;
 const LOCKOUT_MS = 30000;
 
 export default function PinConfirm({ visible, title, subtitle, onConfirm, onCancel, onBiometricSuccess, loading, error }: PinConfirmProps) {
+  const colors = useColors();
   const [pin, setPin] = useState('');
   const [attempts, setAttempts] = useState(0);
   const [lockoutEnd, setLockoutEnd] = useState(0);
@@ -107,20 +109,20 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { backgroundColor: colors.background }]}>
           <View style={styles.header}>
-            <Text style={styles.title}>{title || 'Confirm with PIN'}</Text>
-            <Text style={styles.subtitle}>{subtitle || 'Enter your 4-digit PIN to authorize'}</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{title || 'Confirm with PIN'}</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle || 'Enter your 4-digit PIN to authorize'}</Text>
           </View>
 
           <View style={styles.dotsRow}>
             {dots.map((filled, i) => (
-              <View key={i} style={[styles.dot, filled && styles.dotFilled]} />
+              <View key={i} style={[styles.dot, { borderColor: colors.border }, filled && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
             ))}
           </View>
 
           {loading ? (
-            <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: Spacing.sm }} />
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: Spacing.sm }} />
           ) : null}
 
           {(lockMsg || error) ? <Text style={styles.error}>{lockMsg || error}</Text> : null}
@@ -139,9 +141,9 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
                     activeOpacity={key ? 0.6 : 1}
                   >
                     {key === 'del' ? (
-                      <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                      <Ionicons name="backspace-outline" size={26} color={colors.text} />
                     ) : (
-                      <Text style={styles.keyText}>{key}</Text>
+                      <Text style={[styles.keyText, { color: colors.text }]}>{key}</Text>
                     )}
                   </TouchableOpacity>
                 ))}
@@ -151,7 +153,7 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
 
           {biometricAvail && onBiometricSuccess ? (
             <TouchableOpacity style={styles.biometricBtn} onPress={checkAndPromptBiometric}>
-              <Ionicons name="finger-print-outline" size={22} color={Colors.primary} />
+              <Ionicons name="finger-print-outline" size={22} color={colors.primary} />
               <Text style={styles.biometricText}>Use Biometric</Text>
             </TouchableOpacity>
           ) : null}
@@ -168,11 +170,9 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: Colors.overlay,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Colors.background,
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
     paddingTop: Spacing.lg,
@@ -185,11 +185,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   subtitle: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
   dotsRow: {
@@ -203,11 +201,6 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  dotFilled: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   error: {
     textAlign: 'center',
@@ -233,7 +226,6 @@ const styles = StyleSheet.create({
   keyText: {
     fontSize: FontSize.xl + 4,
     fontWeight: '500',
-    color: Colors.text,
   },
   cancelBtn: {
     alignItems: 'center',
@@ -243,7 +235,6 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   biometricBtn: {
     flexDirection: 'row',
@@ -256,6 +247,5 @@ const styles = StyleSheet.create({
   biometricText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.primary,
   },
 });

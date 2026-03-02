@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { formatCurrency } from '../lib/helpers';
 import Button from '../components/Button';
 
 export default function SuccessScreen() {
+  const colors = useColors();
   const router = useRouter();
   const params = useLocalSearchParams<{
     amount: string;
@@ -64,21 +66,21 @@ export default function SuccessScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <Animated.View style={[styles.checkCircle, { transform: [{ scale: scaleAnim }] }]}>
-          <Ionicons name="checkmark" size={48} color={Colors.white} />
+        <Animated.View style={[styles.checkCircle, { transform: [{ scale: scaleAnim }], backgroundColor: colors.success }]}>
+          <Ionicons name="checkmark" size={48} color={colors.white} />
         </Animated.View>
 
         <Animated.View style={[styles.details, { opacity: fadeAnim }]}>
-          <Text style={styles.title}>{getTitle()}</Text>
-          <Text style={styles.amount}>
+          <Text style={[styles.title, { color: colors.text }]}>{getTitle()}</Text>
+          <Text style={[styles.amount, { color: colors.text }]}>
             {formatCurrency(parseFloat(params.amount || '0'))}
           </Text>
-          <Text style={styles.recipient}>{getSubtitle()}</Text>
-          <View style={styles.methodBadge}>
-            <Ionicons name={getMethodIcon()} size={14} color={Colors.primary} />
-            <Text style={styles.methodText}>via {getMethodLabel()}</Text>
+          <Text style={[styles.recipient, { color: colors.textSecondary }]}>{getSubtitle()}</Text>
+          <View style={[styles.methodBadge, { backgroundColor: colors.primary + '12' }]}>
+            <Ionicons name={getMethodIcon()} size={14} color={colors.primary} />
+            <Text style={[styles.methodText, { color: colors.primary }]}>via {getMethodLabel()}</Text>
           </View>
         </Animated.View>
       </View>
@@ -94,7 +96,6 @@ export default function SuccessScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     justifyContent: 'space-between',
     paddingTop: 120,
     paddingBottom: 50,
@@ -107,7 +108,6 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: Colors.success,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xl,
@@ -118,24 +118,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
   },
   amount: {
     fontSize: FontSize.hero + 8,
     fontWeight: '800',
-    color: Colors.text,
     marginTop: Spacing.sm,
   },
   recipient: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     marginTop: Spacing.sm,
   },
   methodBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.primary + '12',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
@@ -143,7 +139,6 @@ const styles = StyleSheet.create({
   },
   methodText: {
     fontSize: FontSize.sm,
-    color: Colors.primary,
     fontWeight: '600',
   },
   actions: {

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { Transaction } from '../../constants/types';
 import TransactionItem from '../../components/TransactionItem';
@@ -31,6 +32,7 @@ function groupByDate(transactions: Transaction[]) {
 export default function HistoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const transactions = useStore((s) => s.transactions);
   const fetchTransactions = useStore((s) => s.fetchTransactions);
   const loadMoreTransactions = useStore((s) => s.loadMoreTransactions);
@@ -71,18 +73,18 @@ export default function HistoryScreen() {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
-      <Text style={styles.screenTitle}>Activity</Text>
+    <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
+      <Text style={[styles.screenTitle, { color: colors.text }]}>Activity</Text>
 
       {/* Filter Chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {filters.map((f) => (
           <TouchableOpacity
             key={f.key}
-            style={[styles.filterChip, filter === f.key && styles.filterActive]}
+            style={[styles.filterChip, { backgroundColor: filter === f.key ? colors.primary : colors.surfaceAlt }]}
             onPress={() => setFilter(f.key)}
           >
-            <Text style={[styles.filterText, filter === f.key && styles.filterTextActive]}>{f.label}</Text>
+            <Text style={[styles.filterText, { color: filter === f.key ? colors.white : colors.textSecondary }]}>{f.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -97,29 +99,29 @@ export default function HistoryScreen() {
           />
         )}
         renderSectionHeader={({ section: { title } }) => (
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{title}</Text>
+          <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{title}</Text>
           </View>
         )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.loadingMore}>
-              <ActivityIndicator size="small" color={Colors.primary} />
+              <ActivityIndicator size="small" color={colors.primary} />
             </View>
           ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={48} color={Colors.textLight} />
-            <Text style={styles.emptyTitle}>No transactions</Text>
-            <Text style={styles.emptyText}>Your transaction history will appear here</Text>
+            <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No transactions</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Your transaction history will appear here</Text>
           </View>
         }
       />
@@ -130,12 +132,10 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   screenTitle: {
     fontSize: FontSize.xxl,
     fontWeight: '700',
-    color: Colors.text,
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.md,
   },
@@ -150,22 +150,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surfaceAlt,
     height: 34,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  filterActive: {
-    backgroundColor: Colors.primary,
-  },
   filterText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
     lineHeight: 18,
-  },
-  filterTextActive: {
-    color: Colors.white,
   },
   listContent: {
     paddingBottom: 20,
@@ -173,12 +165,10 @@ const styles = StyleSheet.create({
   sectionHeader: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.background,
   },
   sectionTitle: {
     fontSize: FontSize.sm,
     fontWeight: '700',
-    color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -190,11 +180,9 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: FontSize.lg,
     fontWeight: '600',
-    color: Colors.text,
   },
   emptyText: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
   },
   loadingMore: {
     paddingVertical: Spacing.lg,

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { sanitizeText } from '../lib/validation';
 import { formatPhone } from '../lib/helpers';
@@ -14,6 +15,7 @@ import Avatar from '../components/Avatar';
 import Button from '../components/Button';
 
 export default function EditProfileScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
@@ -108,14 +110,14 @@ export default function EditProfileScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top + 10 }]}
+      style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Edit Profile</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Edit Profile</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -123,33 +125,33 @@ export default function EditProfileScreen() {
         <Avatar name={fullName || 'U'} size={80} imageUrl={avatarUrl} />
         <View style={styles.cameraOverlay}>
           {uploadingAvatar ? (
-            <ActivityIndicator size="small" color={Colors.white} />
+            <ActivityIndicator size="small" color={colors.white} />
           ) : (
-            <Ionicons name="camera" size={16} color={Colors.white} />
+            <Ionicons name="camera" size={16} color={colors.white} />
           )}
         </View>
-        <Text style={styles.changePhotoText}>Change Photo</Text>
+        <Text style={[styles.changePhotoText, { color: colors.primary }]}>Change Photo</Text>
       </TouchableOpacity>
 
       <View style={styles.form}>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Full Name</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Full Name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
             value={fullName}
             onChangeText={setFullName}
             placeholder="Your full name"
-            placeholderTextColor={Colors.textLight}
+            placeholderTextColor={colors.textLight}
             autoCapitalize="words"
             autoFocus
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Phone Number</Text>
-          <View style={styles.readOnly}>
-            <Ionicons name="lock-closed-outline" size={16} color={Colors.textLight} />
-            <Text style={styles.readOnlyText}>{formatPhone(user?.phone || '')}</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Phone Number</Text>
+          <View style={[styles.readOnly, { backgroundColor: colors.surfaceAlt }]}>
+            <Ionicons name="lock-closed-outline" size={16} color={colors.textLight} />
+            <Text style={[styles.readOnlyText, { color: colors.textSecondary }]}>{formatPhone(user?.phone || '')}</Text>
           </View>
         </View>
 
@@ -172,7 +174,6 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -185,7 +186,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   avatarSection: {
     alignItems: 'center',
@@ -203,11 +203,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: Colors.background,
   },
   changePhotoText: {
     fontSize: FontSize.sm,
-    color: Colors.primary,
     fontWeight: '600',
     marginTop: Spacing.xs,
   },
@@ -221,33 +219,27 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md - 2,
     fontSize: FontSize.md,
-    color: Colors.text,
   },
   readOnly: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.surfaceAlt,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md - 2,
   },
   readOnlyText: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
   },
   readOnlyHint: {
     fontSize: FontSize.xs,

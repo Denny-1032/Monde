@@ -34,6 +34,7 @@ Apply the SQL migrations in order. In the Supabase SQL Editor (Dashboard → SQL
    - `008_wallet_topup_withdraw.sql`
    - `009_linked_accounts.sql`
    - `010_secure_rpc_auth_checks.sql`
+   - `011_security_advisor_fixes.sql` ← **NEW: fixes search_path, view security, amount constraint**
 
 2. After running all migrations, verify in **Table Editor** that these tables exist:
    - `profiles`
@@ -97,7 +98,7 @@ eas build --platform android --profile preview
 
 ---
 
-## 4. App Assets
+## 4. App Assets — 🔜 DEFERRED
 
 You need to create/replace these image files:
 
@@ -112,7 +113,7 @@ Use a tool like [Figma](https://figma.com) or [EasyAppIcon](https://easyappicon.
 
 ---
 
-## 5. Enable Error Tracking (Sentry)
+## 5. Enable Error Tracking (Sentry) — ✅ DONE (scaffold ready)
 
 1. Install the package:
    ```bash
@@ -142,26 +143,29 @@ Use a tool like [Figma](https://figma.com) or [EasyAppIcon](https://easyappicon.
 
 ---
 
-## 7. Enable Push Notifications
+## 7. Enable Push Notifications — 🔜 DEFERRED (needs org account for financial apps)
 
 1. Install packages:
    ```bash
    npx expo install expo-notifications expo-device
    ```
 2. **iOS:** Enable Push Notifications capability in Apple Developer Portal
-3. **Android:** Create a Firebase project, download `google-services.json`, place in project root
+3. **Android:** Get `google-services.json` from **Firebase Console** (not Google Play Console):
+   - Go to [console.firebase.google.com](https://console.firebase.google.com)
+   - Create a project → Add Android app → Package: `com.monde.pay`
+   - Download `google-services.json` → place in project root
 4. Uncomment the code in `lib/pushNotifications.ts`
 5. Call `registerForPushNotifications()` after user login (in the store or layout)
 6. Store the returned push token server-side (add a `push_token` column to `profiles` table)
 
 ---
 
-## 8. CI/CD Setup (GitHub Actions)
+## 8. CI/CD Setup (GitHub Actions) — 🔜 DEFERRED (needs org account)
 
 1. Push your code to a GitHub repository
 2. Go to **Repository → Settings → Secrets and variables → Actions**
-3. Add secret: `EXPO_TOKEN`
-   - Get it from: `eas credentials` or [expo.dev/accounts/settings](https://expo.dev/accounts/settings) → Access Tokens
+3. Add secret under **Repository secrets** (not Environment secrets): `EXPO_TOKEN`
+   - Get it from: [expo.dev/accounts/settings](https://expo.dev/accounts/settings) → Access Tokens → Create Token
 4. The workflow file `.github/workflows/ci.yml` will:
    - Run tests on every push/PR
    - Build via EAS on pushes to `main`
@@ -169,7 +173,9 @@ Use a tool like [Figma](https://figma.com) or [EasyAppIcon](https://easyappicon.
 
 ---
 
-## 9. App Store Submission
+## 9. App Store Submission — 🔜 DEFERRED (needs DUNS number / org account)
+
+Financial apps like Monde require an **organization account** on Google Play (individual accounts cannot publish financial apps). You can start with individual for testing, then transfer the app later.
 
 ### 9.1 Google Play Store
 1. Create a [Google Play Developer account](https://play.google.com/console) ($25 one-time fee)
@@ -200,22 +206,13 @@ Use a tool like [Figma](https://figma.com) or [EasyAppIcon](https://easyappicon.
 
 ## 10. Security Hardening (Before Production)
 
-Refer to `SECURITY_AUDIT.md` for full details. The critical items:
+Refer to `SECURITY_AUDIT.md` for full details.
 
-1. **Add rate limiting on login attempts (server-side)**
-   - In Supabase Dashboard → Authentication → Rate Limits
-   - Set max sign-in attempts per IP (e.g., 10/hour)
+1. ✅ **Rate limiting on login attempts** — DONE. Supabase rate limits configured (3 sign-ins/5min). Client-side lockout after 5 failed attempts.
 
-2. **Add transaction amount constraint in database**
-   ```sql
-   -- Run in Supabase SQL Editor:
-   ALTER TABLE public.transactions
-   ADD CONSTRAINT check_amount_positive CHECK (amount > 0 AND amount <= 50000);
-   ```
+2. ✅ **Transaction amount constraint** — DONE. Included in migration `011_security_advisor_fixes.sql`. Run this migration to apply.
 
-3. **Run Supabase Advisors**
-   - Go to **Database → Advisors** in your Supabase dashboard
-   - Review and address any security or performance warnings
+3. ✅ **Supabase Advisors** — DONE. Migration 011 fixes all warnings (search_path on 6 functions) and errors (Security Definer View on transaction_history).
 
 4. **Rotate keys if exposed**
    - If your anon key was committed to git, rotate it in **Settings → API → Regenerate**

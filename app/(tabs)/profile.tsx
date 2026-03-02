@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { formatPhone } from '../../lib/helpers';
 import Avatar from '../../components/Avatar';
@@ -17,16 +18,17 @@ type MenuItemProps = {
 };
 
 function MenuItem({ icon, label, subtitle, onPress, danger }: MenuItemProps) {
+  const colors = useColors();
   return (
     <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.6} accessibilityLabel={subtitle ? `${label}, ${subtitle}` : label} accessibilityRole="button">
-      <View style={[styles.menuIcon, danger && { backgroundColor: Colors.error + '15' }]}>
-        <Ionicons name={icon} size={20} color={danger ? Colors.error : Colors.primary} />
+      <View style={[styles.menuIcon, { backgroundColor: danger ? colors.error + '15' : colors.primary + '12' }]}>
+        <Ionicons name={icon} size={20} color={danger ? colors.error : colors.primary} />
       </View>
       <View style={styles.menuContent}>
-        <Text style={[styles.menuLabel, danger && { color: Colors.error }]}>{label}</Text>
-        {subtitle ? <Text style={styles.menuSub}>{subtitle}</Text> : null}
+        <Text style={[styles.menuLabel, { color: danger ? colors.error : colors.text }]}>{label}</Text>
+        {subtitle ? <Text style={[styles.menuSub, { color: colors.textSecondary }]}>{subtitle}</Text> : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={Colors.textLight} />
+      <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
     </TouchableOpacity>
   );
 }
@@ -34,6 +36,7 @@ function MenuItem({ icon, label, subtitle, onPress, danger }: MenuItemProps) {
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
 
@@ -52,30 +55,30 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
-      <Text style={styles.screenTitle}>Profile</Text>
+    <ScrollView style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
+      <Text style={[styles.screenTitle, { color: colors.text }]}>Profile</Text>
 
       {/* Profile Card */}
-      <View style={styles.profileCard}>
+      <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
         <Avatar name={user?.full_name || 'U'} size={64} imageUrl={user?.avatar_url} />
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{user?.full_name}</Text>
-          <Text style={styles.profilePhone}>{formatPhone(user?.phone || '')}</Text>
+          <Text style={[styles.profileName, { color: colors.text }]}>{user?.full_name}</Text>
+          <Text style={[styles.profilePhone, { color: colors.textSecondary }]}>{formatPhone(user?.phone || '')}</Text>
         </View>
       </View>
 
       {/* Menu Sections */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.menuGroup}>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Account</Text>
+        <View style={[styles.menuGroup, { backgroundColor: colors.surface }]}>
           <MenuItem icon="person-outline" label="Edit Profile" onPress={() => router.push('/edit-profile')} />
           <MenuItem icon="wallet-outline" label="Linked Accounts" subtitle="Manage your payment accounts" onPress={() => router.push('/linked-accounts')} />
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <View style={styles.menuGroup}>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Preferences</Text>
+        <View style={[styles.menuGroup, { backgroundColor: colors.surface }]}>
           <MenuItem icon="notifications-outline" label="Notifications" onPress={() => Alert.alert('Notifications', 'Push notifications coming in a future update.')} />
           <MenuItem icon="shield-checkmark-outline" label="Security" subtitle="PIN & biometrics" onPress={() => router.push('/security')} />
           <MenuItem icon="language-outline" label="Language" subtitle="English" onPress={() => Alert.alert('Language', 'Additional languages coming soon.')} />
@@ -83,8 +86,8 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Support</Text>
-        <View style={styles.menuGroup}>
+        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Support</Text>
+        <View style={[styles.menuGroup, { backgroundColor: colors.surface }]}>
           <MenuItem icon="help-circle-outline" label="Help & FAQ" onPress={() => Alert.alert('Help', 'For support, email help@monde.app')} />
           <MenuItem icon="chatbubble-outline" label="Contact Support" onPress={() => Alert.alert('Contact', 'Email: support@monde.app\nPhone: +260 211 000 000')} />
           <MenuItem icon="document-text-outline" label="Terms & Privacy" onPress={() => router.push('/terms')} />
@@ -92,12 +95,12 @@ export default function ProfileScreen() {
       </View>
 
       <View style={[styles.section, { marginBottom: 40 }]}>
-        <View style={styles.menuGroup}>
+        <View style={[styles.menuGroup, { backgroundColor: colors.surface }]}>
           <MenuItem icon="log-out-outline" label="Log Out" onPress={handleLogout} danger />
         </View>
       </View>
 
-      <Text style={styles.version}>Monde v1.0.0</Text>
+      <Text style={[styles.version, { color: colors.textLight }]}>Monde v1.0.0</Text>
     </ScrollView>
   );
 }
@@ -105,19 +108,16 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   screenTitle: {
     fontSize: FontSize.xxl,
     fontWeight: '700',
-    color: Colors.text,
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
     marginHorizontal: Spacing.lg,
     padding: Spacing.lg,
     borderRadius: BorderRadius.xl,
@@ -134,11 +134,9 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   profilePhone: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   section: {
@@ -148,13 +146,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FontSize.sm,
     fontWeight: '700',
-    color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.sm,
   },
   menuGroup: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
@@ -169,7 +165,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.primary + '12',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -179,17 +174,14 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.text,
   },
   menuSub: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
     marginTop: 1,
   },
   version: {
     textAlign: 'center',
     fontSize: FontSize.xs,
-    color: Colors.textLight,
     paddingBottom: 30,
     marginTop: Spacing.md,
   },

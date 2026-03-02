@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
 import { Colors, BorderRadius, FontSize, Spacing } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 
 type ButtonProps = {
   title: string;
@@ -25,12 +26,14 @@ export default function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const colors = useColors();
   const isDisabled = disabled || loading;
 
   const labelStyles = [
     styles.label,
     styles[`label_${variant}`],
     styles[`labelSize_${size}`],
+    (variant === 'outline' || variant === 'ghost') && { color: colors.primary },
     disabled && styles.labelDisabled,
     textStyle,
   ];
@@ -41,6 +44,9 @@ export default function Button({
         styles.base,
         styles[variant],
         styles[`size_${size}`],
+        variant === 'primary' && { backgroundColor: colors.primary },
+        variant === 'secondary' && { backgroundColor: colors.secondary },
+        variant === 'outline' && { borderColor: colors.primary },
         isDisabled && styles.disabled,
         pressed && !isDisabled && styles.pressed,
         style,
@@ -52,7 +58,7 @@ export default function Button({
       accessibilityState={{ disabled: isDisabled, busy: loading }}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' || variant === 'ghost' ? Colors.primary : Colors.white} />
+        <ActivityIndicator color={variant === 'outline' || variant === 'ghost' ? colors.primary : Colors.white} />
       ) : (
         <>
           {icon}
@@ -74,18 +80,15 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   primary: {
-    backgroundColor: Colors.primary,
     borderRadius: BorderRadius.lg,
   },
   secondary: {
-    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
   },
   outline: {
     backgroundColor: 'transparent',
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -116,10 +119,8 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   label_outline: {
-    color: Colors.primary,
   },
   label_ghost: {
-    color: Colors.primary,
   },
   labelSize_sm: {
     fontSize: FontSize.sm,

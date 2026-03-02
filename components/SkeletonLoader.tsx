@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { Colors, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 
 function SkeletonBlock({ width, height, style }: { width: number | string; height: number; style?: any }) {
+  const colors = useColors();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -19,7 +21,7 @@ function SkeletonBlock({ width, height, style }: { width: number | string; heigh
   return (
     <Animated.View
       style={[
-        { width: width as any, height, borderRadius: BorderRadius.md, backgroundColor: Colors.border, opacity },
+        { width: width as any, height, borderRadius: BorderRadius.md, backgroundColor: colors.border, opacity },
         style,
       ]}
     />

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { isValidPin, pinToPassword } from '../lib/validation';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -11,6 +12,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 type Step = 'current' | 'new' | 'confirm';
 
 export default function ChangePinScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
@@ -114,32 +116,32 @@ export default function ChangePinScreen() {
   const KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Change PIN</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Change PIN</Text>
         <View style={{ width: 32 }} />
       </View>
 
       {/* Progress */}
       <View style={styles.progress}>
         {(['current', 'new', 'confirm'] as Step[]).map((s, i) => (
-          <View key={s} style={[styles.progressDot, step === s && styles.progressDotActive, (['current', 'new', 'confirm'].indexOf(step) > i) && styles.progressDotDone]} />
+          <View key={s} style={[styles.progressDot, { backgroundColor: colors.borderLight }, step === s && { backgroundColor: colors.primary }, (['current', 'new', 'confirm'].indexOf(step) > i) && { backgroundColor: colors.success }]} />
         ))}
       </View>
 
-      <Text style={styles.stepLabel}>{stepLabel}</Text>
+      <Text style={[styles.stepLabel, { color: colors.textSecondary }]}>{stepLabel}</Text>
 
       <View style={styles.dotsRow}>
         {dots.map((filled, i) => (
-          <View key={i} style={[styles.dot, filled && styles.dotFilled]} />
+          <View key={i} style={[styles.dot, { borderColor: colors.border }, filled && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
         ))}
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: Spacing.md }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: Spacing.md }} />
       ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -158,9 +160,9 @@ export default function ChangePinScreen() {
                 activeOpacity={key ? 0.6 : 1}
               >
                 {key === 'del' ? (
-                  <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                  <Ionicons name="backspace-outline" size={26} color={colors.text} />
                 ) : (
-                  <Text style={styles.keyText}>{key}</Text>
+                  <Text style={[styles.keyText, { color: colors.text }]}>{key}</Text>
                 )}
               </TouchableOpacity>
             ))}
@@ -174,7 +176,6 @@ export default function ChangePinScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -187,7 +188,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   progress: {
     flexDirection: 'row',
@@ -199,17 +199,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.borderLight,
-  },
-  progressDotActive: {
-    backgroundColor: Colors.primary,
-  },
-  progressDotDone: {
-    backgroundColor: Colors.success,
   },
   stepLabel: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.lg,
   },
@@ -224,11 +216,6 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  dotFilled: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   error: {
     textAlign: 'center',
@@ -257,6 +244,5 @@ const styles = StyleSheet.create({
   keyText: {
     fontSize: FontSize.xl + 4,
     fontWeight: '500',
-    color: Colors.text,
   },
 });

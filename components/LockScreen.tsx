@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { verifyPin as verifyPinApi } from '../lib/api';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -16,6 +17,7 @@ interface LockScreenProps {
 const KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
 
 export default function LockScreen({ onUnlock }: LockScreenProps) {
+  const colors = useColors();
   const user = useStore((s) => s.user);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -72,23 +74,23 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
   const dots = Array.from({ length: 4 }, (_, i) => i < pin.length);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <View style={styles.logoCircle}>
+        <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
           <Text style={styles.logoText}>M</Text>
         </View>
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>{user?.full_name || 'Enter PIN to unlock'}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Welcome back</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{user?.full_name || 'Enter PIN to unlock'}</Text>
       </View>
 
       <View style={styles.dotsRow}>
         {dots.map((filled, i) => (
-          <View key={i} style={[styles.dot, filled && styles.dotFilled]} />
+          <View key={i} style={[styles.dot, { borderColor: colors.border }, filled && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
         ))}
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: Spacing.sm }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: Spacing.sm }} />
       ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -107,9 +109,9 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
                 activeOpacity={key ? 0.6 : 1}
               >
                 {key === 'del' ? (
-                  <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                  <Ionicons name="backspace-outline" size={26} color={colors.text} />
                 ) : (
-                  <Text style={styles.keyText}>{key}</Text>
+                  <Text style={[styles.keyText, { color: colors.text }]}>{key}</Text>
                 )}
               </TouchableOpacity>
             ))}
@@ -123,7 +125,6 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.background,
     zIndex: 999,
     paddingTop: 80,
   },
@@ -135,7 +136,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
@@ -148,11 +148,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
   },
   subtitle: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
   dotsRow: {
@@ -166,15 +164,9 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  dotFilled: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   error: {
     textAlign: 'center',
-    color: Colors.error,
     fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
   },
@@ -198,6 +190,5 @@ const styles = StyleSheet.create({
   keyText: {
     fontSize: FontSize.xl + 4,
     fontWeight: '500',
-    color: Colors.text,
   },
 });

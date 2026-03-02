@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Keyboa
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
 import Button from '../../components/Button';
@@ -10,6 +11,7 @@ import Button from '../../components/Button';
 const PIN_KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
 
 export default function RegisterScreen() {
+  const colors = useColors();
   const router = useRouter();
   const { signUp, isLoading } = useStore();
   const [fullName, setFullName] = useState('');
@@ -51,27 +53,27 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableOpacity style={styles.back} onPress={() => {
         if (step === 2) { setConfirmPin(''); setError(''); setStep(1); }
         else if (step === 1) { setPin(''); setError(''); setStep(0); }
         else router.back();
       }}>
-        <Ionicons name="arrow-back" size={24} color={Colors.text} />
+        <Ionicons name="arrow-back" size={24} color={colors.text} />
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{step === 0 ? 'Create account' : step === 1 ? 'Set your PIN' : 'Confirm PIN'}</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: colors.text }]}>{step === 0 ? 'Create account' : step === 1 ? 'Set your PIN' : 'Confirm PIN'}</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {step === 0 ? 'Enter your details to get started' : step === 1 ? 'Choose a 4-digit PIN to secure your account' : 'Re-enter your PIN to confirm'}
         </Text>
 
         {step === 0 ? (
           <>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full name</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Full name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 value={fullName}
                 onChangeText={setFullName}
                 autoCapitalize="words"
@@ -79,13 +81,13 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone number</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Phone number</Text>
               <View style={styles.phoneRow}>
-                <View style={styles.prefix}>
-                  <Text style={styles.prefixText}>+260</Text>
+                <View style={[styles.prefix, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                  <Text style={[styles.prefixText, { color: colors.textSecondary }]}>+260</Text>
                 </View>
                 <TextInput
-                  style={[styles.input, styles.phoneInput]}
+                  style={[styles.input, styles.phoneInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                   value={phone}
                   onChangeText={handlePhoneChange}
                   keyboardType="phone-pad"
@@ -99,14 +101,14 @@ export default function RegisterScreen() {
               onPress={() => setTosAccepted(!tosAccepted)}
               activeOpacity={0.7}
             >
-              <View style={[styles.checkbox, tosAccepted && styles.checkboxChecked]}>
-                {tosAccepted && <Ionicons name="checkmark" size={14} color={Colors.white} />}
+              <View style={[styles.checkbox, { borderColor: colors.border }, tosAccepted && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                {tosAccepted && <Ionicons name="checkmark" size={14} color={colors.white} />}
               </View>
-              <Text style={styles.tosText}>
+              <Text style={[styles.tosText, { color: colors.textSecondary }]}>
                 I agree to the{' '}
-                <Text style={styles.tosLink} onPress={() => router.push('/terms')}>Terms of Service</Text>
+                <Text style={[styles.tosLink, { color: colors.primary }]} onPress={() => router.push('/terms')}>Terms of Service</Text>
                 {' '}and{' '}
-                <Text style={styles.tosLink} onPress={() => router.push('/terms')}>Privacy Policy</Text>
+                <Text style={[styles.tosLink, { color: colors.primary }]} onPress={() => router.push('/terms')}>Privacy Policy</Text>
               </Text>
             </TouchableOpacity>
 
@@ -122,7 +124,7 @@ export default function RegisterScreen() {
           <>
             <View style={styles.dotsRow}>
               {Array.from({ length: 4 }, (_, i) => (
-                <View key={i} style={[styles.dot, i < pin.length && styles.dotFilled]} />
+                <View key={i} style={[styles.dot, { borderColor: colors.border }, i < pin.length && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
               ))}
             </View>
 
@@ -140,9 +142,9 @@ export default function RegisterScreen() {
                       activeOpacity={key ? 0.6 : 1}
                     >
                       {key === 'del' ? (
-                        <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                        <Ionicons name="backspace-outline" size={26} color={colors.text} />
                       ) : (
-                        <Text style={styles.padKeyText}>{key}</Text>
+                        <Text style={[styles.padKeyText, { color: colors.text }]}>{key}</Text>
                       )}
                     </TouchableOpacity>
                   ))}
@@ -163,7 +165,7 @@ export default function RegisterScreen() {
           <>
             <View style={styles.dotsRow}>
               {Array.from({ length: 4 }, (_, i) => (
-                <View key={i} style={[styles.dot, i < confirmPin.length && styles.dotFilled]} />
+                <View key={i} style={[styles.dot, { borderColor: colors.border }, i < confirmPin.length && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
               ))}
             </View>
 
@@ -183,9 +185,9 @@ export default function RegisterScreen() {
                       activeOpacity={key ? 0.6 : 1}
                     >
                       {key === 'del' ? (
-                        <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                        <Ionicons name="backspace-outline" size={26} color={colors.text} />
                       ) : (
-                        <Text style={styles.padKeyText}>{key}</Text>
+                        <Text style={[styles.padKeyText, { color: colors.text }]}>{key}</Text>
                       )}
                     </TouchableOpacity>
                   ))}
@@ -219,7 +221,6 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   back: {
     position: 'absolute',
@@ -236,11 +237,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.xxl,
     fontWeight: '700',
-    color: Colors.text,
   },
   subtitle: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
     marginBottom: Spacing.xl,
   },
@@ -250,37 +249,30 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md - 2,
     fontSize: FontSize.md,
-    color: Colors.text,
   },
   phoneRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },
   prefix: {
-    backgroundColor: Colors.surfaceAlt,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     justifyContent: 'center',
   },
   prefixText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   phoneInput: {
     flex: 1,
@@ -297,11 +289,6 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: Colors.border,
-  },
-  dotFilled: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   pad: {
     paddingHorizontal: Spacing.lg,
@@ -321,7 +308,6 @@ const styles = StyleSheet.create({
   padKeyText: {
     fontSize: FontSize.xl + 4,
     fontWeight: '500',
-    color: Colors.text,
   },
   errorText: {
     color: Colors.error,
@@ -340,23 +326,16 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
   },
-  checkboxChecked: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
   tosText: {
     flex: 1,
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     lineHeight: 20,
   },
   tosLink: {
-    color: Colors.primary,
     fontWeight: '600',
   },
 });

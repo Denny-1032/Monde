@@ -5,11 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { generateQRData, formatCurrency } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 
 export default function ReceiveScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
@@ -43,22 +45,22 @@ export default function ReceiveScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Receive Money</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Receive Money</Text>
         <TouchableOpacity onPress={handleShare}>
-          <Ionicons name="share-outline" size={24} color={Colors.primary} />
+          <Ionicons name="share-outline" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {!showAmountEntry ? (
         <View style={styles.qrSection}>
           {/* QR Code Card */}
-          <View style={styles.qrCard}>
+          <View style={[styles.qrCard, { backgroundColor: colors.surface }]}>
             <View style={styles.qrWrapper}>
               <QRCode
                 value={qrPayload}
@@ -67,27 +69,27 @@ export default function ReceiveScreen() {
                 backgroundColor={Colors.white}
               />
             </View>
-            <Text style={styles.userName}>{user?.full_name}</Text>
-            <Text style={styles.userPhone}>{user?.phone}</Text>
+            <Text style={[styles.userName, { color: colors.text }]}>{user?.full_name}</Text>
+            <Text style={[styles.userPhone, { color: colors.textSecondary }]}>{user?.phone}</Text>
             {amount ? (
-              <View style={styles.amountBadge}>
-                <Text style={styles.amountBadgeText}>{formatCurrency(parseFloat(amount))}</Text>
+              <View style={[styles.amountBadge, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={[styles.amountBadgeText, { color: colors.primary }]}>{formatCurrency(parseFloat(amount))}</Text>
               </View>
             ) : null}
           </View>
 
-          <Text style={styles.instruction}>Ask the sender to scan this QR code</Text>
+          <Text style={[styles.instruction, { color: colors.textSecondary }]}>Ask the sender to scan this QR code</Text>
 
           {/* Set Amount Button */}
           <TouchableOpacity style={styles.setAmountBtn} onPress={() => setShowAmountEntry(true)}>
-            <Ionicons name="calculator-outline" size={20} color={Colors.primary} />
-            <Text style={styles.setAmountText}>{amount ? 'Change amount' : 'Set amount (optional)'}</Text>
+            <Ionicons name="calculator-outline" size={20} color={colors.primary} />
+            <Text style={[styles.setAmountText, { color: colors.primary }]}>{amount ? 'Change amount' : 'Set amount (optional)'}</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.amountSection}>
-          <Text style={styles.amountLabel}>Enter amount to request</Text>
-          <Text style={styles.amountDisplay}>K{amount || '0'}</Text>
+          <Text style={[styles.amountLabel, { color: colors.textSecondary }]}>Enter amount to request</Text>
+          <Text style={[styles.amountDisplay, { color: colors.text }]}>K{amount || '0'}</Text>
           <NumPad onPress={handleKeyPress} onDelete={handleDelete} />
           <View style={styles.amountActions}>
             <TouchableOpacity
@@ -106,7 +108,6 @@ export default function ReceiveScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -121,7 +122,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   qrSection: {
     flex: 1,
@@ -129,7 +129,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl,
   },
   qrCard: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
     alignItems: 'center',
@@ -149,16 +148,13 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   userPhone: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   amountBadge: {
     marginTop: Spacing.md,
-    backgroundColor: Colors.primary + '15',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
@@ -166,11 +162,9 @@ const styles = StyleSheet.create({
   amountBadgeText: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.primary,
   },
   instruction: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: Spacing.lg,
   },
   setAmountBtn: {
@@ -180,12 +174,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
-    backgroundColor: Colors.primary + '10',
     borderRadius: BorderRadius.full,
   },
   setAmountText: {
     fontSize: FontSize.md,
-    color: Colors.primary,
     fontWeight: '600',
   },
   amountSection: {
@@ -195,13 +187,11 @@ const styles = StyleSheet.create({
   },
   amountLabel: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     marginBottom: Spacing.md,
   },
   amountDisplay: {
     fontSize: 48,
     fontWeight: '800',
-    color: Colors.text,
     marginBottom: Spacing.xl,
   },
   amountActions: {
@@ -210,7 +200,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   amountDoneBtn: {
-    backgroundColor: Colors.primary,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
     alignItems: 'center',

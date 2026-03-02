@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { formatCurrency } from '../../lib/helpers';
 import TransactionItem from '../../components/TransactionItem';
@@ -12,6 +13,7 @@ import { HomeSkeleton } from '../../components/SkeletonLoader';
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const user = useStore((s) => s.user);
   const transactions = useStore((s) => s.transactions);
   const fetchProfile = useStore((s) => s.fetchProfile);
@@ -28,7 +30,7 @@ export default function HomeScreen() {
 
   if (!user) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
         <HomeSkeleton />
       </View>
     );
@@ -36,26 +38,26 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { paddingTop: insets.top + 10 }]}
+      style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
       }
     >
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Hello, {user?.full_name?.split(' ')[0] || 'User'}</Text>
-          <Text style={styles.subGreeting}>What would you like to do?</Text>
+          <Text style={[styles.greeting, { color: colors.text }]}>Hello, {user?.full_name?.split(' ')[0] || 'User'}</Text>
+          <Text style={[styles.subGreeting, { color: colors.textSecondary }]}>What would you like to do?</Text>
         </View>
         <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/(tabs)/profile')} accessibilityLabel="Profile" accessibilityRole="button">
-          <Ionicons name="person-circle-outline" size={36} color={Colors.primary} />
+          <Ionicons name="person-circle-outline" size={36} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Balance Card */}
-      <TouchableOpacity style={styles.balanceCard} activeOpacity={0.9} onPress={() => setBalanceHidden(!balanceHidden)} accessibilityLabel={balanceHidden ? 'Show balance' : 'Hide balance'} accessibilityRole="button">
+      <TouchableOpacity style={[styles.balanceCard, { backgroundColor: colors.primary }]} activeOpacity={0.9} onPress={() => setBalanceHidden(!balanceHidden)} accessibilityLabel={balanceHidden ? 'Show balance' : 'Hide balance'} accessibilityRole="button">
         <View style={styles.balanceRow}>
           <Text style={styles.balanceLabel}>Available Balance</Text>
           <Ionicons name={balanceHidden ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.white} style={{ opacity: 0.7 }} />
@@ -65,18 +67,18 @@ export default function HomeScreen() {
 
       {/* Quick Actions - THE 2 KEY FEATURES */}
       <View style={styles.actionsContainer}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
         <View style={styles.actionsRow}>
           {/* Scan QR */}
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: Colors.primary }]}
+            style={[styles.actionCard, { backgroundColor: colors.primary }]}
             onPress={() => router.push('/scan')}
             activeOpacity={0.8}
             accessibilityLabel="Scan QR code to pay or receive"
             accessibilityRole="button"
           >
             <View style={styles.actionIconCircle}>
-              <Ionicons name="qr-code" size={28} color={Colors.primary} />
+              <Ionicons name="qr-code" size={28} color={colors.primary} />
             </View>
             <Text style={styles.actionTitle}>Scan QR</Text>
             <Text style={styles.actionDesc}>Scan to pay or receive</Text>
@@ -84,14 +86,14 @@ export default function HomeScreen() {
 
           {/* Tap to Pay */}
           <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: Colors.secondary }]}
+            style={[styles.actionCard, { backgroundColor: colors.secondary }]}
             onPress={() => router.push('/tap')}
             activeOpacity={0.8}
             accessibilityLabel="Tap to pay, hold phones together"
             accessibilityRole="button"
           >
             <View style={styles.actionIconCircle}>
-              <Ionicons name="wifi" size={28} color={Colors.secondary} />
+              <Ionicons name="wifi" size={28} color={colors.secondary} />
             </View>
             <Text style={styles.actionTitle}>Tap to Pay</Text>
             <Text style={styles.actionDesc}>Hold phones together</Text>
@@ -101,28 +103,28 @@ export default function HomeScreen() {
         {/* Secondary Actions */}
         <View style={styles.secondaryRow}>
           <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/top-up')} activeOpacity={0.7} accessibilityLabel="Top up wallet" accessibilityRole="button">
-            <View style={[styles.secondaryIcon, { backgroundColor: Colors.success + '15' }]}>
-              <Ionicons name="wallet" size={20} color={Colors.success} />
+            <View style={[styles.secondaryIcon, { backgroundColor: colors.success + '15' }]}>
+              <Ionicons name="wallet" size={20} color={colors.success} />
             </View>
-            <Text style={styles.secondaryLabel}>Top Up</Text>
+            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Top Up</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/payment')} activeOpacity={0.7} accessibilityLabel="Send money" accessibilityRole="button">
-            <View style={[styles.secondaryIcon, { backgroundColor: Colors.primary + '15' }]}>
-              <Ionicons name="send" size={20} color={Colors.primary} />
+            <View style={[styles.secondaryIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="send" size={20} color={colors.primary} />
             </View>
-            <Text style={styles.secondaryLabel}>Send</Text>
+            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Send</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/withdraw')} activeOpacity={0.7} accessibilityLabel="Withdraw money" accessibilityRole="button">
-            <View style={[styles.secondaryIcon, { backgroundColor: Colors.secondary + '15' }]}>
-              <Ionicons name="arrow-up-circle" size={22} color={Colors.secondary} />
+            <View style={[styles.secondaryIcon, { backgroundColor: colors.secondary + '15' }]}>
+              <Ionicons name="arrow-up-circle" size={22} color={colors.secondary} />
             </View>
-            <Text style={styles.secondaryLabel}>Withdraw</Text>
+            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Withdraw</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/receive')} activeOpacity={0.7}>
-            <View style={[styles.secondaryIcon, { backgroundColor: Colors.accent + '15' }]}>
-              <Ionicons name="arrow-down-circle" size={22} color={Colors.accent} />
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/receive')} activeOpacity={0.7} accessibilityLabel="Receive money" accessibilityRole="button">
+            <View style={[styles.secondaryIcon, { backgroundColor: colors.accent + '15' }]}>
+              <Ionicons name="arrow-down-circle" size={22} color={colors.accent} />
             </View>
-            <Text style={styles.secondaryLabel}>Receive</Text>
+            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Receive</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -130,12 +132,12 @@ export default function HomeScreen() {
       {/* Recent Transactions */}
       <View style={styles.recentSection}>
         <View style={styles.recentHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
-            <Text style={styles.seeAll}>See all</Text>
+            <Text style={[styles.seeAll, { color: colors.primary }]}>See all</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.transactionsList}>
+        <View style={[styles.transactionsList, { backgroundColor: colors.surface }]}>
           {recentTransactions.length > 0 ? (
             recentTransactions.map((txn) => (
               <TransactionItem
@@ -146,11 +148,11 @@ export default function HomeScreen() {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={40} color={Colors.textLight} />
-              <Text style={styles.emptyText}>No transactions yet</Text>
-              <TouchableOpacity style={styles.emptyCta} onPress={() => router.push('/payment')} activeOpacity={0.7}>
-                <Ionicons name="send" size={16} color={Colors.primary} />
-                <Text style={styles.emptyCtaText}>Send your first payment</Text>
+              <Ionicons name="receipt-outline" size={40} color={colors.textLight} />
+              <Text style={[styles.emptyText, { color: colors.textLight }]}>No transactions yet</Text>
+              <TouchableOpacity style={[styles.emptyCta, { backgroundColor: colors.primary + '10' }]} onPress={() => router.push('/payment')} activeOpacity={0.7}>
+                <Ionicons name="send" size={16} color={colors.primary} />
+                <Text style={[styles.emptyCtaText, { color: colors.primary }]}>Send your first payment</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -163,7 +165,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollContent: {
     paddingBottom: 30,
@@ -178,11 +179,9 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
   },
   subGreeting: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   notifBtn: {
@@ -190,7 +189,6 @@ const styles = StyleSheet.create({
   },
   balanceCard: {
     marginHorizontal: Spacing.lg,
-    backgroundColor: Colors.primary,
     borderRadius: BorderRadius.xl,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.lg,
@@ -219,7 +217,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: Spacing.md,
   },
   actionsRow: {
@@ -272,7 +269,6 @@ const styles = StyleSheet.create({
   secondaryLabel: {
     fontSize: FontSize.xs,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   recentSection: {
     paddingHorizontal: Spacing.lg,
@@ -285,11 +281,9 @@ const styles = StyleSheet.create({
   },
   seeAll: {
     fontSize: FontSize.sm,
-    color: Colors.primary,
     fontWeight: '600',
   },
   transactionsList: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
@@ -300,7 +294,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FontSize.sm,
-    color: Colors.textLight,
   },
   emptyCta: {
     flexDirection: 'row',
@@ -309,12 +302,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.primary + '10',
     borderRadius: BorderRadius.full,
   },
   emptyCtaText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.primary,
   },
 });

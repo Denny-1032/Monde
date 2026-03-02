@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { isValidPhone } from '../../lib/validation';
 
@@ -12,6 +13,7 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
 
 export default function LoginScreen() {
+  const colors = useColors();
   const router = useRouter();
   const { signIn, isLoading } = useStore();
   const [phone, setPhone] = useState('');
@@ -90,23 +92,23 @@ export default function LoginScreen() {
   const KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <TouchableOpacity style={styles.back} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color={Colors.text} />
+        <Ionicons name="arrow-back" size={24} color={colors.text} />
       </TouchableOpacity>
 
       <View style={styles.header}>
         <View style={styles.logoCircle}>
-          <Text style={styles.logoText}>M</Text>
+          <Text style={[styles.logoText, { color: colors.white }]}>M</Text>
         </View>
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: colors.text }]}>Welcome back</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {loadingPhone ? '' : showPhoneInput ? 'Enter your phone number' : 'Enter your 4-digit PIN'}
         </Text>
         {!showPhoneInput && phone ? (
-          <TouchableOpacity onPress={() => setShowPhoneInput(true)} style={styles.changePhone}>
-            <Text style={styles.changePhoneText}>+260{phone.replace(/^0/, '')}  </Text>
-            <Ionicons name="create-outline" size={14} color={Colors.primary} />
+          <TouchableOpacity onPress={() => setShowPhoneInput(true)} style={[styles.changePhone, { backgroundColor: colors.primary + '10' }]}>
+            <Text style={[styles.changePhoneText, { color: colors.primary }]}>+260{phone.replace(/^0/, '')}  </Text>
+            <Ionicons name="create-outline" size={14} color={colors.primary} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -114,11 +116,11 @@ export default function LoginScreen() {
       {showPhoneInput ? (
         <View style={styles.phoneSection}>
           <View style={styles.phoneRow}>
-            <View style={styles.prefix}>
-              <Text style={styles.prefixText}>+260</Text>
+            <View style={[styles.prefix, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+              <Text style={[styles.prefixText, { color: colors.textSecondary }]}>+260</Text>
             </View>
             <TextInput
-              style={styles.phoneInput}
+              style={[styles.phoneInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -131,20 +133,20 @@ export default function LoginScreen() {
             onPress={() => setShowPhoneInput(false)}
             disabled={!canProceedToPin}
           >
-            <Text style={[styles.continueBtnText, !canProceedToPin && { opacity: 0.5 }]}>Continue</Text>
-            <Ionicons name="arrow-forward" size={20} color={Colors.white} />
+            <Text style={[styles.continueBtnText, { color: colors.white }, !canProceedToPin && { opacity: 0.5 }]}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color={colors.white} />
           </TouchableOpacity>
         </View>
       ) : (
         <>
           <View style={styles.dots}>
             {dots.map((filled, i) => (
-              <View key={i} style={[styles.dot, filled && styles.dotFilled]} />
+              <View key={i} style={[styles.dot, { borderColor: colors.border }, filled && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
             ))}
           </View>
 
           {isLoading ? (
-            <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: Spacing.md }} />
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: Spacing.md }} />
           ) : null}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -163,9 +165,9 @@ export default function LoginScreen() {
                     activeOpacity={key ? 0.6 : 1}
                   >
                     {key === 'del' ? (
-                      <Ionicons name="backspace-outline" size={26} color={Colors.text} />
+                      <Ionicons name="backspace-outline" size={26} color={colors.text} />
                     ) : (
-                      <Text style={styles.keyText}>{key}</Text>
+                      <Text style={[styles.keyText, { color: colors.text }]}>{key}</Text>
                     )}
                   </TouchableOpacity>
                 ))}
@@ -174,7 +176,7 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/forgot-pin')}>
-            <Text style={styles.forgotText}>Forgot PIN?</Text>
+            <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot PIN?</Text>
           </TouchableOpacity>
         </>
       )}
@@ -185,7 +187,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     paddingTop: 60,
   },
   back: {
@@ -211,16 +212,13 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 28,
     fontWeight: '800',
-    color: Colors.white,
   },
   title: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
   },
   subtitle: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
   dots: {
@@ -235,12 +233,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: Colors.border,
     backgroundColor: 'transparent',
-  },
-  dotFilled: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   error: {
     textAlign: 'center',
@@ -268,7 +261,6 @@ const styles = StyleSheet.create({
   keyText: {
     fontSize: FontSize.xl + 4,
     fontWeight: '500',
-    color: Colors.text,
   },
   phoneSection: {
     paddingHorizontal: Spacing.xl,
@@ -280,28 +272,22 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   prefix: {
-    backgroundColor: Colors.surfaceAlt,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     justifyContent: 'center',
   },
   prefixText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   phoneInput: {
     flex: 1,
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md - 2,
     fontSize: FontSize.md,
-    color: Colors.text,
   },
   continueBtn: {
     flexDirection: 'row',
@@ -316,7 +302,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   continueBtnText: {
-    color: Colors.white,
     fontWeight: '600',
     fontSize: FontSize.md,
   },
@@ -326,13 +311,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.primary + '10',
     borderRadius: BorderRadius.full,
   },
   changePhoneText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.primary,
   },
   forgotBtn: {
     alignItems: 'center',
@@ -342,6 +325,5 @@ const styles = StyleSheet.create({
   forgotText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.primary,
   },
 });

@@ -4,11 +4,13 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatPhone } from '../lib/helpers';
 import Avatar from '../components/Avatar';
 
 export default function TransactionDetailScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id: string }>();
@@ -17,17 +19,17 @@ export default function TransactionDetailScreen() {
 
   if (!txn) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.text} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Transaction</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Transaction</Text>
           <View style={{ width: 32 }} />
         </View>
         <View style={styles.emptyState}>
-          <Ionicons name="alert-circle-outline" size={48} color={Colors.textLight} />
-          <Text style={styles.emptyText}>Transaction not found</Text>
+          <Ionicons name="alert-circle-outline" size={48} color={colors.textLight} />
+          <Text style={[styles.emptyText, { color: colors.textLight }]}>Transaction not found</Text>
         </View>
       </View>
     );
@@ -87,28 +89,28 @@ export default function TransactionDetailScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Transaction Details</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Transaction Details</Text>
         <TouchableOpacity onPress={handleShareReceipt} accessibilityLabel="Share receipt" accessibilityRole="button">
-          <Ionicons name="share-outline" size={22} color={Colors.primary} />
+          <Ionicons name="share-outline" size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Main Card */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <Avatar
             name={txn.recipient_name}
             size={64}
             color={isTopUp ? Colors.success : isWithdraw ? Colors.secondary : isReceive ? Colors.success : isPayment ? Colors.secondary : Colors.primaryLight}
           />
-          <Text style={styles.recipientName}>{txn.recipient_name}</Text>
+          <Text style={[styles.recipientName, { color: colors.text }]}>{txn.recipient_name}</Text>
           {txn.recipient_phone ? (
-            <Text style={styles.recipientPhone}>{formatPhone(txn.recipient_phone)}</Text>
+            <Text style={[styles.recipientPhone, { color: colors.textSecondary }]}>{formatPhone(txn.recipient_phone)}</Text>
           ) : null}
 
           <View style={styles.amountRow}>
@@ -126,7 +128,7 @@ export default function TransactionDetailScreen() {
         </View>
 
         {/* Details */}
-        <View style={styles.detailsCard}>
+        <View style={[styles.detailsCard, { backgroundColor: colors.surface }]}>
           <DetailRow label="Type" value={typeLabel} />
           <DetailRow label="Method" value={txn.method === 'wallet' ? 'Wallet Transfer' : txn.method === 'qr' ? 'QR Code' : txn.method === 'nfc' ? 'Tap to Pay' : 'Manual'} icon={txn.method === 'wallet' ? 'wallet-outline' : txn.method === 'qr' ? 'qr-code-outline' : txn.method === 'nfc' ? 'wifi-outline' : 'send-outline'} />
           <DetailRow label="Provider" value={provider?.name || txn.provider} dotColor={provider?.color} />
@@ -144,8 +146,8 @@ export default function TransactionDetailScreen() {
           accessibilityLabel="Share transaction receipt"
           accessibilityRole="button"
         >
-          <Ionicons name="document-text-outline" size={20} color={Colors.primary} />
-          <Text style={styles.receiptBtnText}>Share Receipt</Text>
+          <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+          <Text style={[styles.receiptBtnText, { color: colors.primary }]}>Share Receipt</Text>
         </TouchableOpacity>
 
         {/* Quick action: Send Again (1-tap resend) */}
@@ -163,7 +165,7 @@ export default function TransactionDetailScreen() {
             })}
             activeOpacity={0.7}
           >
-            <Ionicons name="repeat-outline" size={20} color={Colors.white} />
+            <Ionicons name="repeat-outline" size={20} color={colors.white} />
             <Text style={styles.sendAgainText}>Send Again</Text>
           </TouchableOpacity>
         ) : null}
@@ -179,13 +181,14 @@ function DetailRow({ label, value, icon, dotColor, mono }: {
   dotColor?: string;
   mono?: boolean;
 }) {
+  const colors = useColors();
   return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
+    <View style={[styles.detailRow, { borderBottomColor: colors.borderLight }]}>
+      <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>{label}</Text>
       <View style={styles.detailValueRow}>
         {dotColor ? <View style={[styles.providerDot, { backgroundColor: dotColor }]} /> : null}
-        {icon ? <Ionicons name={icon as any} size={14} color={Colors.textSecondary} /> : null}
-        <Text style={[styles.detailValue, mono && styles.mono]} numberOfLines={1}>{value}</Text>
+        {icon ? <Ionicons name={icon as any} size={14} color={colors.textSecondary} /> : null}
+        <Text style={[styles.detailValue, { color: colors.text }, mono && styles.mono]} numberOfLines={1}>{value}</Text>
       </View>
     </View>
   );
@@ -194,7 +197,6 @@ function DetailRow({ label, value, icon, dotColor, mono }: {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -207,14 +209,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   content: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
     alignItems: 'center',
@@ -228,12 +228,10 @@ const styles = StyleSheet.create({
   recipientName: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
     marginTop: Spacing.md,
   },
   recipientPhone: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   amountRow: {
@@ -262,7 +260,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   detailsCard: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
   },
@@ -272,11 +269,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.md - 2,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
   },
   detailLabel: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     fontWeight: '500',
   },
   detailValueRow: {
@@ -288,7 +283,6 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.text,
   },
   mono: {
     fontFamily: 'monospace',
@@ -307,31 +301,26 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FontSize.md,
-    color: Colors.textLight,
   },
   receiptBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primary + '10',
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
     marginTop: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.primary + '30',
   },
   receiptBtnText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.primary,
   },
   sendAgainBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primary,
     borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
     marginTop: Spacing.lg,

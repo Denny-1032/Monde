@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatPhone } from '../lib/helpers';
 import { sanitizeText, validateAmount, isValidPhone } from '../lib/validation';
@@ -33,6 +34,7 @@ export default function PaymentScreen() {
     method?: string;
   }>();
 
+  const colors = useColors();
   const user = useStore((s) => s.user);
   const sendPayment = useStore((s) => s.sendPayment);
 
@@ -205,16 +207,16 @@ export default function PaymentScreen() {
 
   return (
     <>
-    <KeyboardAvoidingView style={[styles.container, { paddingTop: insets.top + 10 }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => {
           if (step === 'confirm') setStep('input');
           else router.back();
         }}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>
+        <Text style={[styles.title, { color: colors.text }]}>
           {step === 'input' ? 'Send Money' : 'Confirm Payment'}
         </Text>
         <View style={{ width: 32 }} />
@@ -224,10 +226,10 @@ export default function PaymentScreen() {
         <ScrollView style={styles.stepContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* Phone / Contact search */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>To (phone or name)</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>To (phone or name)</Text>
             <TextInput
               ref={phoneRef}
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={recipientPhone}
               onChangeText={handlePhoneChange}
               onFocus={() => setShowSuggestions(true)}
@@ -237,17 +239,17 @@ export default function PaymentScreen() {
               autoCorrect={false}
             />
             {lookingUp && (
-              <ActivityIndicator size="small" color={Colors.primary} style={{ position: 'absolute', right: 12, top: 36 }} />
+              <ActivityIndicator size="small" color={colors.primary} style={{ position: 'absolute', right: 12, top: 36 }} />
             )}
             {/* Suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-              <View style={styles.suggestionsBox}>
+              <View style={[styles.suggestionsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 {suggestions.map((s) => (
                   <TouchableOpacity key={s.id + s.phone} style={styles.suggestionItem} onPress={() => selectSuggestion(s)}>
                     <Avatar name={s.name} size={34} imageUrl={s.avatar_url} />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.suggestionName}>{s.name}</Text>
-                      <Text style={styles.suggestionPhone}>{formatPhone(s.phone)}</Text>
+                      <Text style={[styles.suggestionName, { color: colors.text }]}>{s.name}</Text>
+                      <Text style={[styles.suggestionPhone, { color: colors.textSecondary }]}>{formatPhone(s.phone)}</Text>
                     </View>
                     {s.source === 'monde' && (
                       <View style={styles.mondeBadge}>
@@ -263,30 +265,30 @@ export default function PaymentScreen() {
           {/* Auto-filled name (editable) */}
           {recipientName ? (
             <View style={styles.recipientPreview}>
-              <Ionicons name="person-circle" size={20} color={Colors.primary} />
-              <Text style={styles.recipientPreviewText}>{recipientName}</Text>
+              <Ionicons name="person-circle" size={20} color={colors.primary} />
+              <Text style={[styles.recipientPreviewText, { color: colors.primary }]}>{recipientName}</Text>
               <TouchableOpacity onPress={() => setRecipientName('')}>
-                <Ionicons name="close-circle" size={18} color={Colors.textLight} />
+                <Ionicons name="close-circle" size={18} color={colors.textLight} />
               </TouchableOpacity>
             </View>
           ) : null}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Amount</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Amount</Text>
             <TextInput
-              style={[styles.input, styles.amountInput]}
+              style={[styles.input, styles.amountInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={amount}
               onChangeText={(t) => {
                 if (/^\d*\.?\d{0,2}$/.test(t)) setAmount(t);
               }}
               keyboardType="decimal-pad"
             />
-            <Text style={styles.balanceHint}>Balance: {formatCurrency(user?.balance || 0)}</Text>
+            <Text style={[styles.balanceHint, { color: colors.textSecondary }]}>Balance: {formatCurrency(user?.balance || 0)}</Text>
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Note (optional)</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Note (optional)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={note}
               onChangeText={setNote}
             />
@@ -303,18 +305,18 @@ export default function PaymentScreen() {
 
       {step === 'confirm' && (
         <View style={styles.confirmContainer}>
-          <View style={styles.confirmCard}>
+          <View style={[styles.confirmCard, { backgroundColor: colors.surface }]}>
             <Avatar name={recipientName || recipientPhone} size={60} />
-            <Text style={styles.confirmName}>{recipientName || recipientPhone}</Text>
-            {recipientName ? <Text style={styles.confirmPhone}>{formatPhone(recipientPhone)}</Text> : null}
-            <View style={styles.confirmDivider} />
-            <Text style={styles.confirmAmountLabel}>Amount</Text>
-            <Text style={styles.confirmAmount}>{formatCurrency(parseFloat(amount) || 0)}</Text>
-            {note ? <Text style={styles.confirmNote}>"{note}"</Text> : null}
+            <Text style={[styles.confirmName, { color: colors.text }]}>{recipientName || recipientPhone}</Text>
+            {recipientName ? <Text style={[styles.confirmPhone, { color: colors.textSecondary }]}>{formatPhone(recipientPhone)}</Text> : null}
+            <View style={[styles.confirmDivider, { backgroundColor: colors.borderLight }]} />
+            <Text style={[styles.confirmAmountLabel, { color: colors.textSecondary }]}>Amount</Text>
+            <Text style={[styles.confirmAmount, { color: colors.primary }]}>{formatCurrency(parseFloat(amount) || 0)}</Text>
+            {note ? <Text style={[styles.confirmNote, { color: colors.textSecondary }]}>"{note}"</Text> : null}
             <View style={styles.confirmMeta}>
               <View style={styles.confirmMetaItem}>
-                <Ionicons name={method === 'qr' ? 'qr-code-outline' : method === 'nfc' ? 'wifi-outline' : 'send-outline'} size={16} color={Colors.textSecondary} />
-                <Text style={styles.confirmMetaText}>via {method === 'qr' ? 'QR Code' : method === 'nfc' ? 'Tap to Pay' : 'Monde'}</Text>
+                <Ionicons name={method === 'qr' ? 'qr-code-outline' : method === 'nfc' ? 'wifi-outline' : 'send-outline'} size={16} color={colors.textSecondary} />
+                <Text style={[styles.confirmMetaText, { color: colors.textSecondary }]}>via {method === 'qr' ? 'QR Code' : method === 'nfc' ? 'Tap to Pay' : 'Monde'}</Text>
               </View>
             </View>
           </View>
@@ -343,7 +345,6 @@ export default function PaymentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -356,7 +357,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   stepContainer: {
     flex: 1,
@@ -370,20 +370,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
     marginBottom: Spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md - 2,
     fontSize: FontSize.md,
-    color: Colors.text,
   },
   amountInput: {
     fontSize: FontSize.xl,
@@ -391,14 +387,11 @@ const styles = StyleSheet.create({
   },
   balanceHint: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
   suggestionsBox: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
-    borderColor: Colors.border,
     marginTop: 4,
     maxHeight: 220,
     overflow: 'hidden',
@@ -415,15 +408,12 @@ const styles = StyleSheet.create({
   suggestionName: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.text,
   },
   suggestionPhone: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
     marginTop: 1,
   },
   mondeBadge: {
-    backgroundColor: Colors.primary + '15',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
@@ -431,13 +421,11 @@ const styles = StyleSheet.create({
   mondeBadgeText: {
     fontSize: FontSize.xs,
     fontWeight: '700',
-    color: Colors.primary,
   },
   recipientPreview: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primary + '10',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
@@ -448,7 +436,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.primary,
   },
   confirmContainer: {
     flex: 1,
@@ -457,7 +444,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   confirmCard: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.xl,
     padding: Spacing.xl,
     alignItems: 'center',
@@ -471,33 +457,27 @@ const styles = StyleSheet.create({
   confirmName: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
     marginTop: Spacing.md,
   },
   confirmPhone: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   confirmDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: Colors.borderLight,
     marginVertical: Spacing.lg,
   },
   confirmAmountLabel: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
   },
   confirmAmount: {
     fontSize: FontSize.hero,
     fontWeight: '800',
-    color: Colors.primary,
     marginTop: Spacing.xs,
   },
   confirmNote: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     fontStyle: 'italic',
     marginTop: Spacing.sm,
   },
@@ -511,7 +491,6 @@ const styles = StyleSheet.create({
   },
   confirmMetaText: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
   },
   confirmActions: {
     gap: Spacing.sm,

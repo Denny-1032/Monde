@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatPhone } from '../lib/helpers';
 import NumPad from '../components/NumPad';
@@ -16,6 +17,7 @@ const QUICK_AMOUNTS = [50, 100, 200, 500, 1000, 5000];
 export default function WithdrawScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const user = useStore((s) => s.user);
   const withdraw = useStore((s) => s.withdraw);
   const linkedAccounts = useStore((s) => s.linkedAccounts);
@@ -99,44 +101,44 @@ export default function WithdrawScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Withdraw</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Withdraw</Text>
         <View style={{ width: 32 }} />
       </View>
 
       {step === 'amount' && (
         <>
           {/* Balance display */}
-          <View style={styles.balanceBanner}>
-            <Text style={styles.balanceLabel}>Available Balance</Text>
-            <Text style={styles.balanceValue}>{formatCurrency(balance)}</Text>
+          <View style={[styles.balanceBanner, { backgroundColor: colors.primary + '10' }]}>
+            <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Available Balance</Text>
+            <Text style={[styles.balanceValue, { color: colors.primary }]}>{formatCurrency(balance)}</Text>
           </View>
 
           {/* Provider selector */}
           <TouchableOpacity
-            style={styles.providerSelector}
+            style={[styles.providerSelector, { backgroundColor: colors.surface }]}
             onPress={() => setStep('provider')}
             activeOpacity={0.7}
           >
             <View style={styles.providerLeft}>
-              <View style={[styles.providerDot, { backgroundColor: provider?.color || Colors.primary }]} />
+              <View style={[styles.providerDot, { backgroundColor: provider?.color || colors.primary }]} />
               <View>
-                <Text style={styles.providerLabelText}>Withdraw to</Text>
-                <Text style={styles.providerName}>{provider?.name || 'Select Provider'}</Text>
+                <Text style={[styles.providerLabelText, { color: colors.textLight }]}>Withdraw to</Text>
+                <Text style={[styles.providerName, { color: colors.text }]}>{provider?.name || 'Select Provider'}</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
           </TouchableOpacity>
 
           {/* Amount display */}
           <View style={styles.amountContainer}>
-            <Text style={styles.amountPrefix}>K</Text>
-            <Text style={[styles.amountValue, parsedAmount > balance && { color: Colors.error }]}>
+            <Text style={[styles.amountPrefix, { color: colors.textSecondary }]}>K</Text>
+            <Text style={[styles.amountValue, { color: colors.text }, parsedAmount > balance && { color: colors.error }]}>
               {amount || '0'}
             </Text>
           </View>
@@ -149,21 +151,21 @@ export default function WithdrawScreen() {
             {QUICK_AMOUNTS.filter((v) => v <= balance).map((val) => (
               <TouchableOpacity
                 key={val}
-                style={[styles.quickBtn, amount === val.toString() && styles.quickBtnActive]}
+                style={[styles.quickBtn, { backgroundColor: amount === val.toString() ? colors.primary : colors.surfaceAlt }]}
                 onPress={() => handleQuickAmount(val)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.quickBtnText, amount === val.toString() && styles.quickBtnTextActive]}>
+                <Text style={[styles.quickBtnText, { color: amount === val.toString() ? colors.white : colors.textSecondary }]}>
                   K{val}
                 </Text>
               </TouchableOpacity>
             ))}
             <TouchableOpacity
-              style={[styles.quickBtn, styles.quickBtnAll]}
+              style={[styles.quickBtn, { borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primary + '10' }]}
               onPress={handleWithdrawAll}
               activeOpacity={0.7}
             >
-              <Text style={[styles.quickBtnText, { color: Colors.primary }]}>All</Text>
+              <Text style={[styles.quickBtnText, { color: colors.primary }]}>All</Text>
             </TouchableOpacity>
           </View>
 
@@ -173,8 +175,8 @@ export default function WithdrawScreen() {
           {/* Fee info */}
           {parsedAmount > 0 && parsedAmount <= balance && (
             <View style={styles.feeRow}>
-              <Text style={styles.feeLabel}>Estimated fee</Text>
-              <Text style={styles.feeValue}>{formatCurrency(estimatedFee)}</Text>
+              <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Estimated fee</Text>
+              <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
             </View>
           )}
 
@@ -195,13 +197,13 @@ export default function WithdrawScreen() {
           {/* Linked Accounts — 1-tap selection */}
           {linkedAccounts.length > 0 && (
             <>
-              <Text style={styles.providerListTitle}>Your Accounts</Text>
+              <Text style={[styles.providerListTitle, { color: colors.text }]}>Your Accounts</Text>
               {linkedAccounts.map((acc) => {
                 const ap = Providers.find((p) => p.id === acc.provider);
                 return (
                   <TouchableOpacity
                     key={acc.id}
-                    style={[styles.providerItem, selectedProvider === acc.provider && styles.providerItemActive]}
+                    style={[styles.providerItem, { backgroundColor: colors.surface }, selectedProvider === acc.provider && { borderWidth: 2, borderColor: colors.primary }]}
                     onPress={() => {
                       setSelectedProvider(acc.provider);
                       setSelectedAccountId(acc.id);
@@ -209,29 +211,29 @@ export default function WithdrawScreen() {
                     }}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.providerItemDot, { backgroundColor: ap?.color || Colors.primary }]} />
+                    <View style={[styles.providerItemDot, { backgroundColor: ap?.color || colors.primary }]} />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.providerItemName}>{acc.account_name}</Text>
-                      <Text style={{ fontSize: FontSize.xs, color: Colors.textSecondary }}>{ap?.name} · {formatPhone(acc.account_phone)}</Text>
+                      <Text style={[styles.providerItemName, { color: colors.text }]}>{acc.account_name}</Text>
+                      <Text style={{ fontSize: FontSize.xs, color: colors.textSecondary }}>{ap?.name} · {formatPhone(acc.account_phone)}</Text>
                     </View>
                     {acc.is_default && (
-                      <View style={{ backgroundColor: Colors.success + '18', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                        <Text style={{ fontSize: FontSize.xs, fontWeight: '700', color: Colors.success }}>Default</Text>
+                      <View style={{ backgroundColor: colors.success + '18', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                        <Text style={{ fontSize: FontSize.xs, fontWeight: '700', color: colors.success }}>Default</Text>
                       </View>
                     )}
                   </TouchableOpacity>
                 );
               })}
-              <Text style={[styles.providerListTitle, { marginTop: Spacing.lg }]}>All Providers</Text>
+              <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.text }]}>All Providers</Text>
             </>
           )}
           {linkedAccounts.length === 0 && (
-            <Text style={styles.providerListTitle}>Withdraw To</Text>
+            <Text style={[styles.providerListTitle, { color: colors.text }]}>Withdraw To</Text>
           )}
           {Providers.map((p) => (
             <TouchableOpacity
               key={p.id}
-              style={[styles.providerItem, selectedProvider === p.id && styles.providerItemActive]}
+              style={[styles.providerItem, { backgroundColor: colors.surface }, selectedProvider === p.id && { borderWidth: 2, borderColor: colors.primary }]}
               onPress={() => {
                 setSelectedProvider(p.id);
                 setSelectedAccountId(undefined);
@@ -240,9 +242,9 @@ export default function WithdrawScreen() {
               activeOpacity={0.7}
             >
               <View style={[styles.providerItemDot, { backgroundColor: p.color }]} />
-              <Text style={[styles.providerItemName, { flex: 1 }]}>{p.name}</Text>
+              <Text style={[styles.providerItemName, { flex: 1, color: colors.text }]}>{p.name}</Text>
               {selectedProvider === p.id && (
-                <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
+                <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
               )}
             </TouchableOpacity>
           ))}
@@ -266,7 +268,6 @@ export default function WithdrawScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -279,11 +280,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   balanceBanner: {
     marginHorizontal: Spacing.lg,
-    backgroundColor: Colors.primary + '10',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     alignItems: 'center',
@@ -291,12 +290,10 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
   },
   balanceValue: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.primary,
     marginTop: 2,
   },
   providerSelector: {
@@ -304,7 +301,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: Spacing.lg,
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -321,12 +317,10 @@ const styles = StyleSheet.create({
   },
   providerLabelText: {
     fontSize: FontSize.xs,
-    color: Colors.textLight,
   },
   providerName: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.text,
   },
   amountContainer: {
     flexDirection: 'row',
@@ -337,13 +331,11 @@ const styles = StyleSheet.create({
   amountPrefix: {
     fontSize: FontSize.xl,
     fontWeight: '600',
-    color: Colors.textSecondary,
     marginRight: Spacing.xs,
   },
   amountValue: {
     fontSize: FontSize.hero + 8,
     fontWeight: '800',
-    color: Colors.text,
   },
   errorText: {
     textAlign: 'center',
@@ -363,23 +355,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surfaceAlt,
-  },
-  quickBtnActive: {
-    backgroundColor: Colors.primary,
-  },
-  quickBtnAll: {
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + '10',
   },
   quickBtnText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  quickBtnTextActive: {
-    color: Colors.white,
   },
   feeRow: {
     flexDirection: 'row',
@@ -390,12 +369,10 @@ const styles = StyleSheet.create({
   },
   feeLabel: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
   },
   feeValue: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   footer: {
     paddingHorizontal: Spacing.lg,
@@ -408,21 +385,15 @@ const styles = StyleSheet.create({
   providerListTitle: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: Spacing.md,
   },
   providerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
-  },
-  providerItemActive: {
-    borderWidth: 2,
-    borderColor: Colors.primary,
   },
   providerItemDot: {
     width: 14,
@@ -433,6 +404,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.text,
   },
 });

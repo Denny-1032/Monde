@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatPhone } from '../lib/helpers';
 import { sendOtp, verifyOtp } from '../lib/api';
@@ -14,6 +15,7 @@ import Button from '../components/Button';
 import OtpInput from '../components/OtpInput';
 
 export default function LinkedAccountsScreen() {
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const linkedAccounts = useStore((s) => s.linkedAccounts);
@@ -115,32 +117,32 @@ export default function LinkedAccountsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Linked Accounts</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Linked Accounts</Text>
         <TouchableOpacity onPress={() => setShowAdd(true)} style={styles.addBtn}>
-          <Ionicons name="add-circle" size={28} color={Colors.primary} />
+          <Ionicons name="add-circle" size={28} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Info Banner */}
-        <View style={styles.infoBanner}>
-          <Ionicons name="information-circle" size={20} color={Colors.primary} />
-          <Text style={styles.infoText}>
+        <View style={[styles.infoBanner, { backgroundColor: colors.primary + '10' }]}>
+          <Ionicons name="information-circle" size={20} color={colors.primary} />
+          <Text style={[styles.infoText, { color: colors.primary }]}>
             Link your mobile money and bank accounts for 1-tap top ups and withdrawals.
           </Text>
         </View>
 
         {linkedAccounts.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="wallet-outline" size={56} color={Colors.textLight} />
-            <Text style={styles.emptyTitle}>No linked accounts</Text>
-            <Text style={styles.emptyText}>
+            <Ionicons name="wallet-outline" size={56} color={colors.textLight} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No linked accounts</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Add your Airtel Money, MTN MoMo, or bank account for faster transactions.
             </Text>
             <Button title="Link an Account" onPress={() => setShowAdd(true)} size="md" />
@@ -149,17 +151,17 @@ export default function LinkedAccountsScreen() {
           linkedAccounts.map((account) => {
             const prov = Providers.find((p) => p.id === account.provider);
             return (
-              <View key={account.id} style={styles.accountCard}>
+              <View key={account.id} style={[styles.accountCard, { backgroundColor: colors.surface }]}>
                 <View style={styles.accountTop}>
-                  <View style={[styles.providerDot, { backgroundColor: prov?.color || Colors.primary }]} />
+                  <View style={[styles.providerDot, { backgroundColor: prov?.color || colors.primary }]} />
                   <View style={styles.accountInfo}>
-                    <Text style={styles.accountName}>{account.account_name}</Text>
-                    <Text style={styles.accountPhone}>{formatPhone(account.account_phone)}</Text>
-                    <Text style={styles.accountProvider}>{prov?.name || account.provider}</Text>
+                    <Text style={[styles.accountName, { color: colors.text }]}>{account.account_name}</Text>
+                    <Text style={[styles.accountPhone, { color: colors.textSecondary }]}>{formatPhone(account.account_phone)}</Text>
+                    <Text style={[styles.accountProvider, { color: colors.textLight }]}>{prov?.name || account.provider}</Text>
                   </View>
                   {account.is_default && (
-                    <View style={styles.defaultBadge}>
-                      <Text style={styles.defaultText}>Default</Text>
+                    <View style={[styles.defaultBadge, { backgroundColor: colors.success + '18' }]}>
+                      <Text style={[styles.defaultText, { color: colors.success }]}>Default</Text>
                     </View>
                   )}
                 </View>
@@ -170,8 +172,8 @@ export default function LinkedAccountsScreen() {
                       onPress={() => handleSetDefault(account.id)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="star-outline" size={16} color={Colors.primary} />
-                      <Text style={styles.actionText}>Set Default</Text>
+                      <Ionicons name="star-outline" size={16} color={colors.primary} />
+                      <Text style={[styles.actionText, { color: colors.primary }]}>Set Default</Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -179,8 +181,8 @@ export default function LinkedAccountsScreen() {
                     onPress={() => handleRemove(account.id, account.account_name)}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="trash-outline" size={16} color={Colors.error} />
-                    <Text style={[styles.actionText, { color: Colors.error }]}>Remove</Text>
+                    <Ionicons name="trash-outline" size={16} color={colors.error} />
+                    <Text style={[styles.actionText, { color: colors.error }]}>Remove</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -195,17 +197,17 @@ export default function LinkedAccountsScreen() {
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{verifyStep ? 'Verify Account' : 'Link Account'}</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{verifyStep ? 'Verify Account' : 'Link Account'}</Text>
               <TouchableOpacity onPress={resetAddModal}>
-                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             {verifyStep ? (
               <>
-                <Text style={styles.verifyDesc}>
+                <Text style={[styles.verifyDesc, { color: colors.textSecondary }]}>
                   Enter the verification code sent to {addPhone} to confirm ownership.
                 </Text>
                 <OtpInput
@@ -219,13 +221,13 @@ export default function LinkedAccountsScreen() {
                   resetAddModal();
                   Alert.alert('Account Linked', 'Account linked without verification. You can verify it later.');
                 }}>
-                  <Text style={styles.skipVerifyText}>Skip verification for now</Text>
+                  <Text style={[styles.skipVerifyText, { color: colors.textSecondary }]}>Skip verification for now</Text>
                 </TouchableOpacity>
               </>
             ) : (
               <>
                 {/* Provider Picker */}
-                <Text style={styles.fieldLabel}>Provider</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Provider</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.providerScroll}>
                   {Providers.map((p) => (
                     <TouchableOpacity
@@ -241,22 +243,22 @@ export default function LinkedAccountsScreen() {
                 </ScrollView>
 
                 {/* Account Name */}
-                <Text style={styles.fieldLabel}>Account Holder Name</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Account Holder Name</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text }]}
                   placeholder="e.g. John Banda"
-                  placeholderTextColor={Colors.textLight}
+                  placeholderTextColor={colors.textLight}
                   value={addName}
                   onChangeText={setAddName}
                   autoCapitalize="words"
                 />
 
                 {/* Phone Number */}
-                <Text style={styles.fieldLabel}>Phone / Account Number</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Phone / Account Number</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text }]}
                   placeholder="e.g. 0971234567"
-                  placeholderTextColor={Colors.textLight}
+                  placeholderTextColor={colors.textLight}
                   value={addPhone}
                   onChangeText={setAddPhone}
                   keyboardType="phone-pad"
@@ -282,7 +284,6 @@ export default function LinkedAccountsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -296,7 +297,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.text,
   },
   content: {
     paddingHorizontal: Spacing.lg,
@@ -306,7 +306,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primary + '10',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.lg,
@@ -314,7 +313,6 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: FontSize.sm,
-    color: Colors.primary,
     fontWeight: '500',
   },
   emptyState: {
@@ -325,17 +323,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: FontSize.lg,
     fontWeight: '600',
-    color: Colors.text,
   },
   emptyText: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: Spacing.md,
   },
   accountCard: {
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.md,
@@ -356,20 +351,16 @@ const styles = StyleSheet.create({
   accountName: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.text,
   },
   accountPhone: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 1,
   },
   accountProvider: {
     fontSize: FontSize.xs,
-    color: Colors.textLight,
     marginTop: 1,
   },
   defaultBadge: {
-    backgroundColor: Colors.success + '18',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
     borderRadius: BorderRadius.full,
@@ -377,7 +368,6 @@ const styles = StyleSheet.create({
   defaultText: {
     fontSize: FontSize.xs,
     fontWeight: '700',
-    color: Colors.success,
   },
   accountActions: {
     flexDirection: 'row',
@@ -386,7 +376,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    borderTopColor: Colors.borderLight, // stays static — acceptable
   },
   actionBtn: {
     flexDirection: 'row',
@@ -399,15 +389,13 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.primary,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: Colors.overlay,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: Colors.surface,
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
     paddingHorizontal: Spacing.lg,
@@ -424,12 +412,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.text,
   },
   fieldLabel: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
     marginBottom: Spacing.xs,
     marginTop: Spacing.md,
   },
@@ -443,7 +429,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surfaceAlt,
     marginRight: Spacing.sm,
     borderWidth: 2,
     borderColor: 'transparent',
@@ -456,22 +441,18 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: FontSize.sm,
     fontWeight: '500',
-    color: Colors.text,
   },
   input: {
-    backgroundColor: Colors.surfaceAlt,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: FontSize.md,
-    color: Colors.text,
   },
   modalFooter: {
     marginTop: Spacing.xl,
   },
   verifyDesc: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: Spacing.lg,
     lineHeight: 20,
@@ -484,6 +465,5 @@ const styles = StyleSheet.create({
   skipVerifyText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
 });

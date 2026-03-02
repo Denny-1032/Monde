@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions, FlatList, TouchableOpacity, Animate
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useColors } from '../../constants/useColors';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
@@ -35,6 +36,7 @@ const slides = [
 ];
 
 export default function OnboardingScreen() {
+  const colors = useColors();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -64,16 +66,16 @@ export default function OnboardingScreen() {
       <View style={[styles.iconCircle, { backgroundColor: item.color + '15' }]}>
         <Ionicons name={item.icon} size={64} color={item.color} />
       </View>
-      <Text style={styles.slideTitle}>{item.title}</Text>
-      <Text style={styles.slideDesc}>{item.description}</Text>
+      <Text style={[styles.slideTitle, { color: colors.text }]}>{item.title}</Text>
+      <Text style={[styles.slideDesc, { color: colors.textSecondary }]}>{item.description}</Text>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Skip button */}
       <TouchableOpacity style={styles.skipBtn} onPress={completeOnboarding} accessibilityLabel="Skip onboarding" accessibilityRole="button">
-        <Text style={styles.skipText}>Skip</Text>
+        <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip</Text>
       </TouchableOpacity>
 
       {/* Slides */}
@@ -112,18 +114,18 @@ export default function OnboardingScreen() {
             return (
               <Animated.View
                 key={i}
-                style={[styles.dot, { width: dotWidth, opacity, backgroundColor: Colors.primary }]}
+                style={[styles.dot, { width: dotWidth, opacity, backgroundColor: colors.primary }]}
               />
             );
           })}
         </View>
 
         {/* Next / Get Started button */}
-        <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.8} accessibilityLabel={currentIndex === slides.length - 1 ? 'Get started' : 'Next slide'} accessibilityRole="button">
+        <TouchableOpacity style={[styles.nextBtn, { backgroundColor: colors.primary }]} onPress={handleNext} activeOpacity={0.8} accessibilityLabel={currentIndex === slides.length - 1 ? 'Get started' : 'Next slide'} accessibilityRole="button">
           {currentIndex === slides.length - 1 ? (
             <Text style={styles.nextBtnText}>Get Started</Text>
           ) : (
-            <Ionicons name="arrow-forward" size={24} color={Colors.white} />
+            <Ionicons name="arrow-forward" size={24} color={colors.white} />
           )}
         </TouchableOpacity>
       </View>
@@ -136,7 +138,6 @@ export { ONBOARDING_KEY };
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   skipBtn: {
     position: 'absolute',
@@ -149,7 +150,6 @@ const styles = StyleSheet.create({
   skipText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   slide: {
     flex: 1,
@@ -168,13 +168,11 @@ const styles = StyleSheet.create({
   slideTitle: {
     fontSize: FontSize.xxl,
     fontWeight: '800',
-    color: Colors.text,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
   slideDesc: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
     maxWidth: 300,
@@ -198,7 +196,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
