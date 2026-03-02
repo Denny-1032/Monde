@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
@@ -24,25 +24,25 @@ export default function NumPad({ onPress, onDelete, onSubmit, showDecimal = true
       {KEYS.map((row, i) => (
         <View key={i} style={styles.row}>
           {row.map((key) => (
-            <TouchableOpacity key={key} style={styles.key} onPress={() => onPress(key)} activeOpacity={0.6}>
-              <Text style={[styles.keyText, { color: colors.text }]}>{key}</Text>
+            <TouchableOpacity key={key} style={[styles.key, { backgroundColor: colors.surface }]} onPress={() => onPress(key)} activeOpacity={0.7}>
+              <Text style={[styles.keyText, { color: colors.primary }]}>{key}</Text>
             </TouchableOpacity>
           ))}
         </View>
       ))}
       <View style={styles.row}>
         {showDecimal ? (
-          <TouchableOpacity style={styles.key} onPress={() => onPress('.')} activeOpacity={0.6}>
-            <Text style={[styles.keyText, { color: colors.text }]}>.</Text>
+          <TouchableOpacity style={[styles.key, { backgroundColor: colors.surface }]} onPress={() => onPress('.')} activeOpacity={0.7}>
+            <Text style={[styles.keyText, { color: colors.primary }]}>.</Text>
           </TouchableOpacity>
         ) : (
-          <View style={styles.key} />
+          <View style={styles.keyEmpty} />
         )}
-        <TouchableOpacity style={styles.key} onPress={() => onPress('0')} activeOpacity={0.6}>
-          <Text style={[styles.keyText, { color: colors.text }]}>0</Text>
+        <TouchableOpacity style={[styles.key, { backgroundColor: colors.surface }]} onPress={() => onPress('0')} activeOpacity={0.7}>
+          <Text style={[styles.keyText, { color: colors.primary }]}>0</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.key} onPress={onDelete} activeOpacity={0.6}>
-          <Ionicons name="backspace-outline" size={26} color={colors.text} />
+        <TouchableOpacity style={[styles.key, { backgroundColor: colors.surface }]} onPress={onDelete} activeOpacity={0.7}>
+          <Ionicons name="backspace-outline" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -51,22 +51,44 @@ export default function NumPad({ onPress, onDelete, onSubmit, showDecimal = true
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
+    marginBottom: Spacing.md,
   },
   key: {
-    width: 75,
-    height: 60,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BorderRadius.full,
+    borderRadius: 36,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+    }),
+  },
+  keyEmpty: {
+    width: 72,
+    height: 72,
   },
   keyText: {
-    fontSize: FontSize.xl + 4,
+    fontSize: 28,
     fontWeight: '500',
   },
 });

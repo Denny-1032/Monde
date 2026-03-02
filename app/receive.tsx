@@ -93,11 +93,19 @@ export default function ReceiveScreen() {
           <NumPad onPress={handleKeyPress} onDelete={handleDelete} />
           <View style={styles.amountActions}>
             <TouchableOpacity
-              style={styles.amountDoneBtn}
+              style={[styles.amountDoneBtn, { backgroundColor: colors.primary }]}
               onPress={() => setShowAmountEntry(false)}
             >
-              <Text style={styles.amountDoneBtnText}>Done</Text>
+              <Text style={[styles.amountDoneBtnText, { color: colors.white }]}>Done</Text>
             </TouchableOpacity>
+            {amount ? (
+              <TouchableOpacity
+                style={styles.clearAmountBtn}
+                onPress={() => { setAmount(''); setShowAmountEntry(false); }}
+              >
+                <Text style={[styles.clearAmountText, { color: colors.textSecondary }]}>Clear amount</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </View>
       )}
@@ -208,6 +216,13 @@ const styles = StyleSheet.create({
   amountDoneBtnText: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.white,
+  },
+  clearAmountBtn: {
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  clearAmountText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
   },
 });

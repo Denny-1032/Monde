@@ -88,8 +88,8 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Support</Text>
         <View style={[styles.menuGroup, { backgroundColor: colors.surface }]}>
-          <MenuItem icon="help-circle-outline" label="Help & FAQ" onPress={() => Alert.alert('Help', 'For support, email help@monde.app')} />
-          <MenuItem icon="chatbubble-outline" label="Contact Support" onPress={() => Alert.alert('Contact', 'Email: support@monde.app\nPhone: +260 211 000 000')} />
+          <MenuItem icon="help-circle-outline" label="Help & FAQ" onPress={() => Alert.alert('Help', 'For support, email copperjetofficial@gmail.com')} />
+          <MenuItem icon="chatbubble-outline" label="Contact Support" onPress={() => Alert.alert('Contact', 'Email: copperjetofficial@gmail.com\nPhone: +260970627630')} />
           <MenuItem icon="document-text-outline" label="Terms & Privacy" onPress={() => router.push('/terms')} />
         </View>
       </View>

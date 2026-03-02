@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, StyleProp, ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
+import { sendOtp, verifyOtp } from '../../lib/api';
 import Button from '../../components/Button';
+import OtpInput from '../../components/OtpInput';
 
 const PIN_KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
 
@@ -21,6 +23,8 @@ export default function RegisterScreen() {
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
   const [tosAccepted, setTosAccepted] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const canProceedStep0 = fullName.trim().length > 1 && isValidPhone(phone) && tosAccepted;
   const canProceedStep1 = isValidPin(pin);
@@ -45,17 +49,39 @@ export default function RegisterScreen() {
       detected || 'airtel'
     );
     if (result.success) {
-      router.replace('/(tabs)');
+      // Send OTP for phone verification
+      const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+      await sendOtp(formattedPhone);
+      setStep(3);
     } else {
       setError(result.error || 'Registration failed. Please try again.');
       Alert.alert('Registration Error', result.error || 'Something went wrong.');
     }
   };
 
+  const handleVerifyOtp = async (code: string) => {
+    setOtpError('');
+    setOtpLoading(true);
+    const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+    const result = await verifyOtp(formattedPhone, code);
+    setOtpLoading(false);
+    if (result.success) {
+      router.replace('/(tabs)');
+    } else {
+      setOtpError(result.error || 'Invalid code. Please try again.');
+    }
+  };
+
+  const handleResendOtp = async () => {
+    const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+    await sendOtp(formattedPhone);
+  };
+
   return (
     <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <TouchableOpacity style={styles.back} onPress={() => {
-        if (step === 2) { setConfirmPin(''); setError(''); setStep(1); }
+        if (step === 3) { /* Can't go back from OTP - already registered */ }
+        else if (step === 2) { setConfirmPin(''); setError(''); setStep(1); }
         else if (step === 1) { setPin(''); setError(''); setStep(0); }
         else router.back();
       }}>
@@ -63,9 +89,9 @@ export default function RegisterScreen() {
       </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.title, { color: colors.text }]}>{step === 0 ? 'Create account' : step === 1 ? 'Set your PIN' : 'Confirm PIN'}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{step === 0 ? 'Create account' : step === 1 ? 'Set your PIN' : step === 2 ? 'Confirm PIN' : 'Verify your number'}</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {step === 0 ? 'Enter your details to get started' : step === 1 ? 'Choose a 4-digit PIN to secure your account' : 'Re-enter your PIN to confirm'}
+          {step === 0 ? 'Enter your details to get started' : step === 1 ? 'Choose a 4-digit PIN to secure your account' : step === 2 ? 'Re-enter your PIN to confirm' : `Enter the code sent to +260${phone.replace(/^0/, '')}`}
         </Text>
 
         {step === 0 ? (
@@ -134,17 +160,17 @@ export default function RegisterScreen() {
                   {row.map((key, j) => (
                     <TouchableOpacity
                       key={j}
-                      style={styles.padKey}
+                      style={[styles.padKey, key ? { backgroundColor: colors.surface } : null]}
                       onPress={() => {
                         if (key === 'del') { setPin((p) => p.slice(0, -1)); }
                         else if (key && pin.length < 4) { setPin((p) => p + key); }
                       }}
-                      activeOpacity={key ? 0.6 : 1}
+                      activeOpacity={key ? 0.7 : 1}
                     >
                       {key === 'del' ? (
-                        <Ionicons name="backspace-outline" size={26} color={colors.text} />
+                        <Ionicons name="backspace-outline" size={24} color={colors.textSecondary} />
                       ) : (
-                        <Text style={[styles.padKeyText, { color: colors.text }]}>{key}</Text>
+                        <Text style={[styles.padKeyText, { color: colors.primary }]}>{key}</Text>
                       )}
                     </TouchableOpacity>
                   ))}
@@ -161,7 +187,7 @@ export default function RegisterScreen() {
               />
             </View>
           </>
-        ) : (
+        ) : step === 2 ? (
           <>
             <View style={styles.dotsRow}>
               {Array.from({ length: 4 }, (_, i) => (
@@ -177,17 +203,17 @@ export default function RegisterScreen() {
                   {row.map((key, j) => (
                     <TouchableOpacity
                       key={j}
-                      style={styles.padKey}
+                      style={[styles.padKey, key ? { backgroundColor: colors.surface } : null]}
                       onPress={() => {
                         if (key === 'del') { setConfirmPin((p) => p.slice(0, -1)); setError(''); }
                         else if (key && confirmPin.length < 4) { setConfirmPin((p) => p + key); setError(''); }
                       }}
-                      activeOpacity={key ? 0.6 : 1}
+                      activeOpacity={key ? 0.7 : 1}
                     >
                       {key === 'del' ? (
-                        <Ionicons name="backspace-outline" size={26} color={colors.text} />
+                        <Ionicons name="backspace-outline" size={24} color={colors.textSecondary} />
                       ) : (
-                        <Text style={[styles.padKeyText, { color: colors.text }]}>{key}</Text>
+                        <Text style={[styles.padKeyText, { color: colors.primary }]}>{key}</Text>
                       )}
                     </TouchableOpacity>
                   ))}
@@ -212,6 +238,19 @@ export default function RegisterScreen() {
               />
             </View>
           </>
+        ) : (
+          <View style={styles.otpSection}>
+            <OtpInput
+              length={6}
+              onComplete={handleVerifyOtp}
+              error={otpError}
+              onResend={handleResendOtp}
+              resendCooldown={60}
+            />
+            <TouchableOpacity style={styles.skipOtp} onPress={() => router.replace('/(tabs)')}>
+              <Text style={[styles.skipOtpText, { color: colors.textSecondary }]}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -299,14 +338,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   padKey: {
-    width: 75,
-    height: 60,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BorderRadius.full,
+    borderRadius: 36,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+    }),
   },
   padKeyText: {
-    fontSize: FontSize.xl + 4,
+    fontSize: 28,
     fontWeight: '500',
   },
   errorText: {
@@ -336,6 +392,19 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   tosLink: {
+    fontWeight: '600',
+  },
+  otpSection: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+  },
+  skipOtp: {
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  skipOtpText: {
+    fontSize: FontSize.sm,
     fontWeight: '600',
   },
 });

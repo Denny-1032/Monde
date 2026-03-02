@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator, Platform, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
@@ -133,17 +133,17 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
                 {row.map((key, j) => (
                   <TouchableOpacity
                     key={j}
-                    style={styles.key}
+                    style={[styles.key, key ? { backgroundColor: colors.surface } : null] as ViewStyle[]}
                     onPress={() => {
                       if (key === 'del') handleDelete();
                       else if (key) handleKey(key);
                     }}
-                    activeOpacity={key ? 0.6 : 1}
+                    activeOpacity={key ? 0.7 : 1}
                   >
                     {key === 'del' ? (
-                      <Ionicons name="backspace-outline" size={26} color={colors.text} />
+                      <Ionicons name="backspace-outline" size={24} color={colors.textSecondary} />
                     ) : (
-                      <Text style={[styles.keyText, { color: colors.text }]}>{key}</Text>
+                      <Text style={[styles.keyText, { color: colors.primary }]}>{key}</Text>
                     )}
                   </TouchableOpacity>
                 ))}
@@ -217,14 +217,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   key: {
-    width: 75,
-    height: 56,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BorderRadius.full,
+    borderRadius: 36,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+    }),
   },
   keyText: {
-    fontSize: FontSize.xl + 4,
+    fontSize: 28,
     fontWeight: '500',
   },
   cancelBtn: {

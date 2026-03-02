@@ -10,9 +10,7 @@ import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatPhone } from '../lib/helpers';
-import { sendOtp, verifyOtp } from '../lib/api';
 import Button from '../components/Button';
-import OtpInput from '../components/OtpInput';
 
 export default function LinkedAccountsScreen() {
   const colors = useColors();
@@ -29,9 +27,6 @@ export default function LinkedAccountsScreen() {
   const [addName, setAddName] = useState('');
   const [addPhone, setAddPhone] = useState('');
   const [addLoading, setAddLoading] = useState(false);
-  const [verifyStep, setVerifyStep] = useState(false);
-  const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
-  const [otpError, setOtpError] = useState('');
 
   useEffect(() => {
     fetchLinkedAccounts();
@@ -61,40 +56,18 @@ export default function LinkedAccountsScreen() {
     setAddLoading(false);
 
     if (result.success) {
-      // Send OTP to verify the linked phone number
-      const formattedPhone = addPhone.startsWith('+260') ? addPhone : `+260${addPhone.replace(/^0/, '')}`;
-      await sendOtp(formattedPhone);
-      setVerifyStep(true);
+      resetAddModal();
+      Alert.alert('Account Linked', 'Your account has been linked successfully.');
     } else {
       Alert.alert('Error', result.error || 'Failed to link account.');
     }
   };
 
-  const handleVerifyOtp = async (code: string) => {
-    setOtpError('');
-    const formattedPhone = addPhone.startsWith('+260') ? addPhone : `+260${addPhone.replace(/^0/, '')}`;
-    const result = await verifyOtp(formattedPhone, code);
-    if (result.success) {
-      resetAddModal();
-      Alert.alert('Account Verified', 'Your account has been linked and verified successfully.');
-    } else {
-      setOtpError(result.error || 'Invalid code. Please try again.');
-    }
-  };
-
-  const handleResendOtp = async () => {
-    const formattedPhone = addPhone.startsWith('+260') ? addPhone : `+260${addPhone.replace(/^0/, '')}`;
-    await sendOtp(formattedPhone);
-  };
-
   const resetAddModal = () => {
     setShowAdd(false);
-    setVerifyStep(false);
     setAddProvider('');
     setAddName('');
     setAddPhone('');
-    setPendingAccountId(null);
-    setOtpError('');
   };
 
   const handleRemove = (id: string, name: string) => {
@@ -199,34 +172,13 @@ export default function LinkedAccountsScreen() {
         >
           <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{verifyStep ? 'Verify Account' : 'Link Account'}</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Link Account</Text>
               <TouchableOpacity onPress={resetAddModal}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {verifyStep ? (
-              <>
-                <Text style={[styles.verifyDesc, { color: colors.textSecondary }]}>
-                  Enter the verification code sent to {addPhone} to confirm ownership.
-                </Text>
-                <OtpInput
-                  length={6}
-                  onComplete={handleVerifyOtp}
-                  error={otpError}
-                  onResend={handleResendOtp}
-                  resendCooldown={60}
-                />
-                <TouchableOpacity style={styles.skipVerify} onPress={() => {
-                  resetAddModal();
-                  Alert.alert('Account Linked', 'Account linked without verification. You can verify it later.');
-                }}>
-                  <Text style={[styles.skipVerifyText, { color: colors.textSecondary }]}>Skip verification for now</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                {/* Provider Picker */}
+            <>
                 <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Provider</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.providerScroll}>
                   {Providers.map((p) => (
@@ -246,8 +198,6 @@ export default function LinkedAccountsScreen() {
                 <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Account Holder Name</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text }]}
-                  placeholder="e.g. John Banda"
-                  placeholderTextColor={colors.textLight}
                   value={addName}
                   onChangeText={setAddName}
                   autoCapitalize="words"
@@ -257,8 +207,6 @@ export default function LinkedAccountsScreen() {
                 <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Phone / Account Number</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text }]}
-                  placeholder="e.g. 0971234567"
-                  placeholderTextColor={colors.textLight}
                   value={addPhone}
                   onChangeText={setAddPhone}
                   keyboardType="phone-pad"
@@ -273,7 +221,6 @@ export default function LinkedAccountsScreen() {
                   />
                 </View>
               </>
-            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -450,20 +397,5 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     marginTop: Spacing.xl,
-  },
-  verifyDesc: {
-    fontSize: FontSize.sm,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
-    lineHeight: 20,
-  },
-  skipVerify: {
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  skipVerifyText: {
-    fontSize: FontSize.sm,
-    fontWeight: '600',
   },
 });

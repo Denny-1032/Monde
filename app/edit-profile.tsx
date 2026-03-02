@@ -51,14 +51,19 @@ export default function EditProfileScreen() {
       if (isSupabaseConfigured && sessionId) {
         const ext = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
         const filePath = `${sessionId}/avatar.${ext}`;
+        const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
 
-        // Fetch the image as a blob for upload
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
+        // Use FormData for React Native compatibility
+        const formData = new FormData();
+        formData.append('file', {
+          uri: asset.uri,
+          name: `avatar.${ext}`,
+          type: mimeType,
+        } as any);
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, blob, { upsert: true, contentType: `image/${ext}` });
+          .upload(filePath, formData, { upsert: true, contentType: mimeType });
 
         if (uploadError) {
           setUploadingAvatar(false);
@@ -140,8 +145,6 @@ export default function EditProfileScreen() {
             style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
             value={fullName}
             onChangeText={setFullName}
-            placeholder="Your full name"
-            placeholderTextColor={colors.textLight}
             autoCapitalize="words"
             autoFocus
           />
