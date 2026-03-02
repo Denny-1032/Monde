@@ -259,8 +259,9 @@ export async function processTopUp(params: {
     p_user_id: params.userId,
     p_amount: params.amount,
     p_provider: params.provider,
-    p_note: params.note || null,
-    p_linked_account_id: params.linkedAccountId || null,
+    p_note: params.linkedAccountId
+      ? `Top up from linked account ${params.linkedAccountId}`
+      : (params.note || null),
   });
 
   if (error) return { success: false, error: error.message };
@@ -282,8 +283,9 @@ export async function processWithdraw(params: {
     p_amount: params.amount,
     p_provider: params.provider,
     p_destination_phone: params.destinationPhone || null,
-    p_note: params.note || null,
-    p_linked_account_id: params.linkedAccountId || null,
+    p_note: params.linkedAccountId
+      ? `Withdraw to linked account ${params.linkedAccountId}`
+      : (params.note || null),
   });
 
   if (error) return { success: false, error: error.message };

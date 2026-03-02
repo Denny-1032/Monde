@@ -189,9 +189,28 @@ export const useStore = create<AppState>((set, get) => ({
         return { success: false, error: error as string };
       }
       if (data?.user) {
-        set({ sessionId: data.user.id, isAuthenticated: true });
-        await get().fetchProfile();
-        await get().fetchTransactions();
+        const uid = data.user.id;
+        set({ sessionId: uid, isAuthenticated: true });
+        // Fetch profile, transactions, and linked accounts in parallel
+        const [profileRes, txnRes, accountsRes] = await Promise.all([
+          api.getProfile(uid),
+          api.getTransactions(uid),
+          api.getLinkedAccounts(uid),
+        ]);
+        if (profileRes.data) set({ user: profileRes.data });
+        set({ transactions: txnRes.data, linkedAccounts: accountsRes.data });
+
+        // Subscribe to realtime updates
+        if (realtimeCleanup) realtimeCleanup();
+        const txnSub = api.subscribeToTransactions(uid, (txn) => {
+          const exists = get().transactions.some((t) => t.id === txn.id);
+          if (!exists) set((state) => ({ transactions: [txn, ...state.transactions] }));
+        });
+        const balSub = api.subscribeToBalance(uid, (balance) => {
+          const u = get().user;
+          if (u) set({ user: { ...u, balance } });
+        });
+        realtimeCleanup = () => { txnSub.unsubscribe(); balSub.unsubscribe(); };
       }
       return { success: true };
     } catch (e: any) {
