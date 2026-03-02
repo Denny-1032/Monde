@@ -18,7 +18,7 @@ type MenuItemProps = {
 
 function MenuItem({ icon, label, subtitle, onPress, danger }: MenuItemProps) {
   return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.6}>
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.6} accessibilityLabel={subtitle ? `${label}, ${subtitle}` : label} accessibilityRole="button">
       <View style={[styles.menuIcon, danger && { backgroundColor: Colors.error + '15' }]}>
         <Ionicons name={icon} size={20} color={danger ? Colors.error : Colors.primary} />
       </View>
@@ -87,7 +87,7 @@ export default function ProfileScreen() {
         <View style={styles.menuGroup}>
           <MenuItem icon="help-circle-outline" label="Help & FAQ" onPress={() => Alert.alert('Help', 'For support, email help@monde.app')} />
           <MenuItem icon="chatbubble-outline" label="Contact Support" onPress={() => Alert.alert('Contact', 'Email: support@monde.app\nPhone: +260 211 000 000')} />
-          <MenuItem icon="document-text-outline" label="Terms & Privacy" onPress={() => Alert.alert('Terms & Privacy', 'By using Monde you agree to our Terms of Service and Privacy Policy. Full documents available at monde.app/legal')} />
+          <MenuItem icon="document-text-outline" label="Terms & Privacy" onPress={() => router.push('/terms')} />
         </View>
       </View>
 

@@ -10,6 +10,7 @@ import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import PinConfirm from '../components/PinConfirm';
 import { formatCurrency } from '../lib/helpers';
+import { verifyPin } from '../lib/api';
 import * as Haptics from 'expo-haptics';
 
 type TapMode = 'setup' | 'waiting' | 'success';
@@ -130,11 +131,10 @@ export default function TapScreen() {
   };
 
   const handlePinConfirmTap = async (pin: string) => {
-    const signIn = useStore.getState().signIn;
     setPinLoading(true);
-    const authResult = await signIn(user?.phone || '', pin);
+    const { success } = await verifyPin(user?.phone || '', pin);
     setPinLoading(false);
-    if (!authResult.success) {
+    if (!success) {
       setPinError('Incorrect PIN. Try again.');
       return;
     }
@@ -149,7 +149,7 @@ export default function TapScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Tap to Pay</Text>
+        <Text style={styles.title}>Tap to Pay <Text style={styles.demoBadge}>DEMO</Text></Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -349,5 +349,15 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: '600',
     color: Colors.error,
+  },
+  demoBadge: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.white,
+    backgroundColor: Colors.warning || '#F59E0B',
+    borderRadius: 4,
+    overflow: 'hidden',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
 });

@@ -4,7 +4,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useTheme } from '../constants/ThemeContext';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
+
+const BIOMETRIC_KEY = 'monde_biometric_enabled';
 
 export default function SecurityScreen() {
   const router = useRouter();
@@ -12,10 +16,31 @@ export default function SecurityScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState<string>('Fingerprint');
+  const { mode, setMode, isDark } = useTheme();
 
   useEffect(() => {
     checkBiometrics();
+    loadBiometricSetting();
   }, []);
+
+  const loadBiometricSetting = async () => {
+    try {
+      const val = Platform.OS === 'web'
+        ? localStorage.getItem(BIOMETRIC_KEY)
+        : await SecureStore.getItemAsync(BIOMETRIC_KEY);
+      if (val === 'true') setBiometricEnabled(true);
+    } catch {}
+  };
+
+  const saveBiometricSetting = async (enabled: boolean) => {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.setItem(BIOMETRIC_KEY, enabled ? 'true' : 'false');
+      } else {
+        await SecureStore.setItemAsync(BIOMETRIC_KEY, enabled ? 'true' : 'false');
+      }
+    } catch {}
+  };
 
   const checkBiometrics = async () => {
     try {
@@ -46,12 +71,14 @@ export default function SecurityScreen() {
       });
       if (result.success) {
         setBiometricEnabled(true);
+        await saveBiometricSetting(true);
         Alert.alert(`${biometricType} Enabled`, `You can now use ${biometricType.toLowerCase()} to authorize transactions.`);
       } else {
         Alert.alert('Authentication Failed', `Could not verify your ${biometricType.toLowerCase()}.`);
       }
     } else {
       setBiometricEnabled(false);
+      await saveBiometricSetting(false);
       Alert.alert(`${biometricType} Disabled`, 'You will need to enter your PIN for all transactions.');
     }
   };
@@ -111,6 +138,43 @@ export default function SecurityScreen() {
                 trackColor={{ false: Colors.borderLight, true: Colors.success + '60' }}
                 thumbColor={biometricEnabled ? Colors.success : Colors.textLight}
               />
+            </View>
+          </View>
+        </View>
+
+        {/* Appearance Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <View style={styles.card}>
+            <View style={styles.menuItem}>
+              <View style={[styles.menuIcon, { backgroundColor: Colors.secondary + '12' }]}>
+                <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={Colors.secondary} />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuLabel}>Dark Mode</Text>
+                <Text style={styles.menuSub}>
+                  {mode === 'system' ? 'Following system setting' : mode === 'dark' ? 'Always dark' : 'Always light'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.themeToggle}>
+              {(['light', 'system', 'dark'] as const).map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.themeOption, mode === opt && styles.themeOptionActive]}
+                  onPress={() => setMode(opt)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={opt === 'light' ? 'sunny-outline' : opt === 'dark' ? 'moon-outline' : 'phone-portrait-outline'}
+                    size={16}
+                    color={mode === opt ? Colors.white : Colors.textSecondary}
+                  />
+                  <Text style={[styles.themeOptionText, mode === opt && styles.themeOptionTextActive]}>
+                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </View>
@@ -206,5 +270,32 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     lineHeight: 20,
+  },
+  themeToggle: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+  },
+  themeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.surfaceAlt,
+  },
+  themeOptionActive: {
+    backgroundColor: Colors.primary,
+  },
+  themeOptionText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  themeOptionTextActive: {
+    color: Colors.white,
   },
 });

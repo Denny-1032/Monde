@@ -26,10 +26,12 @@ export default function WithdrawScreen() {
   const [loading, setLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [pinError, setPinError] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
 
   const parsedAmount = parseFloat(amount) || 0;
   const provider = Providers.find((p) => p.id === selectedProvider);
   const balance = user?.balance || 0;
+  const estimatedFee = parsedAmount > 0 ? Math.round((parsedAmount * 0.015 + 2) * 100) / 100 : 0;
 
   const handleNumPress = (key: string) => {
     if (key === '.' && amount.includes('.')) return;
@@ -74,7 +76,7 @@ export default function WithdrawScreen() {
     }
     setLoading(true);
     try {
-      const result = await withdraw(parsedAmount, selectedProvider);
+      const result = await withdraw(parsedAmount, selectedProvider, undefined, undefined, selectedAccountId);
       if (result.success) {
         router.replace({
           pathname: '/success',
@@ -168,6 +170,14 @@ export default function WithdrawScreen() {
           {/* NumPad */}
           <NumPad onPress={handleNumPress} onDelete={handleDelete} showDecimal={true} />
 
+          {/* Fee info */}
+          {parsedAmount > 0 && parsedAmount <= balance && (
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>Estimated fee</Text>
+              <Text style={styles.feeValue}>{formatCurrency(estimatedFee)}</Text>
+            </View>
+          )}
+
           {/* Confirm button */}
           <View style={styles.footer}>
             <Button
@@ -194,6 +204,7 @@ export default function WithdrawScreen() {
                     style={[styles.providerItem, selectedProvider === acc.provider && styles.providerItemActive]}
                     onPress={() => {
                       setSelectedProvider(acc.provider);
+                      setSelectedAccountId(acc.id);
                       setStep('amount');
                     }}
                     activeOpacity={0.7}
@@ -223,6 +234,7 @@ export default function WithdrawScreen() {
               style={[styles.providerItem, selectedProvider === p.id && styles.providerItemActive]}
               onPress={() => {
                 setSelectedProvider(p.id);
+                setSelectedAccountId(undefined);
                 setStep('amount');
               }}
               activeOpacity={0.7}
@@ -368,6 +380,22 @@ const styles = StyleSheet.create({
   },
   quickBtnTextActive: {
     color: Colors.white,
+  },
+  feeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm,
+  },
+  feeLabel: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  feeValue: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
   footer: {
     paddingHorizontal: Spacing.lg,

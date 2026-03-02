@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SectionList, RefreshControl, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SectionList, RefreshControl, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,8 +33,18 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const transactions = useStore((s) => s.transactions);
   const fetchTransactions = useStore((s) => s.fetchTransactions);
+  const loadMoreTransactions = useStore((s) => s.loadMoreTransactions);
+  const hasMore = useStore((s) => s.hasMoreTransactions);
   const [filter, setFilter] = useState<FilterType>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    await loadMoreTransactions();
+    setLoadingMore(false);
+  }, [loadingMore, hasMore]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -95,6 +105,15 @@ export default function HistoryScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+            </View>
+          ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -176,5 +195,9 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
+  },
+  loadingMore: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
   },
 });

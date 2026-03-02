@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors, FontSize, Spacing } from '../constants/theme';
 import { useStore } from '../store/useStore';
+import * as SecureStore from 'expo-secure-store';
+
+const ONBOARDING_KEY = 'monde_onboarding_complete';
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -36,11 +39,20 @@ export default function SplashScreen() {
   useEffect(() => {
     if (!ready) return;
     // Ensure splash shows for at least 2 seconds total
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (isAuthenticated) {
         router.replace('/(tabs)');
       } else {
-        router.replace('/(auth)/welcome');
+        // Check if onboarding has been completed
+        let onboarded = false;
+        try {
+          if (Platform.OS === 'web') {
+            onboarded = localStorage.getItem(ONBOARDING_KEY) === 'true';
+          } else {
+            onboarded = (await SecureStore.getItemAsync(ONBOARDING_KEY)) === 'true';
+          }
+        } catch {}
+        router.replace(onboarded ? '/(auth)/welcome' : ('/(auth)/onboarding' as any));
       }
     }, 2000);
     return () => clearTimeout(timer);

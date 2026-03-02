@@ -1,3 +1,5 @@
+export type ColorScheme = typeof Colors;
+
 export const Colors = {
   primary: '#0A6E3C',
   primaryLight: '#0E8C4D',
@@ -19,6 +21,29 @@ export const Colors = {
   white: '#FFFFFF',
   black: '#000000',
   overlay: 'rgba(0,0,0,0.5)',
+};
+
+export const DarkColors: ColorScheme = {
+  primary: '#10B865',
+  primaryLight: '#15D477',
+  primaryDark: '#0A8C4A',
+  secondary: '#F58220',
+  secondaryLight: '#FFB366',
+  accent: '#D4923A',
+  background: '#0F1117',
+  surface: '#1A1D27',
+  surfaceAlt: '#242832',
+  text: '#F0F2F5',
+  textSecondary: '#9CA3AF',
+  textLight: '#6B7280',
+  border: '#2D3140',
+  borderLight: '#1F2230',
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  white: '#FFFFFF',
+  black: '#000000',
+  overlay: 'rgba(0,0,0,0.7)',
 };
 
 export const Providers = [

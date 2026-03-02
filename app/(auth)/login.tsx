@@ -121,8 +121,6 @@ export default function LoginScreen() {
               style={styles.phoneInput}
               value={phone}
               onChangeText={setPhone}
-              placeholder="97 123 4567"
-              placeholderTextColor={Colors.textLight}
               keyboardType="phone-pad"
               maxLength={10}
               autoFocus
@@ -174,6 +172,10 @@ export default function LoginScreen() {
               </View>
             ))}
           </View>
+
+          <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/forgot-pin')}>
+            <Text style={styles.forgotText}>Forgot PIN?</Text>
+          </TouchableOpacity>
         </>
       )}
     </View>
@@ -328,6 +330,16 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
   },
   changePhoneText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  forgotBtn: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  forgotText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
     color: Colors.primary,

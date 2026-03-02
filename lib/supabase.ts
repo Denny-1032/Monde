@@ -44,5 +44,24 @@ try {
   supabase = null as any;
 }
 
-export { supabase };
+// Separate client for PIN verification — no persistent session, won't rotate main session
+let supabaseVerify: SupabaseClient;
+try {
+  supabaseVerify = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+      } as any,
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+} catch {
+  supabaseVerify = null as any;
+}
+
+export { supabase, supabaseVerify };
 export const isSupabaseConfigured = supabaseUrl !== 'https://placeholder.supabase.co';

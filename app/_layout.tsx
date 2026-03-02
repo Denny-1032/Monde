@@ -3,18 +3,15 @@ import { AppState, AppStateStatus, View, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Colors } from '../constants/theme';
+import { ThemeProvider, useTheme } from '../constants/ThemeContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useStore } from '../store/useStore';
 import LockScreen from '../components/LockScreen';
 import OfflineBanner from '../components/OfflineBanner';
 
-// Load Ionicons font for web
-if (Platform.OS === 'web') {
-  const link = document.createElement('link');
-  link.href = 'https://unpkg.com/ionicons@7.1.0/dist/css/ionicons.min.css';
-  link.rel = 'stylesheet';
-  document.head.appendChild(link);
-}
+// Ionicons font is bundled locally via @expo/vector-icons (no CDN needed)
+// On native: font is loaded from the .ttf in node_modules
+// On web: expo-font handles font injection from the bundled asset
 
 const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -73,17 +70,18 @@ function useAutoLock() {
   return { locked, unlock: () => setLocked(false) };
 }
 
-export default function RootLayout() {
+function RootLayoutInner() {
   useProtectedRoute();
   const { locked, unlock } = useAutoLock();
+  const { colors, isDark } = useTheme();
 
   return (
-    <View style={{ flex: 1 }}>
-      <StatusBar style="dark" />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: Colors.background },
+          contentStyle: { backgroundColor: colors.background },
           animation: 'slide_from_right',
         }}
       >
@@ -97,10 +95,24 @@ export default function RootLayout() {
         <Stack.Screen name="transaction" />
         <Stack.Screen name="edit-profile" />
         <Stack.Screen name="change-pin" />
+        <Stack.Screen name="forgot-pin" />
+        <Stack.Screen name="terms" />
+        <Stack.Screen name="security" />
+        <Stack.Screen name="linked-accounts" />
+        <Stack.Screen name="top-up" />
+        <Stack.Screen name="withdraw" />
         <Stack.Screen name="success" options={{ animation: 'fade', gestureEnabled: false }} />
       </Stack>
       <OfflineBanner />
       {locked ? <LockScreen onUnlock={unlock} /> : null}
     </View>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutInner />
+    </ThemeProvider>
   );
 }

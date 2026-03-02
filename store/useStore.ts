@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import { Transaction, UserProfile, Provider, LinkedAccount } from '../constants/types';
-import { Providers } from '../constants/theme';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { Transaction, UserProfile, LinkedAccount } from '../constants/types';
+import { isSupabaseConfigured } from '../lib/supabase';
 import * as api from '../lib/api';
+
+// Track realtime subscription cleanup
+let realtimeCleanup: (() => void) | null = null;
 
 type AppState = {
   user: UserProfile | null;
@@ -10,16 +12,16 @@ type AppState = {
   linkedAccounts: LinkedAccount[];
   isAuthenticated: boolean;
   isLoading: boolean;
-  selectedProvider: Provider | null;
   sessionId: string | null;
   error: string | null;
+  transactionCursor: string | null;
+  hasMoreTransactions: boolean;
 
   setUser: (user: UserProfile | null) => void;
   setTransactions: (transactions: Transaction[]) => void;
   addTransaction: (transaction: Transaction) => void;
   setAuthenticated: (value: boolean) => void;
   setLoading: (value: boolean) => void;
-  setSelectedProvider: (provider: Provider | null) => void;
   updateBalance: (amount: number) => void;
   setError: (error: string | null) => void;
 
@@ -30,10 +32,10 @@ type AppState = {
   signIn: (phone: string, password: string) => Promise<{ success: boolean; error?: string }>;
   fetchProfile: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
+  loadMoreTransactions: () => Promise<void>;
   sendPayment: (recipientPhone: string, recipientName: string, amount: number, method: 'qr' | 'nfc' | 'manual', note?: string) => Promise<{ success: boolean; error?: string }>;
-  topUp: (amount: number, provider: string, note?: string) => Promise<{ success: boolean; error?: string }>;
-  withdraw: (amount: number, provider: string, destinationPhone?: string, note?: string) => Promise<{ success: boolean; error?: string }>;
-  updateProvider: (providerId: string) => Promise<{ success: boolean; error?: string }>;
+  topUp: (amount: number, provider: string, note?: string, linkedAccountId?: string) => Promise<{ success: boolean; error?: string }>;
+  withdraw: (amount: number, provider: string, destinationPhone?: string, note?: string, linkedAccountId?: string) => Promise<{ success: boolean; error?: string }>;
   fetchLinkedAccounts: () => Promise<void>;
   addLinkedAccount: (provider: string, accountName: string, accountPhone: string, isDefault?: boolean) => Promise<{ success: boolean; error?: string }>;
   removeLinkedAccount: (accountId: string) => Promise<{ success: boolean; error?: string }>;
@@ -47,9 +49,10 @@ export const useStore = create<AppState>((set, get) => ({
   linkedAccounts: [],
   isAuthenticated: false,
   isLoading: false,
-  selectedProvider: Providers[0] as Provider,
   sessionId: null,
   error: null,
+  transactionCursor: null,
+  hasMoreTransactions: true,
 
   setUser: (user) => set({ user }),
   setTransactions: (transactions) => set({ transactions }),
@@ -57,21 +60,23 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => ({ transactions: [transaction, ...state.transactions] })),
   setAuthenticated: (value) => set({ isAuthenticated: value }),
   setLoading: (value) => set({ isLoading: value }),
-  setSelectedProvider: (provider) => set({ selectedProvider: provider }),
   updateBalance: (amount) =>
     set((state) => ({
       user: state.user ? { ...state.user, balance: state.user.balance + amount } : null,
     })),
   setError: (error) => set({ error }),
 
-  clearSession: () => set({
-    user: null,
-    isAuthenticated: false,
-    transactions: [],
-    linkedAccounts: [],
-    sessionId: null,
-    error: null,
-  }),
+  clearSession: () => {
+    if (realtimeCleanup) { realtimeCleanup(); realtimeCleanup = null; }
+    set({
+      user: null,
+      isAuthenticated: false,
+      transactions: [],
+      linkedAccounts: [],
+      sessionId: null,
+      error: null,
+    });
+  },
 
   initSession: async () => {
     if (!isSupabaseConfigured) return;
@@ -88,13 +93,27 @@ export const useStore = create<AppState>((set, get) => ({
           api.getLinkedAccounts(uid),
         ]);
         if (profileRes.data) {
-          const provider = Providers.find((p) => p.id === profileRes.data!.provider);
-          set({
-            user: profileRes.data,
-            selectedProvider: provider ? (provider as Provider) : undefined,
-          });
+          set({ user: profileRes.data });
         }
         set({ transactions: txnRes.data, linkedAccounts: accountsRes.data });
+
+        // Subscribe to realtime updates
+        if (realtimeCleanup) realtimeCleanup();
+        const txnSub = api.subscribeToTransactions(uid, (txn) => {
+          // Add incoming transaction if not already present
+          const exists = get().transactions.some((t) => t.id === txn.id);
+          if (!exists) {
+            set((state) => ({ transactions: [txn, ...state.transactions] }));
+          }
+        });
+        const balSub = api.subscribeToBalance(uid, (balance) => {
+          const u = get().user;
+          if (u) set({ user: { ...u, balance } });
+        });
+        realtimeCleanup = () => {
+          txnSub.unsubscribe();
+          balSub.unsubscribe();
+        };
       }
     } catch (e: any) {
       console.error('Session init error:', e);
@@ -191,8 +210,6 @@ export const useStore = create<AppState>((set, get) => ({
       const { data: profile } = await api.getProfile(sessionId);
       if (profile) {
         set({ user: profile });
-        const provider = Providers.find((p) => p.id === profile.provider);
-        if (provider) set({ selectedProvider: provider as Provider });
       }
     } catch (e) {
       console.error('Fetch profile error:', e);
@@ -203,10 +220,25 @@ export const useStore = create<AppState>((set, get) => ({
     const sessionId = get().sessionId;
     if (!sessionId || !isSupabaseConfigured) return;
     try {
-      const { data } = await api.getTransactions(sessionId);
-      set({ transactions: data });
+      const { data, nextCursor } = await api.getTransactions(sessionId);
+      set({ transactions: data, transactionCursor: nextCursor || null, hasMoreTransactions: !!nextCursor });
     } catch (e) {
       console.error('Fetch transactions error:', e);
+    }
+  },
+
+  loadMoreTransactions: async () => {
+    const { sessionId, transactionCursor, hasMoreTransactions } = get();
+    if (!sessionId || !isSupabaseConfigured || !hasMoreTransactions || !transactionCursor) return;
+    try {
+      const { data, nextCursor } = await api.getTransactions(sessionId, 20, transactionCursor);
+      set((state) => ({
+        transactions: [...state.transactions, ...data],
+        transactionCursor: nextCursor || null,
+        hasMoreTransactions: !!nextCursor,
+      }));
+    } catch (e) {
+      console.error('Load more transactions error:', e);
     }
   },
 
@@ -263,7 +295,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  topUp: async (amount, provider, note) => {
+  topUp: async (amount, provider, note, linkedAccountId) => {
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
 
@@ -296,6 +328,7 @@ export const useStore = create<AppState>((set, get) => ({
         amount,
         provider,
         note,
+        linkedAccountId,
       });
       if (!result.success) {
         return { success: false, error: result.error || 'Top-up failed' };
@@ -310,7 +343,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  withdraw: async (amount, provider, destinationPhone, note) => {
+  withdraw: async (amount, provider, destinationPhone, note, linkedAccountId) => {
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
 
@@ -348,6 +381,7 @@ export const useStore = create<AppState>((set, get) => ({
         provider,
         destinationPhone,
         note,
+        linkedAccountId,
       });
       if (!result.success) {
         return { success: false, error: result.error || 'Withdrawal failed' };
@@ -360,26 +394,6 @@ export const useStore = create<AppState>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
-  },
-
-  updateProvider: async (providerId) => {
-    const { user, sessionId } = get();
-    if (!user) return { success: false, error: 'Not authenticated' };
-
-    if (isSupabaseConfigured && sessionId) {
-      try {
-        const { error } = await api.updateProfile(sessionId, { provider: providerId });
-        if (error) return { success: false, error: error as string };
-      } catch (e: any) {
-        return { success: false, error: e?.message || 'Update failed' };
-      }
-    }
-
-    set({
-      user: { ...user, provider: providerId },
-      selectedProvider: Providers.find((p) => p.id === providerId) as Provider || get().selectedProvider,
-    });
-    return { success: true };
   },
 
   fetchLinkedAccounts: async () => {
@@ -463,6 +477,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   logout: async () => {
+    if (realtimeCleanup) { realtimeCleanup(); realtimeCleanup = null; }
     if (isSupabaseConfigured) {
       await api.signOut();
     }

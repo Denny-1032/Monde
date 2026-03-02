@@ -9,7 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { formatPhone } from '../lib/helpers';
+import { sendOtp, verifyOtp } from '../lib/api';
 import Button from '../components/Button';
+import OtpInput from '../components/OtpInput';
 
 export default function LinkedAccountsScreen() {
   const router = useRouter();
@@ -25,6 +27,9 @@ export default function LinkedAccountsScreen() {
   const [addName, setAddName] = useState('');
   const [addPhone, setAddPhone] = useState('');
   const [addLoading, setAddLoading] = useState(false);
+  const [verifyStep, setVerifyStep] = useState(false);
+  const [pendingAccountId, setPendingAccountId] = useState<string | null>(null);
+  const [otpError, setOtpError] = useState('');
 
   useEffect(() => {
     fetchLinkedAccounts();
@@ -54,14 +59,40 @@ export default function LinkedAccountsScreen() {
     setAddLoading(false);
 
     if (result.success) {
-      setShowAdd(false);
-      setAddProvider('');
-      setAddName('');
-      setAddPhone('');
-      Alert.alert('Account Linked', 'Your account has been linked successfully.');
+      // Send OTP to verify the linked phone number
+      const formattedPhone = addPhone.startsWith('+260') ? addPhone : `+260${addPhone.replace(/^0/, '')}`;
+      await sendOtp(formattedPhone);
+      setVerifyStep(true);
     } else {
       Alert.alert('Error', result.error || 'Failed to link account.');
     }
+  };
+
+  const handleVerifyOtp = async (code: string) => {
+    setOtpError('');
+    const formattedPhone = addPhone.startsWith('+260') ? addPhone : `+260${addPhone.replace(/^0/, '')}`;
+    const result = await verifyOtp(formattedPhone, code);
+    if (result.success) {
+      resetAddModal();
+      Alert.alert('Account Verified', 'Your account has been linked and verified successfully.');
+    } else {
+      setOtpError(result.error || 'Invalid code. Please try again.');
+    }
+  };
+
+  const handleResendOtp = async () => {
+    const formattedPhone = addPhone.startsWith('+260') ? addPhone : `+260${addPhone.replace(/^0/, '')}`;
+    await sendOtp(formattedPhone);
+  };
+
+  const resetAddModal = () => {
+    setShowAdd(false);
+    setVerifyStep(false);
+    setAddProvider('');
+    setAddName('');
+    setAddPhone('');
+    setPendingAccountId(null);
+    setOtpError('');
   };
 
   const handleRemove = (id: string, name: string) => {
@@ -166,58 +197,81 @@ export default function LinkedAccountsScreen() {
         >
           <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Link Account</Text>
-              <TouchableOpacity onPress={() => setShowAdd(false)}>
+              <Text style={styles.modalTitle}>{verifyStep ? 'Verify Account' : 'Link Account'}</Text>
+              <TouchableOpacity onPress={resetAddModal}>
                 <Ionicons name="close" size={24} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {/* Provider Picker */}
-            <Text style={styles.fieldLabel}>Provider</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.providerScroll}>
-              {Providers.map((p) => (
-                <TouchableOpacity
-                  key={p.id}
-                  style={[styles.providerChip, addProvider === p.id && { backgroundColor: p.color + '20', borderColor: p.color }]}
-                  onPress={() => setAddProvider(p.id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.chipDot, { backgroundColor: p.color }]} />
-                  <Text style={[styles.chipText, addProvider === p.id && { color: p.color, fontWeight: '700' }]}>{p.name}</Text>
+            {verifyStep ? (
+              <>
+                <Text style={styles.verifyDesc}>
+                  Enter the verification code sent to {addPhone} to confirm ownership.
+                </Text>
+                <OtpInput
+                  length={6}
+                  onComplete={handleVerifyOtp}
+                  error={otpError}
+                  onResend={handleResendOtp}
+                  resendCooldown={60}
+                />
+                <TouchableOpacity style={styles.skipVerify} onPress={() => {
+                  resetAddModal();
+                  Alert.alert('Account Linked', 'Account linked without verification. You can verify it later.');
+                }}>
+                  <Text style={styles.skipVerifyText}>Skip verification for now</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </>
+            ) : (
+              <>
+                {/* Provider Picker */}
+                <Text style={styles.fieldLabel}>Provider</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.providerScroll}>
+                  {Providers.map((p) => (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={[styles.providerChip, addProvider === p.id && { backgroundColor: p.color + '20', borderColor: p.color }]}
+                      onPress={() => setAddProvider(p.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.chipDot, { backgroundColor: p.color }]} />
+                      <Text style={[styles.chipText, addProvider === p.id && { color: p.color, fontWeight: '700' }]}>{p.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
 
-            {/* Account Name */}
-            <Text style={styles.fieldLabel}>Account Holder Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. John Banda"
-              placeholderTextColor={Colors.textLight}
-              value={addName}
-              onChangeText={setAddName}
-              autoCapitalize="words"
-            />
+                {/* Account Name */}
+                <Text style={styles.fieldLabel}>Account Holder Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. John Banda"
+                  placeholderTextColor={Colors.textLight}
+                  value={addName}
+                  onChangeText={setAddName}
+                  autoCapitalize="words"
+                />
 
-            {/* Phone Number */}
-            <Text style={styles.fieldLabel}>Phone / Account Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 0971234567"
-              placeholderTextColor={Colors.textLight}
-              value={addPhone}
-              onChangeText={setAddPhone}
-              keyboardType="phone-pad"
-            />
+                {/* Phone Number */}
+                <Text style={styles.fieldLabel}>Phone / Account Number</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. 0971234567"
+                  placeholderTextColor={Colors.textLight}
+                  value={addPhone}
+                  onChangeText={setAddPhone}
+                  keyboardType="phone-pad"
+                />
 
-            <View style={styles.modalFooter}>
-              <Button
-                title={addLoading ? 'Linking...' : 'Link Account'}
-                onPress={handleAdd}
-                disabled={!addProvider || !addName.trim() || !addPhone.trim() || addLoading}
-                size="lg"
-              />
-            </View>
+                <View style={styles.modalFooter}>
+                  <Button
+                    title={addLoading ? 'Linking...' : 'Link Account'}
+                    onPress={handleAdd}
+                    disabled={!addProvider || !addName.trim() || !addPhone.trim() || addLoading}
+                    size="lg"
+                  />
+                </View>
+              </>
+            )}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -414,5 +468,22 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     marginTop: Spacing.xl,
+  },
+  verifyDesc: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+    lineHeight: 20,
+  },
+  skipVerify: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  skipVerifyText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
 });

@@ -59,6 +59,33 @@ export default function TransactionDetailScreen() {
     minute: '2-digit',
   });
 
+  const receiptText = [
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '       MONDE RECEIPT',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '',
+    `Type: ${typeLabel}`,
+    `Amount: ${amountPrefix}${formatCurrency(txn.amount)}`,
+    `To: ${txn.recipient_name}`,
+    txn.recipient_phone ? `Phone: ${formatPhone(txn.recipient_phone)}` : null,
+    `Provider: ${provider?.name || txn.provider}`,
+    txn.note ? `Note: ${txn.note}` : null,
+    '',
+    `Date: ${formattedDate}`,
+    `Time: ${formattedTime}`,
+    `Status: ${txn.status.charAt(0).toUpperCase() + txn.status.slice(1)}`,
+    '',
+    `Ref: ${txn.id}`,
+    '',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '  Powered by Monde',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+  ].filter(Boolean).join('\n');
+
+  const handleShareReceipt = () => {
+    Share.share({ message: receiptText }).catch(() => {});
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
       <View style={styles.header}>
@@ -66,11 +93,7 @@ export default function TransactionDetailScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Transaction Details</Text>
-        <TouchableOpacity onPress={() => {
-          Share.share({
-            message: `Monde Receipt\n${typeLabel} ${formatCurrency(txn.amount)}\nTo: ${txn.recipient_name}${txn.recipient_phone ? '\nPhone: ' + txn.recipient_phone : ''}\nDate: ${formattedDate} ${formattedTime}\nStatus: ${txn.status}\nRef: ${txn.id}`,
-          }).catch(() => {});
-        }}>
+        <TouchableOpacity onPress={handleShareReceipt} accessibilityLabel="Share receipt" accessibilityRole="button">
           <Ionicons name="share-outline" size={22} color={Colors.primary} />
         </TouchableOpacity>
       </View>
@@ -112,6 +135,18 @@ export default function TransactionDetailScreen() {
           <DetailRow label="Transaction ID" value={txn.id} mono />
           {txn.note ? <DetailRow label="Note" value={txn.note} /> : null}
         </View>
+
+        {/* Share Receipt */}
+        <TouchableOpacity
+          style={styles.receiptBtn}
+          onPress={handleShareReceipt}
+          activeOpacity={0.7}
+          accessibilityLabel="Share transaction receipt"
+          accessibilityRole="button"
+        >
+          <Ionicons name="document-text-outline" size={20} color={Colors.primary} />
+          <Text style={styles.receiptBtnText}>Share Receipt</Text>
+        </TouchableOpacity>
 
         {/* Quick action: Send Again (1-tap resend) */}
         {txn.type === 'send' && txn.recipient_phone ? (
@@ -273,6 +308,23 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FontSize.md,
     color: Colors.textLight,
+  },
+  receiptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary + '10',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+  },
+  receiptBtnText: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    color: Colors.primary,
   },
   sendAgainBtn: {
     flexDirection: 'row',

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvo
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
+import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import { sanitizeText } from '../lib/validation';
 import { formatPhone } from '../lib/helpers';
@@ -24,7 +24,6 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  const provider = Providers.find((p) => p.id === user?.provider);
   const hasChanges = sanitizeText(fullName) !== user?.full_name || avatarUrl !== (user?.avatar_url || null);
 
   const pickAvatar = async () => {
@@ -154,14 +153,6 @@ export default function EditProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Provider</Text>
-          <View style={styles.readOnly}>
-            <View style={[styles.providerDot, { backgroundColor: provider?.color || Colors.primary }]} />
-            <Text style={styles.readOnlyText}>{provider?.name || 'Unknown'}</Text>
-            <Text style={styles.readOnlyHint}>Change in Profile settings</Text>
-          </View>
-        </View>
       </View>
 
       <View style={styles.footer}>
@@ -262,11 +253,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.textLight,
     marginLeft: 'auto',
-  },
-  providerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
   },
   footer: {
     paddingHorizontal: Spacing.lg,

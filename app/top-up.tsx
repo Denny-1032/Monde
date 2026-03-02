@@ -26,9 +26,12 @@ export default function TopUpScreen() {
   const [loading, setLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [pinError, setPinError] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
 
   const parsedAmount = parseFloat(amount) || 0;
   const provider = Providers.find((p) => p.id === selectedProvider);
+  // Estimate fee (matches server-side calculation)
+  const estimatedFee = parsedAmount > 0 ? Math.round((parsedAmount * 0.01 + 1) * 100) / 100 : 0;
 
   const handleNumPress = (key: string) => {
     if (key === '.' && amount.includes('.')) return;
@@ -63,7 +66,7 @@ export default function TopUpScreen() {
     }
     setLoading(true);
     try {
-      const result = await topUp(parsedAmount, selectedProvider);
+      const result = await topUp(parsedAmount, selectedProvider, undefined, selectedAccountId);
       if (result.success) {
         router.replace({
           pathname: '/success',
@@ -139,6 +142,14 @@ export default function TopUpScreen() {
           {/* NumPad */}
           <NumPad onPress={handleNumPress} onDelete={handleDelete} showDecimal={true} />
 
+          {/* Fee info */}
+          {parsedAmount > 0 && (
+            <View style={styles.feeRow}>
+              <Text style={styles.feeLabel}>Estimated fee</Text>
+              <Text style={styles.feeValue}>{formatCurrency(estimatedFee)}</Text>
+            </View>
+          )}
+
           {/* Confirm button */}
           <View style={styles.footer}>
             <Button
@@ -165,6 +176,7 @@ export default function TopUpScreen() {
                     style={[styles.providerItem, selectedProvider === acc.provider && styles.providerItemActive]}
                     onPress={() => {
                       setSelectedProvider(acc.provider);
+                      setSelectedAccountId(acc.id);
                       setStep('amount');
                     }}
                     activeOpacity={0.7}
@@ -194,6 +206,7 @@ export default function TopUpScreen() {
               style={[styles.providerItem, selectedProvider === p.id && styles.providerItemActive]}
               onPress={() => {
                 setSelectedProvider(p.id);
+                setSelectedAccountId(undefined);
                 setStep('amount');
               }}
               activeOpacity={0.7}
@@ -310,6 +323,22 @@ const styles = StyleSheet.create({
   },
   quickBtnTextActive: {
     color: Colors.white,
+  },
+  feeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm,
+  },
+  feeLabel: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  feeValue: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
   footer: {
     paddingHorizontal: Spacing.lg,

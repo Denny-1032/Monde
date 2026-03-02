@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
@@ -18,8 +18,9 @@ export default function RegisterScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
+  const [tosAccepted, setTosAccepted] = useState(false);
 
-  const canProceedStep0 = fullName.trim().length > 1 && isValidPhone(phone);
+  const canProceedStep0 = fullName.trim().length > 1 && isValidPhone(phone) && tosAccepted;
   const canProceedStep1 = isValidPin(pin);
   const canProceedStep2 = isValidPin(confirmPin);
 
@@ -93,12 +94,28 @@ export default function RegisterScreen() {
               </View>
             </View>
 
+            <TouchableOpacity
+              style={styles.tosRow}
+              onPress={() => setTosAccepted(!tosAccepted)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, tosAccepted && styles.checkboxChecked]}>
+                {tosAccepted && <Ionicons name="checkmark" size={14} color={Colors.white} />}
+              </View>
+              <Text style={styles.tosText}>
+                I agree to the{' '}
+                <Text style={styles.tosLink} onPress={() => router.push('/terms')}>Terms of Service</Text>
+                {' '}and{' '}
+                <Text style={styles.tosLink} onPress={() => router.push('/terms')}>Privacy Policy</Text>
+              </Text>
+            </TouchableOpacity>
+
             <Button
               title="Continue"
               onPress={() => setStep(1)}
               disabled={!canProceedStep0}
               size="lg"
-              style={{ marginTop: Spacing.lg }}
+              style={{ marginTop: Spacing.md }}
             />
           </>
         ) : step === 1 ? (
@@ -311,5 +328,35 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     textAlign: 'center',
     marginTop: Spacing.md,
+  },
+  tosRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    marginTop: Spacing.lg,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  tosText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  tosLink: {
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });

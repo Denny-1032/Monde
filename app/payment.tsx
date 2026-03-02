@@ -109,7 +109,7 @@ export default function PaymentScreen() {
       ).slice(0, 5);
       results.push(...contactMatches);
 
-      // Search Monde users by phone
+      // Search Monde users by phone (single call — reuse for both suggestions and auto-fill)
       if (/^\d{3,}$/.test(cleaned)) {
         setLookingUp(true);
         const { data } = await searchProfilesByPhone(cleaned);
@@ -125,17 +125,13 @@ export default function PaymentScreen() {
             });
           }
         }
-      }
-
-      setSuggestions(results);
-
-      // Auto-fill name if exact match from Monde
-      if (isValidPhone(cleaned)) {
-        const { data } = await searchProfilesByPhone(cleaned);
-        if (data.length === 1 && data[0].id !== user?.id) {
+        // Auto-fill name if exact Monde match
+        if (isValidPhone(cleaned) && data.length === 1 && data[0].id !== user?.id) {
           setRecipientName(data[0].full_name);
         }
       }
+
+      setSuggestions(results);
     }, 400);
   }, [deviceContacts, user?.id]);
 
@@ -147,6 +143,13 @@ export default function PaymentScreen() {
   };
 
   const handleReview = () => {
+    // Prevent send-to-self
+    const cleanedPhone = recipientPhone.replace(/[^0-9+]/g, '');
+    const userPhone = user?.phone || '';
+    if (cleanedPhone === userPhone || cleanedPhone === userPhone.replace('+260', '0') || `+260${cleanedPhone.replace(/^0/, '')}` === userPhone) {
+      Alert.alert('Invalid Recipient', 'You cannot send money to yourself.');
+      return;
+    }
     const parsedAmount = parseFloat(amount);
     const check = validateAmount(parsedAmount, user?.balance || 0);
     if (!check.valid) {

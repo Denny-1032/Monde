@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, supabaseVerify, isSupabaseConfigured } from './supabase';
 import { Transaction, UserProfile, LinkedAccount } from '../constants/types';
 import { pinToPassword, sanitizeText } from './validation';
 
@@ -48,10 +48,32 @@ export async function verifyPin(phone: string, pin: string): Promise<{ success: 
 
   const email = phoneToEmail(phone);
   const securePassword = pinToPassword(pin);
-  const { error } = await supabase.auth.signInWithPassword({
+  // Use isolated client so main session is never rotated
+  const { error } = await supabaseVerify.auth.signInWithPassword({
     email,
     password: securePassword,
   });
+  // Immediately sign out the verify client to clean up
+  if (!error) supabaseVerify.auth.signOut().catch(() => {});
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function requestPinReset(phone: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+  const email = phoneToEmail(phone);
+  // Use Supabase password reset — sends OTP/magic link to the derived email
+  // In production, this should be replaced with SMS OTP (Task #13)
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function resetPinWithToken(phone: string, newPin: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+  const securePassword = pinToPassword(newPin);
+  // Update the user's password (requires an active session from OTP/reset link)
+  const { error } = await supabase.auth.updateUser({ password: securePassword });
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
@@ -65,6 +87,27 @@ export async function getSession() {
   if (!isSupabaseConfigured) return { session: null };
   const { data } = await supabase.auth.getSession();
   return { session: data.session };
+}
+
+// ============================================
+// OTP Verification
+// Requires SMS provider (Twilio/MessageBird) configured in Supabase
+// ============================================
+
+export async function sendOtp(phone: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+  const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+export async function verifyOtp(phone: string, token: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+  const { error } = await supabase.auth.verifyOtp({ phone: formattedPhone, token, type: 'sms' });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }
 
 // ============================================
@@ -133,20 +176,35 @@ export async function searchProfilesByPhone(phone: string): Promise<{ data: { id
 // Transaction Functions
 // ============================================
 
-export async function getTransactions(userId: string, limit = 50): Promise<{ data: Transaction[]; error?: string }> {
-  if (!isSupabaseConfigured) return { data: [], error: 'Supabase not configured' };
+export async function getTransactions(
+  userId: string,
+  limit = 20,
+  cursor?: string
+): Promise<{ data: Transaction[]; nextCursor?: string; error?: string }> {
+  if (!isSupabaseConfigured) return { data: [] };
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('transactions')
     .select('*')
     .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(limit + 1); // fetch one extra to detect if there's a next page
+
+  if (cursor) {
+    query = query.lt('created_at', cursor);
+  }
+
+  const { data, error } = await query;
 
   if (error) return { data: [], error: error.message };
 
+  const rows = data || [];
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor = hasMore ? pageRows[pageRows.length - 1].created_at : undefined;
+
   return {
-    data: (data || []).map((t: any) => ({
+    data: pageRows.map((t: any) => ({
       id: t.id,
       type: t.type,
       amount: parseFloat(t.amount),
@@ -159,6 +217,7 @@ export async function getTransactions(userId: string, limit = 50): Promise<{ dat
       note: t.note,
       created_at: t.created_at,
     })),
+    nextCursor,
   };
 }
 
@@ -192,6 +251,7 @@ export async function processTopUp(params: {
   amount: number;
   provider: string;
   note?: string;
+  linkedAccountId?: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
@@ -200,6 +260,7 @@ export async function processTopUp(params: {
     p_amount: params.amount,
     p_provider: params.provider,
     p_note: params.note || null,
+    p_linked_account_id: params.linkedAccountId || null,
   });
 
   if (error) return { success: false, error: error.message };
@@ -212,6 +273,7 @@ export async function processWithdraw(params: {
   provider: string;
   destinationPhone?: string;
   note?: string;
+  linkedAccountId?: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
@@ -221,6 +283,7 @@ export async function processWithdraw(params: {
     p_provider: params.provider,
     p_destination_phone: params.destinationPhone || null,
     p_note: params.note || null,
+    p_linked_account_id: params.linkedAccountId || null,
   });
 
   if (error) return { success: false, error: error.message };

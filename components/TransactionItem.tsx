@@ -22,7 +22,13 @@ export default function TransactionItem({ transaction, onPress }: Props) {
   const amountPrefix = (isReceive || isTopUp) ? '+' : '-';
 
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.6}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={onPress}
+      activeOpacity={0.6}
+      accessibilityLabel={`${transaction.type === 'receive' || transaction.type === 'topup' ? 'Received' : 'Sent'} ${formatCurrency(transaction.amount)} ${transaction.type === 'topup' ? 'top up' : transaction.type === 'withdraw' ? 'withdrawal' : (transaction.recipient_name ? 'to ' + transaction.recipient_name : '')}`}
+      accessibilityRole="button"
+    >
       <Avatar
         name={transaction.recipient_name}
         size={42}

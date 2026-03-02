@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useStore } from '../store/useStore';
+import { verifyPin as verifyPinApi } from '../lib/api';
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
+
+const BIOMETRIC_KEY = 'monde_biometric_enabled';
 
 interface LockScreenProps {
   onUnlock: () => void;
@@ -12,10 +17,30 @@ const KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del'
 
 export default function LockScreen({ onUnlock }: LockScreenProps) {
   const user = useStore((s) => s.user);
-  const signIn = useStore((s) => s.signIn);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    attemptBiometric();
+  }, []);
+
+  const attemptBiometric = async () => {
+    try {
+      if (Platform.OS === 'web') return;
+      const val = await SecureStore.getItemAsync(BIOMETRIC_KEY);
+      if (val !== 'true') return;
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!compatible || !enrolled) return;
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Unlock Monde',
+        fallbackLabel: 'Use PIN',
+        disableDeviceFallback: true,
+      });
+      if (result.success) onUnlock();
+    } catch {}
+  };
 
   const handleKey = (key: string) => {
     if (loading || pin.length >= 4) return;
@@ -23,7 +48,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
     setPin(next);
     setError('');
     if (next.length === 4) {
-      setTimeout(() => verifyPin(next), 200);
+      setTimeout(() => handleVerifyPin(next), 200);
     }
   };
 
@@ -32,11 +57,11 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
     setError('');
   };
 
-  const verifyPin = async (enteredPin: string) => {
+  const handleVerifyPin = async (enteredPin: string) => {
     setLoading(true);
-    const result = await signIn(user?.phone || '', enteredPin);
+    const { success } = await verifyPinApi(user?.phone || '', enteredPin);
     setLoading(false);
-    if (result.success) {
+    if (success) {
       onUnlock();
     } else {
       setError('Incorrect PIN');

@@ -47,6 +47,9 @@ export default function Button({
       ]}
       onPress={onPress}
       disabled={isDisabled}
+      accessibilityLabel={title}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'outline' || variant === 'ghost' ? Colors.primary : Colors.white} />

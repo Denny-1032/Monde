@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
+
+const BIOMETRIC_KEY = 'monde_biometric_enabled';
 
 interface PinConfirmProps {
   visible: boolean;
@@ -9,17 +13,54 @@ interface PinConfirmProps {
   subtitle?: string;
   onConfirm: (pin: string) => void;
   onCancel: () => void;
+  onBiometricSuccess?: () => void;
   loading?: boolean;
   error?: string;
 }
 
 const KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
 
-export default function PinConfirm({ visible, title, subtitle, onConfirm, onCancel, loading, error }: PinConfirmProps) {
+const MAX_PIN_ATTEMPTS = 5;
+const LOCKOUT_MS = 30000;
+
+export default function PinConfirm({ visible, title, subtitle, onConfirm, onCancel, onBiometricSuccess, loading, error }: PinConfirmProps) {
   const [pin, setPin] = useState('');
+  const [attempts, setAttempts] = useState(0);
+  const [lockoutEnd, setLockoutEnd] = useState(0);
+  const [lockMsg, setLockMsg] = useState('');
+  const [biometricAvail, setBiometricAvail] = useState(false);
+
+  React.useEffect(() => {
+    if (visible && onBiometricSuccess) checkAndPromptBiometric();
+  }, [visible]);
+
+  const checkAndPromptBiometric = async () => {
+    try {
+      if (Platform.OS === 'web') return;
+      const val = await SecureStore.getItemAsync(BIOMETRIC_KEY);
+      if (val !== 'true') return;
+      const ok = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!ok || !enrolled) return;
+      setBiometricAvail(true);
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: title || 'Authorize Transaction',
+        fallbackLabel: 'Use PIN',
+        disableDeviceFallback: true,
+      });
+      if (result.success && onBiometricSuccess) onBiometricSuccess();
+    } catch {}
+  };
 
   const handleKey = (key: string) => {
     if (loading) return;
+    const now = Date.now();
+    if (attempts >= MAX_PIN_ATTEMPTS && now < lockoutEnd) {
+      const secs = Math.ceil((lockoutEnd - now) / 1000);
+      setLockMsg(`Too many attempts. Try again in ${secs}s.`);
+      return;
+    }
+    if (now >= lockoutEnd && lockMsg) setLockMsg('');
     if (pin.length >= 4) return;
     const next = pin + key;
     setPin(next);
@@ -30,13 +71,26 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
     }
   };
 
-  // Reset PIN when error changes (wrong PIN) or modal reopens
+  // Track failed attempts when error arrives
   React.useEffect(() => {
-    if (error) setPin('');
+    if (error) {
+      setPin('');
+      setAttempts((a) => {
+        const next = a + 1;
+        if (next >= MAX_PIN_ATTEMPTS) {
+          setLockoutEnd(Date.now() + LOCKOUT_MS);
+          setLockMsg(`Too many attempts. Locked for ${LOCKOUT_MS / 1000}s.`);
+        }
+        return next;
+      });
+    }
   }, [error]);
 
   React.useEffect(() => {
-    if (visible) setPin('');
+    if (visible) {
+      setPin('');
+      setLockMsg('');
+    }
   }, [visible]);
 
   const handleDelete = () => {
@@ -69,7 +123,7 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
             <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: Spacing.sm }} />
           ) : null}
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {(lockMsg || error) ? <Text style={styles.error}>{lockMsg || error}</Text> : null}
 
           <View style={styles.pad}>
             {KEYS.map((row, i) => (
@@ -94,6 +148,13 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
               </View>
             ))}
           </View>
+
+          {biometricAvail && onBiometricSuccess ? (
+            <TouchableOpacity style={styles.biometricBtn} onPress={checkAndPromptBiometric}>
+              <Ionicons name="finger-print-outline" size={22} color={Colors.primary} />
+              <Text style={styles.biometricText}>Use Biometric</Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
             <Text style={styles.cancelText}>Cancel</Text>
@@ -183,5 +244,18 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: '600',
     color: Colors.textSecondary,
+  },
+  biometricBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  biometricText: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    color: Colors.primary,
   },
 });

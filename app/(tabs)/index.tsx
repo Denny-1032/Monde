@@ -49,13 +49,13 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Hello, {user?.full_name?.split(' ')[0] || 'User'}</Text>
           <Text style={styles.subGreeting}>What would you like to do?</Text>
         </View>
-        <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/(tabs)/profile')}>
+        <TouchableOpacity style={styles.notifBtn} onPress={() => router.push('/(tabs)/profile')} accessibilityLabel="Profile" accessibilityRole="button">
           <Ionicons name="person-circle-outline" size={36} color={Colors.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Balance Card */}
-      <TouchableOpacity style={styles.balanceCard} activeOpacity={0.9} onPress={() => setBalanceHidden(!balanceHidden)}>
+      <TouchableOpacity style={styles.balanceCard} activeOpacity={0.9} onPress={() => setBalanceHidden(!balanceHidden)} accessibilityLabel={balanceHidden ? 'Show balance' : 'Hide balance'} accessibilityRole="button">
         <View style={styles.balanceRow}>
           <Text style={styles.balanceLabel}>Available Balance</Text>
           <Ionicons name={balanceHidden ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.white} style={{ opacity: 0.7 }} />
@@ -72,6 +72,8 @@ export default function HomeScreen() {
             style={[styles.actionCard, { backgroundColor: Colors.primary }]}
             onPress={() => router.push('/scan')}
             activeOpacity={0.8}
+            accessibilityLabel="Scan QR code to pay or receive"
+            accessibilityRole="button"
           >
             <View style={styles.actionIconCircle}>
               <Ionicons name="qr-code" size={28} color={Colors.primary} />
@@ -85,6 +87,8 @@ export default function HomeScreen() {
             style={[styles.actionCard, { backgroundColor: Colors.secondary }]}
             onPress={() => router.push('/tap')}
             activeOpacity={0.8}
+            accessibilityLabel="Tap to pay, hold phones together"
+            accessibilityRole="button"
           >
             <View style={styles.actionIconCircle}>
               <Ionicons name="wifi" size={28} color={Colors.secondary} />
@@ -96,19 +100,19 @@ export default function HomeScreen() {
 
         {/* Secondary Actions */}
         <View style={styles.secondaryRow}>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/top-up')} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/top-up')} activeOpacity={0.7} accessibilityLabel="Top up wallet" accessibilityRole="button">
             <View style={[styles.secondaryIcon, { backgroundColor: Colors.success + '15' }]}>
               <Ionicons name="wallet" size={20} color={Colors.success} />
             </View>
             <Text style={styles.secondaryLabel}>Top Up</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/payment')} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/payment')} activeOpacity={0.7} accessibilityLabel="Send money" accessibilityRole="button">
             <View style={[styles.secondaryIcon, { backgroundColor: Colors.primary + '15' }]}>
               <Ionicons name="send" size={20} color={Colors.primary} />
             </View>
             <Text style={styles.secondaryLabel}>Send</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/withdraw')} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/withdraw')} activeOpacity={0.7} accessibilityLabel="Withdraw money" accessibilityRole="button">
             <View style={[styles.secondaryIcon, { backgroundColor: Colors.secondary + '15' }]}>
               <Ionicons name="arrow-up-circle" size={22} color={Colors.secondary} />
             </View>
