@@ -25,9 +25,19 @@ END $$;
 
 -- ============================================
 -- FIX 2: Enforce handle format at DB level
+-- (Only if handle column exists — requires migration 012 first)
 -- ============================================
 DO $$
 BEGIN
+  -- First ensure handle column exists (in case 012 wasn't applied separately)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'handle'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN handle TEXT UNIQUE;
+    CREATE INDEX IF NOT EXISTS idx_profiles_handle ON public.profiles(handle);
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'check_handle_format'

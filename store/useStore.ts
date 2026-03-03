@@ -92,7 +92,18 @@ export const useStore = create<AppState>((set, get) => ({
           api.getTransactions(uid),
           api.getLinkedAccounts(uid),
         ]);
-        if (profileRes.data) {
+
+        // Handle orphaned auth user: profile was deleted but auth entry remains
+        if (!profileRes.data) {
+          const authPhone = session.user.user_metadata?.phone || session.user.phone || '';
+          const authName = session.user.user_metadata?.full_name || 'Monde User';
+          const authProvider = session.user.user_metadata?.provider || 'airtel';
+          if (authPhone) {
+            await api.ensureProfileExists(uid, authPhone, authName, authProvider);
+            const { data: newProfile } = await api.getProfile(uid);
+            if (newProfile) set({ user: newProfile });
+          }
+        } else {
           set({ user: profileRes.data });
         }
         set({ transactions: txnRes.data, linkedAccounts: accountsRes.data });
@@ -154,8 +165,14 @@ export const useStore = create<AppState>((set, get) => ({
         provider,
       });
       if (error) {
-        set({ error: error as string });
-        return { success: false, error: error as string };
+        const errStr = error as string;
+        // Handle orphaned auth user: auth entry exists but profile was deleted
+        if (errStr.toLowerCase().includes('already registered') || errStr.toLowerCase().includes('already been registered')) {
+          set({ error: 'This phone number is already registered. Please log in instead.' });
+          return { success: false, error: 'This phone number is already registered. Please log in instead.' };
+        }
+        set({ error: errStr });
+        return { success: false, error: errStr };
       }
       if (data?.user) {
         set({ sessionId: data.user.id, isAuthenticated: true });
@@ -205,7 +222,18 @@ export const useStore = create<AppState>((set, get) => ({
           api.getTransactions(uid),
           api.getLinkedAccounts(uid),
         ]);
-        if (profileRes.data) set({ user: profileRes.data });
+
+        // Handle orphaned auth user: profile was deleted but auth entry remains
+        if (!profileRes.data) {
+          const authPhone = data.user.user_metadata?.phone || data.user.phone || formattedPhone;
+          const authName = data.user.user_metadata?.full_name || 'Monde User';
+          const authProvider = data.user.user_metadata?.provider || 'airtel';
+          await api.ensureProfileExists(uid, authPhone, authName, authProvider);
+          const { data: newProfile } = await api.getProfile(uid);
+          if (newProfile) set({ user: newProfile });
+        } else {
+          set({ user: profileRes.data });
+        }
         set({ transactions: txnRes.data, linkedAccounts: accountsRes.data });
 
         // Subscribe to realtime updates

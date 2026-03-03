@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { isValidPhone, isValidPin, pinToPassword } from '../lib/validation';
-import { requestPinReset, resetPinWithToken } from '../lib/api';
+import { requestPinReset, resetPinWithToken, sendOtp, verifyOtp } from '../lib/api';
 import { isSupabaseConfigured } from '../lib/supabase';
 import Button from '../components/Button';
 
@@ -41,7 +41,8 @@ export default function ForgotPinScreen() {
       return;
     }
 
-    const result = await requestPinReset(phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`);
+    const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+    const result = await sendOtp(formattedPhone);
     setLoading(false);
     if (!result.success) {
       setError(result.error || 'Failed to send reset code. Please try again.');
@@ -50,14 +51,27 @@ export default function ForgotPinScreen() {
     setStep('verify');
   };
 
-  const handleVerifyCode = () => {
+  const handleVerifyCode = async () => {
     if (code.length < 4) {
       setError('Please enter the verification code.');
       return;
     }
     setError('');
-    // In production, this code is verified by Supabase OTP / SMS provider (Task #13)
-    // For now, accept any 4+ digit code in offline mode
+
+    if (!isSupabaseConfigured) {
+      // Offline mock — skip to new PIN step
+      setStep('newpin');
+      return;
+    }
+
+    setLoading(true);
+    const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+    const result = await verifyOtp(formattedPhone, code);
+    setLoading(false);
+    if (!result.success) {
+      setError(result.error || 'Invalid verification code. Please try again.');
+      return;
+    }
     setStep('newpin');
   };
 

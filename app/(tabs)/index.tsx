@@ -15,12 +15,25 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const user = useStore((s) => s.user);
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
   const transactions = useStore((s) => s.transactions);
   const fetchProfile = useStore((s) => s.fetchProfile);
   const fetchTransactions = useStore((s) => s.fetchTransactions);
   const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
   const [refreshing, setRefreshing] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState(true);
+  const retried = React.useRef(false);
+
+  // If authenticated but no user profile, retry fetching once after a short delay
+  React.useEffect(() => {
+    if (isAuthenticated && !user && !retried.current) {
+      retried.current = true;
+      const timer = setTimeout(() => {
+        fetchProfile();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, user]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

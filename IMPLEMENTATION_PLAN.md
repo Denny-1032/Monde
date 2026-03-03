@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2025-07-14
+> Last updated: 2026-03-03
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -27,6 +27,10 @@
 | 11i | **Performance Audit** — React.memo, useMemo, useCallback, parallel fetches | ✅ DONE | TransactionItem + Avatar memoized; history sections/renderItem memoized; home recentTxns memoized; parallel fetch after payment/topup/withdraw |
 | 11j | **Security Audit** — input sanitization, QR hardening, SecureStore guard, OTP rate limit | ✅ DONE | maxLength on all TextInputs; QR payload size/type/range validation; SecureStore 2048-char guard; 60s OTP cooldown; ilike pattern sanitization |
 | 11k | **DB Migration 013** — balance CHECK, handle format CHECK, search_path fixes, note sanitization in RPC, RLS delete policy | ✅ DONE | `013_perf_security_audit.sql`: non-negative balance constraint, handle regex constraint, search_path on handle_new_user + handle_updated_at, p_note sanitization in process_payment, linked_accounts DELETE RLS |
+| 11l | **Fix orphaned auth users** — sign-in/initSession auto-recreate missing profile from auth metadata | ✅ DONE | `ensureProfileExists` RPC + API; store signIn + initSession handle missing profiles; home screen retry mechanism |
+| 11m | **Fix checkPhoneExists** — detect orphaned auth entries via `check_phone_registered` RPC | ✅ DONE | Migration `014_fix_orphaned_auth_users.sql`: checks both profiles AND auth.users |
+| 11n | **Fix forgot-pin** — OTP verification was accepting any code; now uses sendOtp/verifyOtp | ✅ DONE | Replaced `resetPasswordForEmail` (fake emails) with SMS OTP; actual verification when online |
+| 11o | **User journey audit** — max amount validation on top-up/withdraw (K50,000), migration 013 handle column safety | ✅ DONE | Client-side K50,000 cap; migration 013 auto-creates handle column if missing |
 
 ## Phase 2: Core Feature Completion
 

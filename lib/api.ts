@@ -96,13 +96,48 @@ export async function getSession() {
 export async function checkPhoneExists(phone: string): Promise<{ exists: boolean }> {
   if (!isSupabaseConfigured) return { exists: false };
   const formatted = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('phone', formatted)
-    .maybeSingle();
-  if (error) return { exists: false };
+  // Use RPC that checks BOTH profiles table AND auth.users
+  const { data, error } = await supabase.rpc('check_phone_registered', { p_phone: formatted });
+  if (error) {
+    // Fallback: check profiles table directly
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('phone', formatted)
+      .maybeSingle();
+    return { exists: !!profileData };
+  }
   return { exists: !!data };
+}
+
+export async function ensureProfileExists(
+  userId: string,
+  phone: string,
+  fullName: string = 'Monde User',
+  provider: string = 'airtel'
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+  const { data, error } = await supabase.rpc('ensure_profile_exists', {
+    p_user_id: userId,
+    p_phone: phone,
+    p_full_name: fullName,
+    p_provider: provider,
+  });
+  if (error) {
+    // Fallback: direct insert
+    const { error: insertErr } = await supabase
+      .from('profiles')
+      .upsert({
+        id: userId,
+        phone,
+        full_name: fullName,
+        provider,
+        balance: 0,
+        currency: 'ZMW',
+      }, { onConflict: 'id' });
+    if (insertErr) return { success: false, error: insertErr.message };
+  }
+  return { success: true };
 }
 
 // ============================================
