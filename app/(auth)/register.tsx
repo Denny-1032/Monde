@@ -6,7 +6,7 @@ import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
-import { sendRegistrationOtp, verifyRegistrationOtp, checkPhoneExists, signInAfterSignUp, ensureProfileExists } from '../../lib/api';
+import { verifyOtp, resendSignUpOtp, checkPhoneExists, ensureProfileExists } from '../../lib/api';
 import Button from '../../components/Button';
 import OtpInput from '../../components/OtpInput';
 
@@ -50,18 +50,7 @@ export default function RegisterScreen() {
       detected || 'airtel'
     );
     if (result.success) {
-      const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-      // Ensure session exists (signUp may not auto-confirm email)
-      const sessionResult = await signInAfterSignUp(formattedPhone, pin);
-      if (!sessionResult.success) {
-        setError('Failed to establish session: ' + (sessionResult.error || 'Unknown error'));
-        return;
-      }
-      // Send OTP for phone verification
-      const otpResult = await sendRegistrationOtp(formattedPhone);
-      if (!otpResult.success) {
-        setOtpError(otpResult.error || 'Failed to send verification code. Tap "Resend code" to try again.');
-      }
+      // signUp({ phone }) automatically sends OTP via Twilio Verify
       setStep(3);
     } else {
       setError(result.error || 'Registration failed. Please try again.');
@@ -73,14 +62,18 @@ export default function RegisterScreen() {
     setOtpError('');
     setOtpLoading(true);
     const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-    const result = await verifyRegistrationOtp(formattedPhone, code);
+    const result = await verifyOtp(formattedPhone, code);
     setOtpLoading(false);
     if (result.success) {
       // OTP verified — NOW create the profile in the database
+      // verifyOtp creates a session, so we can get the user ID
       const safeName = sanitizeText(fullName);
       const detected = detectProvider(phone);
-      if (sessionId) {
-        await ensureProfileExists(sessionId, formattedPhone, safeName, detected || 'airtel');
+      // Re-init to get the new session's user ID
+      await initSession();
+      const currentSessionId = useStore.getState().sessionId;
+      if (currentSessionId) {
+        await ensureProfileExists(currentSessionId, formattedPhone, safeName, detected || 'airtel');
       }
       // Re-sync store with the new profile
       await initSession();
@@ -92,7 +85,7 @@ export default function RegisterScreen() {
 
   const handleResendOtp = async () => {
     const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-    await sendRegistrationOtp(formattedPhone);
+    await resendSignUpOtp(formattedPhone);
   };
 
   return (

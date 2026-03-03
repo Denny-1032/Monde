@@ -4,13 +4,11 @@ import { pinToPassword, sanitizeText } from './validation';
 
 // ============================================
 // Auth Functions
-// Uses email auth with phone-derived emails
-// (no SMS provider needed — works out of the box)
+// Uses native phone-based auth (Twilio Verify)
 // ============================================
 
-function phoneToEmail(phone: string): string {
-  // Convert +260971234567 → 260971234567@monde.app
-  return `${phone.replace(/[^0-9]/g, '')}@monde.app`;
+function formatPhone(phone: string): string {
+  return phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
 }
 
 export async function signUpWithPhone(phone: string, pin: string, metadata: {
@@ -19,13 +17,13 @@ export async function signUpWithPhone(phone: string, pin: string, metadata: {
 }) {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
-  const email = phoneToEmail(phone);
+  const formattedPhone = formatPhone(phone);
   const securePassword = pinToPassword(pin);
   const { data, error } = await supabase.auth.signUp({
-    email,
+    phone: formattedPhone,
     password: securePassword,
     options: {
-      data: { full_name: sanitizeText(metadata.full_name), provider: metadata.provider, phone },
+      data: { full_name: sanitizeText(metadata.full_name), provider: metadata.provider },
     },
   });
   return { data, error: error?.message };
@@ -34,10 +32,10 @@ export async function signUpWithPhone(phone: string, pin: string, metadata: {
 export async function signInWithPhone(phone: string, pin: string) {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
-  const email = phoneToEmail(phone);
+  const formattedPhone = formatPhone(phone);
   const securePassword = pinToPassword(pin);
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
+    phone: formattedPhone,
     password: securePassword,
   });
   return { data, error: error?.message };
@@ -46,11 +44,11 @@ export async function signInWithPhone(phone: string, pin: string) {
 export async function verifyPin(phone: string, pin: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
 
-  const email = phoneToEmail(phone);
+  const formattedPhone = formatPhone(phone);
   const securePassword = pinToPassword(pin);
   // Use isolated client so main session is never rotated
   const { error } = await supabaseVerify.auth.signInWithPassword({
-    email,
+    phone: formattedPhone,
     password: securePassword,
   });
   // Immediately sign out the verify client to clean up
@@ -59,53 +57,11 @@ export async function verifyPin(phone: string, pin: string): Promise<{ success: 
   return { success: true };
 }
 
-export async function requestPinReset(phone: string): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured) return { success: true };
-  const email = phoneToEmail(phone);
-  // Use Supabase password reset — sends OTP/magic link to the derived email
-  // In production, this should be replaced with SMS OTP (Task #13)
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
-  if (error) return { success: false, error: error.message };
-  return { success: true };
-}
-
 export async function resetPinWithToken(phone: string, newPin: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
-  // Call the reset-pin Edge Function which correctly identifies the email-auth user
-  // by phone (profiles.id = auth.users.id), even when called from a phone-auth session.
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-  if (!accessToken) return { success: false, error: 'No active session. Please verify your OTP first.' };
-
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-
-  try {
-    const response = await fetch(`${supabaseUrl}/functions/v1/reset-pin`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ phone: formattedPhone, newPin }),
-    });
-    const result = await response.json();
-    if (!response.ok) return { success: false, error: result.error || 'Failed to reset PIN.' };
-    return { success: true };
-  } catch (e: any) {
-    return { success: false, error: e.message || 'Network error resetting PIN.' };
-  }
-}
-
-export async function signInAfterSignUp(phone: string, pin: string): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured) return { success: true };
-  // Check if session already exists (signUp may have auto-confirmed)
-  const { data: existing } = await supabase.auth.getSession();
-  if (existing.session) return { success: true };
-  // No session — sign in with password to establish one
-  const email = phoneToEmail(phone);
-  const securePassword = pinToPassword(pin);
-  const { error } = await supabase.auth.signInWithPassword({ email, password: securePassword });
+  // After OTP verification, we have an active session. updateUser works directly.
+  const securePassword = pinToPassword(newPin);
+  const { error } = await supabase.auth.updateUser({ password: securePassword });
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
@@ -173,41 +129,41 @@ export async function ensureProfileExists(
 }
 
 // ============================================
-// OTP Verification
-// Requires SMS provider (Twilio/MessageBird) configured in Supabase
+// OTP Verification (Twilio Verify via Supabase)
 // ============================================
 
 const OTP_COOLDOWN_MS = 60_000;
-const _otpCooldowns = new Map<string, number>(); // keyed by phone number
+const _otpCooldowns = new Map<string, number>();
 
-// Registration OTP: links phone to existing email-auth user (no duplicate auth entry)
-export async function sendRegistrationOtp(phone: string): Promise<{ success: boolean; error?: string }> {
+// Resend signup OTP (for registration flow — signUp already sends the first one)
+export async function resendSignUpOtp(phone: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
-  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+  const formattedPhone = formatPhone(phone);
   const now = Date.now();
   const lastSent = _otpCooldowns.get(formattedPhone) || 0;
   if (now - lastSent < OTP_COOLDOWN_MS) {
     const remaining = Math.ceil((OTP_COOLDOWN_MS - (now - lastSent)) / 1000);
     return { success: false, error: `Please wait ${remaining}s before requesting another code.` };
   }
-  const { error } = await supabase.auth.updateUser({ phone: formattedPhone });
+  const { error } = await supabase.auth.resend({ type: 'sms', phone: formattedPhone });
   if (error) return { success: false, error: error.message };
   _otpCooldowns.set(formattedPhone, now);
   return { success: true };
 }
 
-export async function verifyRegistrationOtp(phone: string, token: string): Promise<{ success: boolean; error?: string }> {
+// Verify OTP (works for both registration and forgot-pin)
+export async function verifyOtp(phone: string, token: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
-  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-  const { error } = await supabase.auth.verifyOtp({ phone: formattedPhone, token, type: 'phone_change' });
+  const formattedPhone = formatPhone(phone);
+  const { error } = await supabase.auth.verifyOtp({ phone: formattedPhone, token, type: 'sms' });
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
 
-// Forgot-pin OTP: uses signInWithOtp (finds linked phone user)
+// Send OTP for forgot-pin (uses signInWithOtp)
 export async function sendOtp(phone: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
-  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+  const formattedPhone = formatPhone(phone);
   const now = Date.now();
   const lastSent = _otpCooldowns.get(formattedPhone) || 0;
   if (now - lastSent < OTP_COOLDOWN_MS) {
@@ -217,14 +173,6 @@ export async function sendOtp(phone: string): Promise<{ success: boolean; error?
   const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
   if (error) return { success: false, error: error.message };
   _otpCooldowns.set(formattedPhone, now);
-  return { success: true };
-}
-
-export async function verifyOtp(phone: string, token: string): Promise<{ success: boolean; error?: string }> {
-  if (!isSupabaseConfigured) return { success: true };
-  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-  const { error } = await supabase.auth.verifyOtp({ phone: formattedPhone, token, type: 'sms' });
-  if (error) return { success: false, error: error.message };
   return { success: true };
 }
 

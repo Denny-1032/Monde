@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { isValidPhone, isValidPin, pinToPassword } from '../lib/validation';
-import { requestPinReset, resetPinWithToken, sendOtp, verifyOtp } from '../lib/api';
+import { resetPinWithToken, sendOtp, verifyOtp } from '../lib/api';
 import { isSupabaseConfigured } from '../lib/supabase';
 import Button from '../components/Button';
 
