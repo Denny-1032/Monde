@@ -6,7 +6,7 @@ import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
-import { sendOtp, verifyOtp, checkPhoneExists } from '../../lib/api';
+import { sendRegistrationOtp, verifyRegistrationOtp, checkPhoneExists } from '../../lib/api';
 import Button from '../../components/Button';
 import OtpInput from '../../components/OtpInput';
 
@@ -52,7 +52,7 @@ export default function RegisterScreen() {
     if (result.success) {
       // Send OTP for phone verification
       const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-      const otpResult = await sendOtp(formattedPhone);
+      const otpResult = await sendRegistrationOtp(formattedPhone);
       if (!otpResult.success) {
         setOtpError(otpResult.error || 'Failed to send verification code. Tap "Resend code" to try again.');
       }
@@ -67,7 +67,7 @@ export default function RegisterScreen() {
     setOtpError('');
     setOtpLoading(true);
     const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-    const result = await verifyOtp(formattedPhone, code);
+    const result = await verifyRegistrationOtp(formattedPhone, code);
     setOtpLoading(false);
     if (result.success) {
       // Re-sync store: verifyOtp may have switched the active Supabase session
@@ -80,7 +80,7 @@ export default function RegisterScreen() {
 
   const handleResendOtp = async () => {
     const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-    await sendOtp(formattedPhone);
+    await sendRegistrationOtp(formattedPhone);
   };
 
   return (

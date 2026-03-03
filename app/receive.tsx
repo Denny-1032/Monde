@@ -39,7 +39,7 @@ export default function ReceiveScreen() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Pay me via Monde!\nName: ${user?.full_name}\nPhone: ${user?.phone}${amount ? `\nAmount: K${amount}` : ''}`,
+        message: `Pay me via Monde!\nName: ${user?.full_name}${user?.handle ? `\nHandle: @${user.handle}` : ''}\nPhone: ${user?.phone}${amount ? `\nAmount: K${amount}` : ''}`,
       });
     } catch {}
   };
@@ -70,6 +70,7 @@ export default function ReceiveScreen() {
               />
             </View>
             <Text style={[styles.userName, { color: colors.text }]}>{user?.full_name}</Text>
+            {user?.handle ? <Text style={[styles.userHandle, { color: colors.primary }]}>@{user.handle}</Text> : null}
             <Text style={[styles.userPhone, { color: colors.textSecondary }]}>{user?.phone}</Text>
             {amount ? (
               <View style={[styles.amountBadge, { backgroundColor: colors.primary + '15' }]}>
@@ -78,7 +79,9 @@ export default function ReceiveScreen() {
             ) : null}
           </View>
 
-          <Text style={[styles.instruction, { color: colors.textSecondary }]}>Ask the sender to scan this QR code</Text>
+          <Text style={[styles.instruction, { color: colors.textSecondary }]}>
+            {amount ? 'Ask the sender to scan this QR code' : 'Ask the sender to scan this QR code — they will choose the amount'}
+          </Text>
 
           {/* Set Amount Button */}
           <TouchableOpacity style={styles.setAmountBtn} onPress={() => setShowAmountEntry(true)}>
@@ -156,6 +159,11 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: FontSize.lg,
     fontWeight: '700',
+  },
+  userHandle: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    marginTop: 2,
   },
   userPhone: {
     fontSize: FontSize.sm,

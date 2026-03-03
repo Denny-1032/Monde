@@ -31,6 +31,11 @@
 | 11m | **Fix checkPhoneExists** — detect orphaned auth entries via `check_phone_registered` RPC | ✅ DONE | Migration `014_fix_orphaned_auth_users.sql`: checks both profiles AND auth.users |
 | 11n | **Fix forgot-pin** — OTP verification was accepting any code; now uses sendOtp/verifyOtp | ✅ DONE | Replaced `resetPasswordForEmail` (fake emails) with SMS OTP; actual verification when online |
 | 11o | **User journey audit** — max amount validation on top-up/withdraw (K50,000), migration 013 handle column safety | ✅ DONE | Client-side K50,000 cap; migration 013 auto-creates handle column if missing |
+| 11p | **Fix duplicate auth users** — registration OTP used `signInWithOtp` creating separate phone-auth users; now uses `updateUser({phone})` to link phone to existing email-auth user | ✅ DONE | `sendRegistrationOtp` / `verifyRegistrationOtp` in api.ts; register.tsx updated |
+| 11q | **Fix 'Monde User' placeholder** — `initSession` no longer uses 'Monde User' fallback; looks up existing profile by phone first | ✅ DONE | store/useStore.ts `initSession` rewritten |
+| 11r | **Reserved handles** — @monde, @admin, @support etc. blocked in client + DB trigger | ✅ DONE | `RESERVED_HANDLES` list in api.ts; migration `015_reserved_handles.sql` |
+| 11s | **Edit profile keyboard fix** — Save button no longer obstructs input fields when keyboard is open | ✅ DONE | Replaced static layout with ScrollView in edit-profile.tsx |
+| 11t | **Receive money UX** — shows handle on QR card; clarifies sender chooses amount when none set | ✅ DONE | receive.tsx updated text + share message |
 
 ## Phase 2: Core Feature Completion
 

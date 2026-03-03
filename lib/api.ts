@@ -167,6 +167,31 @@ export async function ensureProfileExists(
 const OTP_COOLDOWN_MS = 60_000;
 const _otpCooldowns = new Map<string, number>(); // keyed by phone number
 
+// Registration OTP: links phone to existing email-auth user (no duplicate auth entry)
+export async function sendRegistrationOtp(phone: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+  const now = Date.now();
+  const lastSent = _otpCooldowns.get(formattedPhone) || 0;
+  if (now - lastSent < OTP_COOLDOWN_MS) {
+    const remaining = Math.ceil((OTP_COOLDOWN_MS - (now - lastSent)) / 1000);
+    return { success: false, error: `Please wait ${remaining}s before requesting another code.` };
+  }
+  const { error } = await supabase.auth.updateUser({ phone: formattedPhone });
+  if (error) return { success: false, error: error.message };
+  _otpCooldowns.set(formattedPhone, now);
+  return { success: true };
+}
+
+export async function verifyRegistrationOtp(phone: string, token: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+  const { error } = await supabase.auth.verifyOtp({ phone: formattedPhone, token, type: 'phone_change' });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+// Forgot-pin OTP: uses signInWithOtp (finds linked phone user)
 export async function sendOtp(phone: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
   const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
@@ -248,9 +273,17 @@ export async function lookupByHandle(handle: string): Promise<{ found: boolean; 
   return data;
 }
 
+const RESERVED_HANDLES = [
+  'monde', 'admin', 'support', 'help', 'system', 'official',
+  'moderator', 'mod', 'staff', 'team', 'bot', 'api', 'app',
+  'user', 'test', 'root', 'null', 'undefined', 'mondeuser',
+  'monde.user', 'monde.app', 'mondeapp',
+];
+
 export async function checkHandleAvailable(handle: string): Promise<boolean> {
   if (!isSupabaseConfigured) return true;
   const clean = handle.replace(/^@/, '').toLowerCase();
+  if (RESERVED_HANDLES.includes(clean)) return false;
   const { data } = await supabase
     .from('profiles')
     .select('id')

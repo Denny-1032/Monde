@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -157,7 +157,12 @@ export default function EditProfileScreen() {
         <Text style={[styles.changePhotoText, { color: colors.primary }]}>Change Photo</Text>
       </TouchableOpacity>
 
-      <View style={styles.form}>
+      <ScrollView
+        style={styles.form}
+        contentContainerStyle={styles.formContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.inputGroup}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>Full Name</Text>
           <TextInput
@@ -165,7 +170,6 @@ export default function EditProfileScreen() {
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
-            autoFocus
             maxLength={60}
           />
         </View>
@@ -194,17 +198,16 @@ export default function EditProfileScreen() {
           </View>
         </View>
 
-      </View>
-
-      <View style={styles.footer}>
-        <Button
-          title="Save Changes"
-          onPress={handleSave}
-          disabled={!hasChanges || loading}
-          loading={loading}
-          size="lg"
-        />
-      </View>
+        <View style={styles.footer}>
+          <Button
+            title="Save Changes"
+            onPress={handleSave}
+            disabled={!hasChanges || loading}
+            loading={loading}
+            size="lg"
+          />
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -250,7 +253,10 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
+  },
+  formContent: {
     paddingHorizontal: Spacing.lg,
+    paddingBottom: 40,
   },
   inputGroup: {
     marginBottom: Spacing.lg,
@@ -307,7 +313,6 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 40,
+    marginTop: Spacing.xl,
   },
 });

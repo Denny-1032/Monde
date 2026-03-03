@@ -96,10 +96,20 @@ export const useStore = create<AppState>((set, get) => ({
         // Handle orphaned auth user: profile was deleted but auth entry remains
         if (!profileRes.data) {
           const authPhone = session.user.user_metadata?.phone || session.user.phone || '';
-          const authName = session.user.user_metadata?.full_name || 'Monde User';
+          const authName = session.user.user_metadata?.full_name || '';
           const authProvider = session.user.user_metadata?.provider || 'airtel';
           if (authPhone) {
-            await api.ensureProfileExists(uid, authPhone, authName, authProvider);
+            // Check if a profile already exists for this phone (e.g. from email-auth)
+            const { data: existingProfiles } = await api.searchProfilesByPhone(authPhone);
+            if (existingProfiles && existingProfiles.length > 0) {
+              // Use existing profile data (from the email-auth user)
+              const existing = existingProfiles[0];
+              const finalName = authName || existing.full_name || 'User';
+              await api.ensureProfileExists(uid, authPhone, finalName, authProvider);
+            } else if (authName) {
+              // Only create profile if we have a real name (not placeholder)
+              await api.ensureProfileExists(uid, authPhone, authName, authProvider);
+            }
             const { data: newProfile } = await api.getProfile(uid);
             if (newProfile) set({ user: newProfile });
           }
