@@ -186,8 +186,8 @@ export const useStore = create<AppState>((set, get) => ({
       }
       if (data?.user) {
         set({ sessionId: data.user.id, isAuthenticated: true });
-        // Profile is auto-created by the database trigger
-        await get().fetchProfile();
+        // Profile is NOT created here — it's created after OTP verification
+        // (migration 016 makes handle_new_user a no-op)
       }
       return { success: true };
     } catch (e: any) {
@@ -205,7 +205,7 @@ export const useStore = create<AppState>((set, get) => ({
       const mockUser: UserProfile = {
         id: '1',
         phone: phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`,
-        full_name: 'Monde User',
+        full_name: 'Demo User',
         provider: 'airtel',
         balance: 2450.00,
         currency: 'ZMW',
@@ -236,11 +236,17 @@ export const useStore = create<AppState>((set, get) => ({
         // Handle orphaned auth user: profile was deleted but auth entry remains
         if (!profileRes.data) {
           const authPhone = data.user.user_metadata?.phone || data.user.phone || formattedPhone;
-          const authName = data.user.user_metadata?.full_name || 'Monde User';
+          const authName = data.user.user_metadata?.full_name || '';
           const authProvider = data.user.user_metadata?.provider || 'airtel';
-          await api.ensureProfileExists(uid, authPhone, authName, authProvider);
-          const { data: newProfile } = await api.getProfile(uid);
-          if (newProfile) set({ user: newProfile });
+          if (authPhone && authName) {
+            await api.ensureProfileExists(uid, authPhone, authName, authProvider);
+            const { data: newProfile } = await api.getProfile(uid);
+            if (newProfile) set({ user: newProfile });
+          } else {
+            await api.ensureProfileExists(uid, authPhone, 'User', authProvider);
+            const { data: newProfile } = await api.getProfile(uid);
+            if (newProfile) set({ user: newProfile });
+          }
         } else {
           set({ user: profileRes.data });
         }

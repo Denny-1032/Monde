@@ -97,6 +97,19 @@ export async function resetPinWithToken(phone: string, newPin: string): Promise<
   }
 }
 
+export async function signInAfterSignUp(phone: string, pin: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true };
+  // Check if session already exists (signUp may have auto-confirmed)
+  const { data: existing } = await supabase.auth.getSession();
+  if (existing.session) return { success: true };
+  // No session — sign in with password to establish one
+  const email = phoneToEmail(phone);
+  const securePassword = pinToPassword(pin);
+  const { error } = await supabase.auth.signInWithPassword({ email, password: securePassword });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 export async function signOut() {
   if (!isSupabaseConfigured) return;
   await supabase.auth.signOut();
@@ -132,7 +145,7 @@ export async function checkPhoneExists(phone: string): Promise<{ exists: boolean
 export async function ensureProfileExists(
   userId: string,
   phone: string,
-  fullName: string = 'Monde User',
+  fullName: string,
   provider: string = 'airtel'
 ): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };

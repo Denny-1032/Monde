@@ -6,7 +6,7 @@ import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
-import { sendRegistrationOtp, verifyRegistrationOtp, checkPhoneExists } from '../../lib/api';
+import { sendRegistrationOtp, verifyRegistrationOtp, checkPhoneExists, signInAfterSignUp, ensureProfileExists } from '../../lib/api';
 import Button from '../../components/Button';
 import OtpInput from '../../components/OtpInput';
 
@@ -15,7 +15,7 @@ const PIN_KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', '
 export default function RegisterScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { signUp, initSession, isLoading } = useStore();
+  const { signUp, initSession, isLoading, sessionId } = useStore();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
@@ -50,8 +50,14 @@ export default function RegisterScreen() {
       detected || 'airtel'
     );
     if (result.success) {
-      // Send OTP for phone verification
       const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+      // Ensure session exists (signUp may not auto-confirm email)
+      const sessionResult = await signInAfterSignUp(formattedPhone, pin);
+      if (!sessionResult.success) {
+        setError('Failed to establish session: ' + (sessionResult.error || 'Unknown error'));
+        return;
+      }
+      // Send OTP for phone verification
       const otpResult = await sendRegistrationOtp(formattedPhone);
       if (!otpResult.success) {
         setOtpError(otpResult.error || 'Failed to send verification code. Tap "Resend code" to try again.');
@@ -70,7 +76,13 @@ export default function RegisterScreen() {
     const result = await verifyRegistrationOtp(formattedPhone, code);
     setOtpLoading(false);
     if (result.success) {
-      // Re-sync store: verifyOtp may have switched the active Supabase session
+      // OTP verified — NOW create the profile in the database
+      const safeName = sanitizeText(fullName);
+      const detected = detectProvider(phone);
+      if (sessionId) {
+        await ensureProfileExists(sessionId, formattedPhone, safeName, detected || 'airtel');
+      }
+      // Re-sync store with the new profile
       await initSession();
       router.replace('/(tabs)');
     } else {
