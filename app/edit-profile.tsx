@@ -166,6 +166,7 @@ export default function EditProfileScreen() {
             onChangeText={setFullName}
             autoCapitalize="words"
             autoFocus
+            maxLength={60}
           />
         </View>
 

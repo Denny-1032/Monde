@@ -11,7 +11,7 @@ type AvatarProps = {
   imageUrl?: string | null;
 };
 
-export default function Avatar({ name, size = 44, color, imageUrl }: AvatarProps) {
+function Avatar({ name, size = 44, color, imageUrl }: AvatarProps) {
   const themeColors = useColors();
   const bgColor = color || themeColors.primary;
   const fontSize = size * 0.38;
@@ -42,3 +42,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+export default React.memo(Avatar);

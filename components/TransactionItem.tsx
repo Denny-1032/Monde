@@ -12,7 +12,7 @@ type Props = {
   onPress?: () => void;
 };
 
-export default function TransactionItem({ transaction, onPress }: Props) {
+function TransactionItem({ transaction, onPress }: Props) {
   const colors = useColors();
   const isReceive = transaction.type === 'receive';
   const isPayment = transaction.type === 'payment';
@@ -85,3 +85,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+export default React.memo(TransactionItem);

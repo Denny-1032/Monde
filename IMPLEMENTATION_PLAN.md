@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2026-03-02
+> Last updated: 2025-07-14
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -24,6 +24,9 @@
 | 11f | User handles (@username) — unique, editable, usable for payments | ✅ DONE | Migration `012_user_handles.sql` + API + profile + payment lookup |
 | 11g | Activity page spacing fix (header → items) | ✅ DONE | Reduced marginBottom on screenTitle and filterRow |
 | 11h | Remove Skip OTP from registration (Twilio configured) | ✅ DONE | Removed skip button + unused styles |
+| 11i | **Performance Audit** — React.memo, useMemo, useCallback, parallel fetches | ✅ DONE | TransactionItem + Avatar memoized; history sections/renderItem memoized; home recentTxns memoized; parallel fetch after payment/topup/withdraw |
+| 11j | **Security Audit** — input sanitization, QR hardening, SecureStore guard, OTP rate limit | ✅ DONE | maxLength on all TextInputs; QR payload size/type/range validation; SecureStore 2048-char guard; 60s OTP cooldown; ilike pattern sanitization |
+| 11k | **DB Migration 013** — balance CHECK, handle format CHECK, search_path fixes, note sanitization in RPC, RLS delete policy | ✅ DONE | `013_perf_security_audit.sql`: non-negative balance constraint, handle regex constraint, search_path on handle_new_user + handle_updated_at, p_note sanitization in process_payment, linked_accounts DELETE RLS |
 
 ## Phase 2: Core Feature Completion
 

@@ -3,6 +3,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+const SECURE_STORE_MAX_SIZE = 2048;
+
 const ExpoSecureStoreAdapter = {
   getItem: (key: string) => {
     if (Platform.OS === 'web') {
@@ -13,6 +15,10 @@ const ExpoSecureStoreAdapter = {
   setItem: (key: string, value: string) => {
     if (Platform.OS === 'web') {
       try { localStorage.setItem(key, value); } catch {}
+      return;
+    }
+    if (value && value.length > SECURE_STORE_MAX_SIZE) {
+      console.warn(`SecureStore: value for "${key}" exceeds ${SECURE_STORE_MAX_SIZE} chars (${value.length}), skipping.`);
       return;
     }
     return SecureStore.setItemAsync(key, value);

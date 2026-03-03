@@ -34,11 +34,19 @@ export function generateQRData(payload: QRPayload): string {
 
 export function parseQRData(data: string): QRPayload | null {
   try {
+    if (data.length > 1024) return null;
     const parsed = JSON.parse(data);
-    if (parsed.app === 'monde' && parsed.phone) {
-      return parsed as QRPayload;
-    }
-    return null;
+    if (parsed.app !== 'monde' || typeof parsed.phone !== 'string') return null;
+    const phone = parsed.phone.replace(/[^0-9+]/g, '');
+    if (phone.length < 9 || phone.length > 15) return null;
+    return {
+      app: 'monde',
+      v: parsed.v || 1,
+      phone,
+      name: typeof parsed.name === 'string' ? parsed.name.replace(/[<>{}]/g, '').slice(0, 100) : '',
+      provider: typeof parsed.provider === 'string' ? parsed.provider.slice(0, 20) : '',
+      amount: typeof parsed.amount === 'number' && parsed.amount > 0 && parsed.amount <= 50000 ? parsed.amount : undefined,
+    };
   } catch {
     return null;
   }

@@ -110,11 +110,20 @@ export async function checkPhoneExists(phone: string): Promise<{ exists: boolean
 // Requires SMS provider (Twilio/MessageBird) configured in Supabase
 // ============================================
 
+let _lastOtpSentAt = 0;
+const OTP_COOLDOWN_MS = 60_000;
+
 export async function sendOtp(phone: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
+  const now = Date.now();
+  if (now - _lastOtpSentAt < OTP_COOLDOWN_MS) {
+    const remaining = Math.ceil((OTP_COOLDOWN_MS - (now - _lastOtpSentAt)) / 1000);
+    return { success: false, error: `Please wait ${remaining}s before requesting another OTP.` };
+  }
   const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
   const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
   if (error) return { success: false, error: error.message };
+  _lastOtpSentAt = now;
   return { success: true };
 }
 
@@ -199,10 +208,14 @@ export async function searchProfilesByPhone(phone: string): Promise<{ data: { id
   if (!isSupabaseConfigured) return { data: [] };
 
   const formatted = phone.startsWith('+260') ? phone : phone.startsWith('260') ? `+${phone}` : `+260${phone.replace(/^0/, '')}`;
+  // Extract last 9 digits and sanitize to prevent ilike pattern injection
+  const last9 = formatted.slice(-9).replace(/[^0-9]/g, '');
+  if (last9.length < 3) return { data: [] };
+
   const { data, error } = await supabase
     .from('profiles')
     .select('id, phone, full_name, avatar_url')
-    .ilike('phone', `%${formatted.slice(-9)}%`)
+    .ilike('phone', `%${last9}%`)
     .limit(5);
 
   if (error) return { data: [] };

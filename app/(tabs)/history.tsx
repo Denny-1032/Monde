@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SectionList, RefreshControl, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,15 +54,29 @@ export default function HistoryScreen() {
     setRefreshing(false);
   }, []);
 
-  const filtered = transactions.filter((txn) => {
-    if (filter === 'sent') return txn.type === 'send';
-    if (filter === 'received') return txn.type === 'receive';
-    if (filter === 'topup') return txn.type === 'topup';
-    if (filter === 'withdraw') return txn.type === 'withdraw';
-    return true;
-  });
+  const sections = useMemo(() => {
+    const filtered = transactions.filter((txn) => {
+      if (filter === 'sent') return txn.type === 'send';
+      if (filter === 'received') return txn.type === 'receive';
+      if (filter === 'topup') return txn.type === 'topup';
+      if (filter === 'withdraw') return txn.type === 'withdraw';
+      return true;
+    });
+    return groupByDate(filtered);
+  }, [transactions, filter]);
 
-  const sections = groupByDate(filtered);
+  const renderItem = useCallback(({ item }: { item: Transaction }) => (
+    <TransactionItem
+      transaction={item}
+      onPress={() => router.push({ pathname: '/transaction', params: { id: item.id } })}
+    />
+  ), [router]);
+
+  const renderSectionHeader = useCallback(({ section: { title } }: { section: { title: string } }) => (
+    <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
+      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{title}</Text>
+    </View>
+  ), [colors.background, colors.textSecondary]);
 
   const filters: { key: FilterType; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -92,17 +106,8 @@ export default function HistoryScreen() {
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TransactionItem
-            transaction={item}
-            onPress={() => router.push({ pathname: '/transaction', params: { id: item.id } })}
-          />
-        )}
-        renderSectionHeader={({ section: { title } }) => (
-          <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{title}</Text>
-          </View>
-        )}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={

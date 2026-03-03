@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +18,7 @@ export default function HomeScreen() {
   const transactions = useStore((s) => s.transactions);
   const fetchProfile = useStore((s) => s.fetchProfile);
   const fetchTransactions = useStore((s) => s.fetchTransactions);
-  const recentTransactions = transactions.slice(0, 5);
+  const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
   const [refreshing, setRefreshing] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState(true);
 

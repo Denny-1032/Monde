@@ -311,9 +311,8 @@ export const useStore = create<AppState>((set, get) => ({
       if (!result.success) {
         return { success: false, error: result.error || 'Payment failed' };
       }
-      // Refresh data from server
-      await get().fetchProfile();
-      await get().fetchTransactions();
+      // Refresh data from server (parallel)
+      await Promise.all([get().fetchProfile(), get().fetchTransactions()]);
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Payment failed' };
@@ -360,8 +359,7 @@ export const useStore = create<AppState>((set, get) => ({
       if (!result.success) {
         return { success: false, error: result.error || 'Top-up failed' };
       }
-      await get().fetchProfile();
-      await get().fetchTransactions();
+      await Promise.all([get().fetchProfile(), get().fetchTransactions()]);
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Top-up failed' };
@@ -413,8 +411,7 @@ export const useStore = create<AppState>((set, get) => ({
       if (!result.success) {
         return { success: false, error: result.error || 'Withdrawal failed' };
       }
-      await get().fetchProfile();
-      await get().fetchTransactions();
+      await Promise.all([get().fetchProfile(), get().fetchTransactions()]);
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Withdrawal failed' };

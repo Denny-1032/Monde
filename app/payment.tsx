@@ -257,6 +257,7 @@ export default function PaymentScreen() {
               keyboardType="default"
               autoFocus={!params.recipientPhone}
               autoCorrect={false}
+              maxLength={30}
             />
             {lookingUp && (
               <ActivityIndicator size="small" color={colors.primary} style={{ position: 'absolute', right: 12, top: 36 }} />
@@ -302,6 +303,7 @@ export default function PaymentScreen() {
                 if (/^\d*\.?\d{0,2}$/.test(t)) setAmount(t);
               }}
               keyboardType="decimal-pad"
+              maxLength={10}
             />
             <Text style={[styles.balanceHint, { color: colors.textSecondary }]}>Balance: {formatCurrency(user?.balance || 0)}</Text>
           </View>
@@ -310,7 +312,8 @@ export default function PaymentScreen() {
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={note}
-              onChangeText={setNote}
+              onChangeText={(t) => setNote(t.slice(0, 140))}
+              maxLength={140}
             />
           </View>
           <Button
