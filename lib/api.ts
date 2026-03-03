@@ -71,11 +71,30 @@ export async function requestPinReset(phone: string): Promise<{ success: boolean
 
 export async function resetPinWithToken(phone: string, newPin: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
-  const securePassword = pinToPassword(newPin);
-  // Update the user's password (requires an active session from OTP/reset link)
-  const { error } = await supabase.auth.updateUser({ password: securePassword });
-  if (error) return { success: false, error: error.message };
-  return { success: true };
+  // Call the reset-pin Edge Function which correctly identifies the email-auth user
+  // by phone (profiles.id = auth.users.id), even when called from a phone-auth session.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) return { success: false, error: 'No active session. Please verify your OTP first.' };
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/reset-pin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ phone: formattedPhone, newPin }),
+    });
+    const result = await response.json();
+    if (!response.ok) return { success: false, error: result.error || 'Failed to reset PIN.' };
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Network error resetting PIN.' };
+  }
 }
 
 export async function signOut() {
@@ -145,20 +164,21 @@ export async function ensureProfileExists(
 // Requires SMS provider (Twilio/MessageBird) configured in Supabase
 // ============================================
 
-let _lastOtpSentAt = 0;
 const OTP_COOLDOWN_MS = 60_000;
+const _otpCooldowns = new Map<string, number>(); // keyed by phone number
 
 export async function sendOtp(phone: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
+  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
   const now = Date.now();
-  if (now - _lastOtpSentAt < OTP_COOLDOWN_MS) {
-    const remaining = Math.ceil((OTP_COOLDOWN_MS - (now - _lastOtpSentAt)) / 1000);
+  const lastSent = _otpCooldowns.get(formattedPhone) || 0;
+  if (now - lastSent < OTP_COOLDOWN_MS) {
+    const remaining = Math.ceil((OTP_COOLDOWN_MS - (now - lastSent)) / 1000);
     return { success: false, error: `Please wait ${remaining}s before requesting another OTP.` };
   }
-  const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
   const { error } = await supabase.auth.signInWithOtp({ phone: formattedPhone });
   if (error) return { success: false, error: error.message };
-  _lastOtpSentAt = now;
+  _otpCooldowns.set(formattedPhone, now);
   return { success: true };
 }
 

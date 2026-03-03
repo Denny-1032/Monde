@@ -15,7 +15,7 @@ const PIN_KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', '
 export default function RegisterScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { signUp, isLoading } = useStore();
+  const { signUp, initSession, isLoading } = useStore();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
@@ -52,7 +52,10 @@ export default function RegisterScreen() {
     if (result.success) {
       // Send OTP for phone verification
       const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-      await sendOtp(formattedPhone);
+      const otpResult = await sendOtp(formattedPhone);
+      if (!otpResult.success) {
+        setOtpError(otpResult.error || 'Failed to send verification code. Tap "Resend code" to try again.');
+      }
       setStep(3);
     } else {
       setError(result.error || 'Registration failed. Please try again.');
@@ -67,6 +70,8 @@ export default function RegisterScreen() {
     const result = await verifyOtp(formattedPhone, code);
     setOtpLoading(false);
     if (result.success) {
+      // Re-sync store: verifyOtp may have switched the active Supabase session
+      await initSession();
       router.replace('/(tabs)');
     } else {
       setOtpError(result.error || 'Invalid code. Please try again.');
