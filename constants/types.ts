@@ -23,6 +23,7 @@ export type UserProfile = {
   id: string;
   phone: string;
   full_name: string;
+  handle?: string;
   provider: string;
   balance: number;
   currency: string;

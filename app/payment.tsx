@@ -8,7 +8,7 @@ import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatPhone } from '../lib/helpers';
 import { sanitizeText, validateAmount, isValidPhone } from '../lib/validation';
-import { verifyPin, searchProfilesByPhone } from '../lib/api';
+import { verifyPin, searchProfilesByPhone, lookupByHandle } from '../lib/api';
 import Button from '../components/Button';
 import Avatar from '../components/Avatar';
 import PinConfirm from '../components/PinConfirm';
@@ -103,6 +103,26 @@ export default function PaymentScreen() {
 
     lookupTimer.current = setTimeout(async () => {
       const results: ContactSuggestion[] = [];
+
+      // Handle lookup: if input starts with @, search by handle
+      if (cleaned.startsWith('@') && cleaned.length >= 4) {
+        setLookingUp(true);
+        const result = await lookupByHandle(cleaned);
+        setLookingUp(false);
+        if (result.found && result.id !== user?.id) {
+          results.push({
+            id: result.id!,
+            name: result.full_name!,
+            phone: result.phone!,
+            source: 'monde',
+            avatar_url: result.avatar_url,
+          });
+          setRecipientName(result.full_name!);
+          setRecipientPhone(result.phone!);
+        }
+        setSuggestions(results);
+        return;
+      }
 
       // Search device contacts by name or phone
       const lower = cleaned.toLowerCase();

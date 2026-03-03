@@ -18,6 +18,12 @@
 | 10 | Fix `searchProfilesByPhone` double-call in payment screen | ✅ DONE | Single call, reuse results |
 | 11 | Add send-to-self prevention | ✅ DONE | Client-side + server-side (migration 010) |
 | 11b | Fix Security Advisor issues (search_path, view security, amount constraint) | ✅ DONE | Migration `011_security_advisor_fixes.sql` |
+| 11c | Keypad redesign: spacing, remove empty circle, FNB-style across all screens | ✅ DONE | NumPad, LockScreen, PinConfirm, login, register, change-pin |
+| 11d | Show 'already registered' error before PIN step in registration | ✅ DONE | `checkPhoneExists` API + register.tsx check |
+| 11e | Fix Invalid Refresh Token / stale session handling | ✅ DONE | Graceful catch + clear in initSession |
+| 11f | User handles (@username) — unique, editable, usable for payments | ✅ DONE | Migration `012_user_handles.sql` + API + profile + payment lookup |
+| 11g | Activity page spacing fix (header → items) | ✅ DONE | Reduced marginBottom on screenTitle and filterRow |
+| 11h | Remove Skip OTP from registration (Twilio configured) | ✅ DONE | Removed skip button + unused styles |
 
 ## Phase 2: Core Feature Completion
 

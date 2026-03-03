@@ -22,11 +22,13 @@ export default function EditProfileScreen() {
   const setUser = useStore((s) => s.setUser);
   const sessionId = useStore((s) => s.sessionId);
   const [fullName, setFullName] = useState(user?.full_name || '');
+  const [handle, setHandle] = useState(user?.handle || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || null);
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [handleError, setHandleError] = useState('');
 
-  const hasChanges = sanitizeText(fullName) !== user?.full_name || avatarUrl !== (user?.avatar_url || null);
+  const hasChanges = sanitizeText(fullName) !== user?.full_name || avatarUrl !== (user?.avatar_url || null) || handle !== (user?.handle || '');
 
   const pickAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -91,10 +93,27 @@ export default function EditProfileScreen() {
       return;
     }
 
+    // Validate handle
+    const cleanHandle = handle.replace(/^@/, '').toLowerCase().replace(/[^a-z0-9.]/g, '');
+    if (cleanHandle && cleanHandle.length < 3) {
+      setHandleError('Handle must be at least 3 characters.');
+      return;
+    }
+    if (cleanHandle && cleanHandle !== (user?.handle || '')) {
+      const available = await api.checkHandleAvailable(cleanHandle);
+      if (!available) {
+        setHandleError('This handle is already taken.');
+        return;
+      }
+    }
+
     setLoading(true);
-    const updates: { full_name: string; avatar_url?: string } = { full_name: safeName };
+    const updates: { full_name: string; avatar_url?: string; handle?: string } = { full_name: safeName };
     if (avatarUrl !== (user?.avatar_url || null)) {
       updates.avatar_url = avatarUrl || undefined;
+    }
+    if (cleanHandle !== (user?.handle || '')) {
+      updates.handle = cleanHandle || undefined;
     }
 
     if (isSupabaseConfigured && sessionId) {
@@ -105,7 +124,7 @@ export default function EditProfileScreen() {
         return;
       }
     }
-    if (user) setUser({ ...user, full_name: safeName, avatar_url: avatarUrl || undefined });
+    if (user) setUser({ ...user, full_name: safeName, avatar_url: avatarUrl || undefined, handle: cleanHandle || undefined });
     setLoading(false);
     Alert.alert('Saved', 'Your profile has been updated.', [
       { text: 'OK', onPress: () => router.back() },
@@ -148,6 +167,22 @@ export default function EditProfileScreen() {
             autoCapitalize="words"
             autoFocus
           />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Handle</Text>
+          <View style={[styles.handleRow, { backgroundColor: colors.surface, borderColor: handleError ? colors.error : colors.border }]}>
+            <Text style={[styles.handleAt, { color: colors.textLight }]}>@</Text>
+            <TextInput
+              style={[styles.handleInput, { color: colors.text }]}
+              value={handle}
+              onChangeText={(t) => { setHandle(t.replace(/^@/, '').toLowerCase().replace(/[^a-z0-9.]/g, '')); setHandleError(''); }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={24}
+            />
+          </View>
+          {handleError ? <Text style={[styles.handleErrorText, { color: colors.error }]}>{handleError}</Text> : null}
         </View>
 
         <View style={styles.inputGroup}>
@@ -232,6 +267,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md - 2,
     fontSize: FontSize.md,
+  },
+  handleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+  },
+  handleAt: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    marginRight: 2,
+  },
+  handleInput: {
+    flex: 1,
+    paddingVertical: Spacing.md - 2,
+    fontSize: FontSize.md,
+  },
+  handleErrorText: {
+    fontSize: FontSize.xs,
+    marginTop: Spacing.xs,
   },
   readOnly: {
     flexDirection: 'row',

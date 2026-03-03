@@ -137,13 +137,13 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xxl,
     fontWeight: '700',
     paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.xs,
+    marginBottom: 2,
   },
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
     gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     alignItems: 'center',
   },
   filterChip: {

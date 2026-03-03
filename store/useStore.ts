@@ -116,7 +116,15 @@ export const useStore = create<AppState>((set, get) => ({
         };
       }
     } catch (e: any) {
-      console.error('Session init error:', e);
+      // Handle stale/invalid refresh tokens by clearing session
+      const msg = e?.message || '';
+      if (msg.includes('Refresh Token') || msg.includes('refresh_token') || msg.includes('Invalid')) {
+        console.warn('Stale session detected, clearing...');
+        await api.signOut().catch(() => {});
+        set({ user: null, isAuthenticated: false, sessionId: null });
+      } else {
+        console.error('Session init error:', e);
+      }
     } finally {
       set({ isLoading: false });
     }

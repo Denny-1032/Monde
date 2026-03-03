@@ -63,6 +63,7 @@ export default function ProfileScreen() {
         <Avatar name={user?.full_name || 'U'} size={64} imageUrl={user?.avatar_url} />
         <View style={styles.profileInfo}>
           <Text style={[styles.profileName, { color: colors.text }]}>{user?.full_name}</Text>
+          {user?.handle ? <Text style={[styles.profileHandle, { color: colors.primary }]}>@{user.handle}</Text> : null}
           <Text style={[styles.profilePhone, { color: colors.textSecondary }]}>{formatPhone(user?.phone || '')}</Text>
         </View>
       </View>
@@ -134,6 +135,11 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: FontSize.lg,
     fontWeight: '700',
+  },
+  profileHandle: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    marginTop: 2,
   },
   profilePhone: {
     fontSize: FontSize.sm,

@@ -63,5 +63,17 @@ try {
   supabaseVerify = null as any;
 }
 
+// Listen for auth errors (e.g. invalid refresh token) and sign out cleanly
+if (supabase) {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === 'TOKEN_REFRESHED') {
+      // Session refreshed successfully — no action needed
+    } else if (event === 'SIGNED_OUT') {
+      // Session was invalidated (possibly stale refresh token)
+      // App will handle this via initSession catch block
+    }
+  });
+}
+
 export { supabase, supabaseVerify };
 export const isSupabaseConfigured = supabaseUrl !== 'https://placeholder.supabase.co';

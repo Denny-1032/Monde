@@ -6,7 +6,7 @@ import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { sanitizeText, isValidPhone, isValidPin, detectProvider } from '../../lib/validation';
-import { sendOtp, verifyOtp } from '../../lib/api';
+import { sendOtp, verifyOtp, checkPhoneExists } from '../../lib/api';
 import Button from '../../components/Button';
 import OtpInput from '../../components/OtpInput';
 
@@ -25,6 +25,7 @@ export default function RegisterScreen() {
   const [tosAccepted, setTosAccepted] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
+  const [phoneChecking, setPhoneChecking] = useState(false);
 
   const canProceedStep0 = fullName.trim().length > 1 && isValidPhone(phone) && tosAccepted;
   const canProceedStep1 = isValidPin(pin);
@@ -138,10 +139,23 @@ export default function RegisterScreen() {
               </Text>
             </TouchableOpacity>
 
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
             <Button
-              title="Continue"
-              onPress={() => setStep(1)}
-              disabled={!canProceedStep0}
+              title={phoneChecking ? 'Checking...' : 'Continue'}
+              onPress={async () => {
+                setError('');
+                setPhoneChecking(true);
+                const { exists } = await checkPhoneExists(phone);
+                setPhoneChecking(false);
+                if (exists) {
+                  setError('This phone number is already registered. Please log in instead.');
+                  return;
+                }
+                setStep(1);
+              }}
+              disabled={!canProceedStep0 || phoneChecking}
+              loading={phoneChecking}
               size="lg"
               style={{ marginTop: Spacing.md }}
             />
@@ -160,7 +174,7 @@ export default function RegisterScreen() {
                   {row.map((key, j) => (
                     <TouchableOpacity
                       key={j}
-                      style={[styles.padKey, key ? { backgroundColor: colors.surface } : null]}
+                      style={key ? [styles.padKey, { backgroundColor: colors.surface }] : styles.padKeyEmpty}
                       onPress={() => {
                         if (key === 'del') { setPin((p) => p.slice(0, -1)); }
                         else if (key && pin.length < 4) { setPin((p) => p + key); }
@@ -203,7 +217,7 @@ export default function RegisterScreen() {
                   {row.map((key, j) => (
                     <TouchableOpacity
                       key={j}
-                      style={[styles.padKey, key ? { backgroundColor: colors.surface } : null]}
+                      style={key ? [styles.padKey, { backgroundColor: colors.surface }] : styles.padKeyEmpty}
                       onPress={() => {
                         if (key === 'del') { setConfirmPin((p) => p.slice(0, -1)); setError(''); }
                         else if (key && confirmPin.length < 4) { setConfirmPin((p) => p + key); setError(''); }
@@ -247,9 +261,6 @@ export default function RegisterScreen() {
               onResend={handleResendOtp}
               resendCooldown={60}
             />
-            <TouchableOpacity style={styles.skipOtp} onPress={() => router.replace('/(tabs)')}>
-              <Text style={[styles.skipOtpText, { color: colors.textSecondary }]}>Skip for now</Text>
-            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -335,14 +346,15 @@ const styles = StyleSheet.create({
   },
   padRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
+    marginBottom: Spacing.lg,
   },
   padKey: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 36,
+    borderRadius: 32,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -360,6 +372,10 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
       },
     }),
+  },
+  padKeyEmpty: {
+    width: 64,
+    height: 64,
   },
   padKeyText: {
     fontSize: 28,
@@ -398,13 +414,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
-  },
-  skipOtp: {
-    paddingVertical: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  skipOtpText: {
-    fontSize: FontSize.sm,
-    fontWeight: '600',
   },
 });

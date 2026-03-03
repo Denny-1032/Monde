@@ -57,14 +57,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   key: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 36,
+    borderRadius: 32,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -84,8 +84,8 @@ const styles = StyleSheet.create({
     }),
   },
   keyEmpty: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
   },
   keyText: {
     fontSize: 28,

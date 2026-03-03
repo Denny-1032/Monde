@@ -133,7 +133,7 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
                 {row.map((key, j) => (
                   <TouchableOpacity
                     key={j}
-                    style={[styles.key, key ? { backgroundColor: colors.surface } : null] as ViewStyle[]}
+                    style={key ? [styles.key, { backgroundColor: colors.surface }] as ViewStyle[] : styles.keyEmpty as any}
                     onPress={() => {
                       if (key === 'del') handleDelete();
                       else if (key) handleKey(key);
@@ -214,14 +214,15 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
+    marginBottom: Spacing.lg,
   },
   key: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 36,
+    borderRadius: 32,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -239,6 +240,10 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
       },
     }),
+  },
+  keyEmpty: {
+    width: 64,
+    height: 64,
   },
   keyText: {
     fontSize: 28,

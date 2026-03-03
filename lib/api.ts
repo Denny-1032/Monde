@@ -90,6 +90,22 @@ export async function getSession() {
 }
 
 // ============================================
+// Phone existence check (for registration)
+// ============================================
+
+export async function checkPhoneExists(phone: string): Promise<{ exists: boolean }> {
+  if (!isSupabaseConfigured) return { exists: false };
+  const formatted = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('phone', formatted)
+    .maybeSingle();
+  if (error) return { exists: false };
+  return { exists: !!data };
+}
+
+// ============================================
 // OTP Verification
 // Requires SMS provider (Twilio/MessageBird) configured in Supabase
 // ============================================
@@ -130,6 +146,7 @@ export async function getProfile(userId: string): Promise<{ data: UserProfile | 
       id: data.id,
       phone: data.phone,
       full_name: data.full_name,
+      handle: data.handle,
       provider: data.provider,
       balance: parseFloat(data.balance),
       currency: data.currency,
@@ -139,7 +156,7 @@ export async function getProfile(userId: string): Promise<{ data: UserProfile | 
   };
 }
 
-export async function updateProfile(userId: string, updates: Partial<Pick<UserProfile, 'full_name' | 'provider' | 'avatar_url'>>) {
+export async function updateProfile(userId: string, updates: Partial<Pick<UserProfile, 'full_name' | 'provider' | 'avatar_url' | 'handle'>>) {
   if (!isSupabaseConfigured) return { error: 'Supabase not configured' };
 
   const { error } = await supabase
@@ -156,6 +173,26 @@ export async function lookupRecipient(phone: string) {
   const { data, error } = await supabase.rpc('lookup_recipient', { p_phone: phone });
   if (error) return { found: false };
   return data;
+}
+
+export async function lookupByHandle(handle: string): Promise<{ found: boolean; id?: string; phone?: string; full_name?: string; handle?: string; avatar_url?: string }> {
+  if (!isSupabaseConfigured) return { found: false };
+
+  const cleanHandle = handle.replace(/^@/, '').toLowerCase();
+  const { data, error } = await supabase.rpc('lookup_by_handle', { p_handle: cleanHandle });
+  if (error || !data) return { found: false };
+  return data;
+}
+
+export async function checkHandleAvailable(handle: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return true;
+  const clean = handle.replace(/^@/, '').toLowerCase();
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('handle', clean)
+    .maybeSingle();
+  return !data;
 }
 
 export async function searchProfilesByPhone(phone: string): Promise<{ data: { id: string; phone: string; full_name: string; avatar_url?: string }[] }> {
