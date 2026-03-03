@@ -93,26 +93,18 @@ export const useStore = create<AppState>((set, get) => ({
           api.getLinkedAccounts(uid),
         ]);
 
-        // Handle orphaned auth user: profile was deleted but auth entry remains
+        // Handle missing profile: create one from auth metadata
         if (!profileRes.data) {
-          const authPhone = session.user.user_metadata?.phone || session.user.phone || '';
+          const authPhone = session.user.phone || session.user.user_metadata?.phone || '';
           const authName = session.user.user_metadata?.full_name || '';
           const authProvider = session.user.user_metadata?.provider || 'airtel';
-          if (authPhone) {
-            // Check if a profile already exists for this phone (e.g. from email-auth)
-            const { data: existingProfiles } = await api.searchProfilesByPhone(authPhone);
-            if (existingProfiles && existingProfiles.length > 0) {
-              // Use existing profile data (from the email-auth user)
-              const existing = existingProfiles[0];
-              const finalName = authName || existing.full_name || 'User';
-              await api.ensureProfileExists(uid, authPhone, finalName, authProvider);
-            } else if (authName) {
-              // Only create profile if we have a real name (not placeholder)
-              await api.ensureProfileExists(uid, authPhone, authName, authProvider);
-            }
-            const { data: newProfile } = await api.getProfile(uid);
-            if (newProfile) set({ user: newProfile });
+          if (authPhone && authName) {
+            await api.ensureProfileExists(uid, authPhone, authName, authProvider);
+          } else if (authPhone) {
+            await api.ensureProfileExists(uid, authPhone, 'User', authProvider);
           }
+          const { data: newProfile } = await api.getProfile(uid);
+          if (newProfile) set({ user: newProfile });
         } else {
           set({ user: profileRes.data });
         }
@@ -185,9 +177,9 @@ export const useStore = create<AppState>((set, get) => ({
         return { success: false, error: errStr };
       }
       if (data?.user) {
-        set({ sessionId: data.user.id, isAuthenticated: true });
-        // Profile is NOT created here — it's created after OTP verification
-        // (migration 016 makes handle_new_user a no-op)
+        // Only set sessionId — user is NOT authenticated until OTP is verified.
+        // Profile creation happens after OTP verification in register.tsx.
+        set({ sessionId: data.user.id });
       }
       return { success: true };
     } catch (e: any) {
@@ -233,20 +225,18 @@ export const useStore = create<AppState>((set, get) => ({
           api.getLinkedAccounts(uid),
         ]);
 
-        // Handle orphaned auth user: profile was deleted but auth entry remains
+        // Handle missing profile: create one from auth metadata
         if (!profileRes.data) {
-          const authPhone = data.user.user_metadata?.phone || data.user.phone || formattedPhone;
+          const authPhone = data.user.phone || data.user.user_metadata?.phone || formattedPhone;
           const authName = data.user.user_metadata?.full_name || '';
           const authProvider = data.user.user_metadata?.provider || 'airtel';
           if (authPhone && authName) {
             await api.ensureProfileExists(uid, authPhone, authName, authProvider);
-            const { data: newProfile } = await api.getProfile(uid);
-            if (newProfile) set({ user: newProfile });
-          } else {
+          } else if (authPhone) {
             await api.ensureProfileExists(uid, authPhone, 'User', authProvider);
-            const { data: newProfile } = await api.getProfile(uid);
-            if (newProfile) set({ user: newProfile });
           }
+          const { data: newProfile } = await api.getProfile(uid);
+          if (newProfile) set({ user: newProfile });
         } else {
           set({ user: profileRes.data });
         }

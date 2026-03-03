@@ -22,15 +22,20 @@ export default function HomeScreen() {
   const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
   const [refreshing, setRefreshing] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState(true);
-  const retried = React.useRef(false);
+  const retryCount = React.useRef(0);
 
-  // If authenticated but no user profile, retry fetching once after a short delay
+  // If authenticated but no user profile, retry fetching with increasing delays
   React.useEffect(() => {
-    if (isAuthenticated && !user && !retried.current) {
-      retried.current = true;
-      const timer = setTimeout(() => {
-        fetchProfile();
-      }, 2000);
+    if (isAuthenticated && !user && retryCount.current < 3) {
+      retryCount.current += 1;
+      const delay = retryCount.current === 1 ? 500 : 1500;
+      const timer = setTimeout(async () => {
+        await fetchProfile();
+        // If still no profile after fetchProfile, try full initSession
+        if (!useStore.getState().user) {
+          await useStore.getState().initSession();
+        }
+      }, delay);
       return () => clearTimeout(timer);
     }
   }, [isAuthenticated, user]);

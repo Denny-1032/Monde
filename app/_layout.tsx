@@ -38,7 +38,11 @@ function useProtectedRoute() {
           router.replace('/(auth)/welcome');
         }
       } else if (event === 'SIGNED_IN' && session) {
-        await initSession();
+        // Skip during registration — register.tsx handles profile creation + initSession
+        const inAuth = segments[0] === '(auth)';
+        if (!inAuth) {
+          await initSession();
+        }
       }
     });
 

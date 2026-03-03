@@ -62,24 +62,27 @@ export default function RegisterScreen() {
     setOtpError('');
     setOtpLoading(true);
     const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-    const result = await verifyOtp(formattedPhone, code);
-    setOtpLoading(false);
-    if (result.success) {
-      // OTP verified — NOW create the profile in the database
-      // verifyOtp creates a session, so we can get the user ID
-      const safeName = sanitizeText(fullName);
-      const detected = detectProvider(phone);
-      // Re-init to get the new session's user ID
-      await initSession();
-      const currentSessionId = useStore.getState().sessionId;
-      if (currentSessionId) {
-        await ensureProfileExists(currentSessionId, formattedPhone, safeName, detected || 'airtel');
+    try {
+      const result = await verifyOtp(formattedPhone, code);
+      if (result.success) {
+        // OTP verified — create profile, then load everything
+        const safeName = sanitizeText(fullName);
+        const detected = detectProvider(phone);
+        // Get the user ID from the new session (verifyOtp established it)
+        const userId = sessionId || useStore.getState().sessionId;
+        if (userId) {
+          await ensureProfileExists(userId, formattedPhone, safeName, detected || 'airtel');
+        }
+        // Load profile + transactions + subscriptions
+        await initSession();
+        router.replace('/(tabs)');
+      } else {
+        setOtpError(result.error || 'Invalid code. Please try again.');
       }
-      // Re-sync store with the new profile
-      await initSession();
-      router.replace('/(tabs)');
-    } else {
-      setOtpError(result.error || 'Invalid code. Please try again.');
+    } catch (e: any) {
+      setOtpError(e?.message || 'Verification failed. Please try again.');
+    } finally {
+      setOtpLoading(false);
     }
   };
 

@@ -7,6 +7,7 @@ import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { isValidPin, pinToPassword } from '../lib/validation';
+import { verifyPin } from '../lib/api';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 type Step = 'current' | 'new' | 'confirm';
@@ -16,7 +17,6 @@ export default function ChangePinScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
-  const signIn = useStore((s) => s.signIn);
 
   const [step, setStep] = useState<Step>('current');
   const [currentPin, setCurrentPin] = useState('');
@@ -53,10 +53,10 @@ export default function ChangePinScreen() {
 
   const processStep = async (pin: string) => {
     if (step === 'current') {
-      // Verify current PIN by attempting sign-in
+      // Verify current PIN using isolated client (doesn't touch main session)
       setLoading(true);
       const phone = user?.phone || '';
-      const result = await signIn(phone, pin);
+      const result = await verifyPin(phone, pin);
       setLoading(false);
       if (result.success) {
         setStep('new');
