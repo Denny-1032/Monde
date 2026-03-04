@@ -22,6 +22,10 @@ function useProtectedRoute() {
   const clearSession = useStore((s) => s.clearSession);
   const initSession = useStore((s) => s.initSession);
 
+  // Use ref to always have current segments in the async callback
+  const segmentsRef = useRef(segments);
+  useEffect(() => { segmentsRef.current = segments; }, [segments]);
+
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
@@ -29,17 +33,18 @@ function useProtectedRoute() {
       // Skip INITIAL_SESSION — splash screen handles boot via initSession()
       if (event === 'INITIAL_SESSION') return;
 
+      const currentSegments = segmentsRef.current;
+      const inAuth = currentSegments[0] === '(auth)';
+
       // Use clearSession (not logout) to avoid calling signOut() again
       // which would fire another SIGNED_OUT event and create an infinite loop
       if (event === 'SIGNED_OUT' || !session) {
         clearSession();
-        const inAuth = segments[0] === '(auth)';
         if (!inAuth) {
           router.replace('/(auth)/welcome');
         }
       } else if (event === 'SIGNED_IN' && session) {
         // Skip during registration — register.tsx handles profile creation + initSession
-        const inAuth = segments[0] === '(auth)';
         if (!inAuth) {
           await initSession();
         }

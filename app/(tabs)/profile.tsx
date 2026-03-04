@@ -39,6 +39,12 @@ export default function ProfileScreen() {
   const colors = useColors();
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
+  const fetchProfile = useStore((s) => s.fetchProfile);
+
+  // Retry loading profile if null
+  React.useEffect(() => {
+    if (!user) { fetchProfile(); }
+  }, [user]);
 
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [

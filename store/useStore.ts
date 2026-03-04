@@ -98,13 +98,20 @@ export const useStore = create<AppState>((set, get) => ({
           const authPhone = session.user.phone || session.user.user_metadata?.phone || '';
           const authName = session.user.user_metadata?.full_name || '';
           const authProvider = session.user.user_metadata?.provider || 'airtel';
-          if (authPhone && authName) {
-            await api.ensureProfileExists(uid, authPhone, authName, authProvider);
-          } else if (authPhone) {
-            await api.ensureProfileExists(uid, authPhone, 'User', authProvider);
+          if (authPhone) {
+            const createResult = await api.ensureProfileExists(
+              uid, authPhone, authName || 'User', authProvider
+            );
+            if (!createResult.success) {
+              console.error('initSession: profile creation failed:', createResult.error);
+            }
           }
           const { data: newProfile } = await api.getProfile(uid);
-          if (newProfile) set({ user: newProfile });
+          if (newProfile) {
+            set({ user: newProfile });
+          } else {
+            console.error('initSession: profile still missing after creation attempt');
+          }
         } else {
           set({ user: profileRes.data });
         }
@@ -230,13 +237,20 @@ export const useStore = create<AppState>((set, get) => ({
           const authPhone = data.user.phone || data.user.user_metadata?.phone || formattedPhone;
           const authName = data.user.user_metadata?.full_name || '';
           const authProvider = data.user.user_metadata?.provider || 'airtel';
-          if (authPhone && authName) {
-            await api.ensureProfileExists(uid, authPhone, authName, authProvider);
-          } else if (authPhone) {
-            await api.ensureProfileExists(uid, authPhone, 'User', authProvider);
+          if (authPhone) {
+            const createResult = await api.ensureProfileExists(
+              uid, authPhone, authName || 'User', authProvider
+            );
+            if (!createResult.success) {
+              console.error('signIn: profile creation failed:', createResult.error);
+            }
           }
           const { data: newProfile } = await api.getProfile(uid);
-          if (newProfile) set({ user: newProfile });
+          if (newProfile) {
+            set({ user: newProfile });
+          } else {
+            console.error('signIn: profile still missing after creation attempt');
+          }
         } else {
           set({ user: profileRes.data });
         }

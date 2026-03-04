@@ -23,11 +23,13 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [balanceHidden, setBalanceHidden] = useState(true);
   const retryCount = React.useRef(0);
+  const [profileError, setProfileError] = useState(false);
 
   // If authenticated but no user profile, retry fetching with increasing delays
   React.useEffect(() => {
     if (isAuthenticated && !user && retryCount.current < 3) {
       retryCount.current += 1;
+      setProfileError(false);
       const delay = retryCount.current === 1 ? 500 : 1500;
       const timer = setTimeout(async () => {
         await fetchProfile();
@@ -35,10 +37,23 @@ export default function HomeScreen() {
         if (!useStore.getState().user) {
           await useStore.getState().initSession();
         }
+        // After final retry, show error if still no profile
+        if (!useStore.getState().user && retryCount.current >= 3) {
+          setProfileError(true);
+        }
       }, delay);
       return () => clearTimeout(timer);
     }
   }, [isAuthenticated, user]);
+
+  const handleManualRetry = React.useCallback(async () => {
+    setProfileError(false);
+    retryCount.current = 0;
+    await useStore.getState().initSession();
+    if (!useStore.getState().user) {
+      setProfileError(true);
+    }
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -49,7 +64,25 @@ export default function HomeScreen() {
   if (!user) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
-        <HomeSkeleton />
+        {profileError ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl }}>
+            <Ionicons name="cloud-offline-outline" size={48} color={colors.textLight} />
+            <Text style={{ color: colors.text, fontSize: FontSize.lg, fontWeight: '600', marginTop: Spacing.md, textAlign: 'center' }}>
+              Couldn't load your profile
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: FontSize.sm, marginTop: Spacing.sm, textAlign: 'center' }}>
+              Please check your connection and try again.
+            </Text>
+            <TouchableOpacity
+              onPress={handleManualRetry}
+              style={{ marginTop: Spacing.lg, backgroundColor: colors.primary, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg }}
+            >
+              <Text style={{ color: colors.white, fontWeight: '600', fontSize: FontSize.md }}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <HomeSkeleton />
+        )}
       </View>
     );
   }

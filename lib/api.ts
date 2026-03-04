@@ -105,15 +105,30 @@ export async function ensureProfileExists(
   provider: string = 'airtel'
 ): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
-  const { data, error } = await supabase.rpc('ensure_profile_exists', {
-    p_user_id: userId,
-    p_phone: phone,
-    p_full_name: fullName,
-    p_provider: provider,
-  });
-  if (error) {
-    // Fallback: direct insert
-    const { error: insertErr } = await supabase
+
+  // Try 1: RPC (SECURITY DEFINER — bypasses RLS)
+  try {
+    const { data, error } = await supabase.rpc('ensure_profile_exists', {
+      p_user_id: userId,
+      p_phone: phone,
+      p_full_name: fullName,
+      p_provider: provider,
+    });
+    // Check BOTH the PostgreSQL error AND the function's JSON response
+    if (!error && data && typeof data === 'object' && data.success) {
+      return { success: true };
+    }
+    if (error) console.warn('ensureProfileExists RPC error:', error.message);
+    if (data && typeof data === 'object' && !data.success) {
+      console.warn('ensureProfileExists RPC returned failure:', data.error);
+    }
+  } catch (e: any) {
+    console.warn('ensureProfileExists RPC exception:', e?.message);
+  }
+
+  // Try 2: Direct upsert (needs INSERT RLS policy — migration 017)
+  try {
+    const { error: upsertErr } = await supabase
       .from('profiles')
       .upsert({
         id: userId,
@@ -123,9 +138,31 @@ export async function ensureProfileExists(
         balance: 0,
         currency: 'ZMW',
       }, { onConflict: 'id' });
-    if (insertErr) return { success: false, error: insertErr.message };
+    if (!upsertErr) return { success: true };
+    console.warn('ensureProfileExists upsert error:', upsertErr.message);
+  } catch (e: any) {
+    console.warn('ensureProfileExists upsert exception:', e?.message);
   }
-  return { success: true };
+
+  // Try 3: Plain insert as last resort
+  try {
+    const { error: insertErr } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        phone,
+        full_name: fullName,
+        provider,
+        balance: 0,
+        currency: 'ZMW',
+      });
+    if (!insertErr) return { success: true };
+    console.warn('ensureProfileExists insert error:', insertErr.message);
+    return { success: false, error: insertErr.message };
+  } catch (e: any) {
+    console.warn('ensureProfileExists insert exception:', e?.message);
+    return { success: false, error: e?.message || 'Profile creation failed' };
+  }
 }
 
 // ============================================
