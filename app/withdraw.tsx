@@ -78,17 +78,16 @@ export default function WithdrawScreen() {
       Alert.alert('Insufficient Balance', `You need ${formatCurrency(parsedAmount + estimatedFee)} (${formatCurrency(parsedAmount)} + ${formatCurrency(estimatedFee)} fee) but your balance is ${formatCurrency(balance)}.`);
       return;
     }
+    // Test withdrawals skip PIN
+    if (selectedProvider === 'test_withdraw') {
+      processWithdrawAction();
+      return;
+    }
     setPinError('');
     setShowPin(true);
   };
 
-  const handlePinConfirm = async (pin: string) => {
-    const phone = user?.phone || '';
-    const { success: pinOk } = await verifyPin(phone, pin);
-    if (!pinOk) {
-      setPinError('Incorrect PIN');
-      return;
-    }
+  const processWithdrawAction = async () => {
     setLoading(true);
     try {
       const result = await withdraw(parsedAmount, selectedProvider, undefined, undefined, selectedAccountId);
@@ -97,7 +96,7 @@ export default function WithdrawScreen() {
           pathname: '/success',
           params: {
             amount: parsedAmount.toString(),
-            recipientName: provider?.name || selectedProvider,
+            recipientName: selectedProvider === 'test_withdraw' ? 'Test Withdrawal' : (provider?.name || selectedProvider),
             type: 'withdraw',
             method: 'wallet',
           },
@@ -113,6 +112,16 @@ export default function WithdrawScreen() {
     }
   };
 
+  const handlePinConfirm = async (pin: string) => {
+    const phone = user?.phone || '';
+    const { success: pinOk } = await verifyPin(phone, pin);
+    if (!pinOk) {
+      setPinError('Incorrect PIN');
+      return;
+    }
+    await processWithdrawAction();
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
       {/* Header */}
@@ -125,7 +134,12 @@ export default function WithdrawScreen() {
       </View>
 
       {step === 'amount' && (
-        <>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Balance display */}
           <View style={[styles.balanceBanner, { backgroundColor: colors.primary + '10' }]}>
             <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Available Balance</Text>
@@ -139,10 +153,12 @@ export default function WithdrawScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.providerLeft}>
-              <View style={[styles.providerDot, { backgroundColor: provider?.color || colors.primary }]} />
+              <View style={[styles.providerDot, { backgroundColor: selectedProvider === 'test_withdraw' ? colors.success : (provider?.color || colors.primary) }]} />
               <View>
                 <Text style={[styles.providerLabelText, { color: colors.textLight }]}>Withdraw to</Text>
-                <Text style={[styles.providerName, { color: colors.text }]}>{provider?.name || 'Select Provider'}</Text>
+                <Text style={[styles.providerName, { color: colors.text }]}>
+                  {selectedProvider === 'test_withdraw' ? 'Test Withdrawal' : (provider?.name || 'Select Provider')}
+                </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
@@ -186,15 +202,19 @@ export default function WithdrawScreen() {
           <NumPad onPress={handleNumPress} onDelete={handleDelete} showDecimal={true} />
 
           {/* Fee breakdown */}
-          {parsedAmount > 0 && parsedAmount <= balance && (
+          {parsedAmount > 0 && (parsedAmount + estimatedFee) <= balance && (
             <View style={styles.feeSection}>
+              <View style={styles.feeRow}>
+                <Text style={[styles.feeLabel, { color: colors.text, fontWeight: '600' }]}>You receive</Text>
+                <Text style={[styles.feeValue, { color: colors.success, fontWeight: '700' }]}>{formatCurrency(parsedAmount)}</Text>
+              </View>
               <View style={styles.feeRow}>
                 <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Fee (1.5% + K2)</Text>
                 <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
               </View>
               <View style={styles.feeRow}>
-                <Text style={[styles.feeLabel, { color: colors.text, fontWeight: '600' }]}>Total deducted</Text>
-                <Text style={[styles.feeValue, { color: colors.error, fontWeight: '700' }]}>{formatCurrency(parsedAmount + estimatedFee)}</Text>
+                <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Total from wallet</Text>
+                <Text style={[styles.feeValue, { color: colors.error, fontWeight: '600' }]}>{formatCurrency(parsedAmount + estimatedFee)}</Text>
               </View>
             </View>
           )}
@@ -208,12 +228,12 @@ export default function WithdrawScreen() {
               size="lg"
             />
           </View>
-        </>
+        </ScrollView>
       )}
 
       {step === 'provider' && (
         <ScrollView style={styles.providerList} showsVerticalScrollIndicator={false}>
-          {/* Linked Accounts — 1-tap selection */}
+          {/* Linked Accounts only */}
           {linkedAccounts.length > 0 && (
             <>
               <Text style={[styles.providerListTitle, { color: colors.text }]}>Your Accounts</Text>
@@ -222,7 +242,7 @@ export default function WithdrawScreen() {
                 return (
                   <TouchableOpacity
                     key={acc.id}
-                    style={[styles.providerItem, { backgroundColor: colors.surface }, selectedProvider === acc.provider && { borderWidth: 2, borderColor: colors.primary }]}
+                    style={[styles.providerItem, { backgroundColor: colors.surface }, selectedAccountId === acc.id && { borderWidth: 2, borderColor: colors.primary }]}
                     onPress={() => {
                       setSelectedProvider(acc.provider);
                       setSelectedAccountId(acc.id);
@@ -243,30 +263,46 @@ export default function WithdrawScreen() {
                   </TouchableOpacity>
                 );
               })}
-              <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.text }]}>All Providers</Text>
             </>
           )}
+
           {linkedAccounts.length === 0 && (
-            <Text style={[styles.providerListTitle, { color: colors.text }]}>Withdraw To</Text>
+            <View style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
+              <Ionicons name="wallet-outline" size={48} color={colors.textLight} />
+              <Text style={{ color: colors.text, fontSize: FontSize.md, fontWeight: '600', marginTop: Spacing.md, textAlign: 'center' }}>
+                No linked accounts
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: FontSize.sm, marginTop: Spacing.xs, textAlign: 'center', paddingHorizontal: Spacing.xl }}>
+                Link your Airtel Money, MTN MoMo, or bank account to withdraw.
+              </Text>
+              <TouchableOpacity
+                style={{ marginTop: Spacing.lg, backgroundColor: colors.primary, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg }}
+                onPress={() => router.push('/linked-accounts')}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: colors.white, fontWeight: '600', fontSize: FontSize.md }}>Link an Account</Text>
+              </TouchableOpacity>
+            </View>
           )}
-          {Providers.map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              style={[styles.providerItem, { backgroundColor: colors.surface }, selectedProvider === p.id && { borderWidth: 2, borderColor: colors.primary }]}
-              onPress={() => {
-                setSelectedProvider(p.id);
-                setSelectedAccountId(undefined);
-                setStep('amount');
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.providerItemDot, { backgroundColor: p.color }]} />
-              <Text style={[styles.providerItemName, { flex: 1, color: colors.text }]}>{p.name}</Text>
-              {selectedProvider === p.id && (
-                <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-              )}
-            </TouchableOpacity>
-          ))}
+
+          {/* Test Withdraw — for development/testing */}
+          <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.textSecondary }]}>Testing</Text>
+          <TouchableOpacity
+            style={[styles.providerItem, { backgroundColor: colors.surface, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderLight }]}
+            onPress={() => {
+              setSelectedProvider('test_withdraw');
+              setSelectedAccountId(undefined);
+              setStep('amount');
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.providerItemDot, { backgroundColor: colors.success }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.providerItemName, { color: colors.text }]}>Test Withdrawal</Text>
+              <Text style={{ fontSize: FontSize.xs, color: colors.textSecondary }}>Deduct from wallet for testing</Text>
+            </View>
+            <Ionicons name="flask-outline" size={20} color={colors.success} />
+          </TouchableOpacity>
         </ScrollView>
       )}
 

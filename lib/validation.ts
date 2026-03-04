@@ -15,11 +15,19 @@ const ZAMBIAN_PREFIXES: Record<string, string> = {
 
 /**
  * Detect provider from Zambian phone number prefix
+ * Handles: 0971234567, 971234567, +260971234567, 260971234567
  */
 export function detectProvider(phone: string): string | null {
   const cleaned = phone.replace(/[^0-9]/g, '');
-  // Handle +260 prefix
-  const local = cleaned.startsWith('260') ? '0' + cleaned.slice(3) : cleaned;
+  let local: string;
+  if (cleaned.startsWith('260') && cleaned.length >= 12) {
+    local = '0' + cleaned.slice(3);
+  } else if (cleaned.length === 9 && /^[79]/.test(cleaned)) {
+    // 9 digits without leading 0 (e.g., 971234567 or 961234567)
+    local = '0' + cleaned;
+  } else {
+    local = cleaned;
+  }
   const prefix = local.slice(0, 3);
   return ZAMBIAN_PREFIXES[prefix] || null;
 }

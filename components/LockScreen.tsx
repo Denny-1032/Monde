@@ -16,12 +16,18 @@ interface LockScreenProps {
 
 const KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['', '0', 'del']];
 
+const MAX_PIN_ATTEMPTS = 5;
+const LOCKOUT_MS = 30000;
+
 export default function LockScreen({ onUnlock }: LockScreenProps) {
   const colors = useColors();
   const user = useStore((s) => s.user);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [lockoutEnd, setLockoutEnd] = useState(0);
+  const [lockMsg, setLockMsg] = useState('');
 
   useEffect(() => {
     attemptBiometric();
@@ -46,6 +52,13 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
 
   const handleKey = (key: string) => {
     if (loading || pin.length >= 4) return;
+    const now = Date.now();
+    if (attempts >= MAX_PIN_ATTEMPTS && now < lockoutEnd) {
+      const secs = Math.ceil((lockoutEnd - now) / 1000);
+      setLockMsg(`Too many attempts. Try again in ${secs}s.`);
+      return;
+    }
+    if (now >= lockoutEnd && lockMsg) { setLockMsg(''); }
     const next = pin + key;
     setPin(next);
     setError('');
@@ -66,6 +79,14 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
     if (success) {
       onUnlock();
     } else {
+      setAttempts((a) => {
+        const next = a + 1;
+        if (next >= MAX_PIN_ATTEMPTS) {
+          setLockoutEnd(Date.now() + LOCKOUT_MS);
+          setLockMsg(`Too many attempts. Locked for ${LOCKOUT_MS / 1000}s.`);
+        }
+        return next;
+      });
       setError('Incorrect PIN');
       setPin('');
     }
@@ -93,7 +114,7 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
         <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: Spacing.sm }} />
       ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {(lockMsg || error) ? <Text style={[styles.error, { color: colors.error }]}>{lockMsg || error}</Text> : null}
 
       <View style={styles.pad}>
         {KEYS.map((row, i) => (
@@ -169,7 +190,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
-    color: Colors.error,
   },
   pad: {
     flex: 1,

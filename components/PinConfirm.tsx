@@ -154,12 +154,12 @@ export default function PinConfirm({ visible, title, subtitle, onConfirm, onCanc
           {biometricAvail && onBiometricSuccess ? (
             <TouchableOpacity style={styles.biometricBtn} onPress={checkAndPromptBiometric}>
               <Ionicons name="finger-print-outline" size={22} color={colors.primary} />
-              <Text style={styles.biometricText}>Use Biometric</Text>
+              <Text style={[styles.biometricText, { color: colors.primary }]}>Use Biometric</Text>
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={[styles.cancelText, { color: colors.error }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -258,7 +258,6 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.error,
   },
   biometricBtn: {
     flexDirection: 'row',
@@ -271,6 +270,5 @@ const styles = StyleSheet.create({
   biometricText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.primary,
   },
 });

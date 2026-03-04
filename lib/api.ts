@@ -102,7 +102,7 @@ export async function ensureProfileExists(
   userId: string,
   phone: string,
   fullName: string,
-  provider: string = 'airtel'
+  provider: string = 'unknown'
 ): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: true };
 
@@ -615,6 +615,21 @@ export async function getFloatSummary(): Promise<FloatSummary> {
   const { data, error } = await supabase.rpc('get_monde_total_float');
   if (error) return { success: false, error: error.message } as FloatSummary;
   return data as FloatSummary;
+}
+
+export async function adminWithdrawRevenue(
+  amount: number,
+): Promise<{ success: boolean; error?: string; new_admin_balance?: number; new_user_balance?: number }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: 'Supabase not configured' };
+  }
+
+  const { data, error } = await supabase.rpc('admin_withdraw_revenue', {
+    p_amount: amount,
+  });
+
+  if (error) return { success: false, error: error.message };
+  return data;
 }
 
 export async function getFeeDetails(

@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2026-03-04 (audit iteration)
+> Last updated: 2025-07-17 (full security & flow audit)
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -52,6 +52,10 @@
 | 11ah | **End-to-end audit (pass 2)** — 3 more dark-mode fixes: forgot-pin.tsx hardcoded Colors.* on phone/code inputs (4 TextInputs), edit-profile.tsx cameraOverlay missing borderColor, linked-accounts.tsx chipText missing color | ✅ DONE | forgot-pin.tsx, edit-profile.tsx, linked-accounts.tsx |
 | 11ai | **Admin functions audit & fixes** — Fixed 020 FK violation (added auth.users row for admin), rewrote 021 with admin UID auth checks (not REVOKE), added 3 new admin RPCs (fees_by_period, total_float, fee_details), blocked payments to admin phone | ✅ DONE | `020_monde_admin_fees.sql`, `021_admin_security_and_helpers.sql` |
 | 11aj | **Admin dashboard** — Full in-app admin dashboard with 3 tabs (Overview/Fee Ledger/Float), fee breakdown cards, integrity check, paginated fee ledger with filters, float summary for regulatory compliance, admin-only access guard | ✅ DONE | `admin.tsx`, `api.ts`, `types.ts`, `profile.tsx` |
+| 11ak | **Admin flag system** — Replaced hardcoded UUID 0 admin with `is_admin` flag, all admin RPCs check flag, fee collection account is ledger-only (no auth login) | ✅ DONE | `022_admin_flag_system.sql` |
+| 11al | **Top-up fee logic fix** — User receives full amount, fee charged from external source (not deducted from wallet) | ✅ DONE | `023_fix_topup_fee_logic.sql` |
+| 11am | **Full security & flow audit** — Fixed admin integrity check (accounts for withdrawn revenue), added admin withdraw input validation, added ScrollView to forgot-pin for keyboard safety, fixed top-up fee display consistency, TypeScript type-check passes clean | ✅ DONE | `admin.tsx`, `forgot-pin.tsx`, `top-up.tsx` |
+| 11an | **Production audit** — Added PIN rate limiting to LockScreen (5 attempts → 30s lockout), fixed 4 hardcoded Colors.* for dark mode (LockScreen, PinConfirm cancel/biometric, OfflineBanner), created PRODUCTION_ROADMAP.md with full national-launch plan | ✅ DONE | `LockScreen.tsx`, `PinConfirm.tsx`, `OfflineBanner.tsx`, `PRODUCTION_ROADMAP.md` |
 
 ## Phase 2: Core Feature Completion
 

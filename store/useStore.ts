@@ -376,8 +376,9 @@ export const useStore = create<AppState>((set, get) => ({
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
 
-    if (!isSupabaseConfigured || !sessionId || provider === 'test_deposit') {
-      // Offline mock top-up / test deposit
+    // Test deposits go through Supabase when configured (so fees are recorded)
+    if (!isSupabaseConfigured || !sessionId) {
+      // Offline mock top-up
       const fee = calcTopUpFee(amount);
       const txn: Transaction = {
         id: Date.now().toString(),
@@ -393,9 +394,10 @@ export const useStore = create<AppState>((set, get) => ({
         created_at: new Date().toISOString(),
         fee,
       };
+      // Full amount credited to wallet; fee is charged from the external source
       set((state) => ({
         transactions: [txn, ...state.transactions],
-        user: state.user ? { ...state.user, balance: state.user.balance + amount - fee } : null,
+        user: state.user ? { ...state.user, balance: state.user.balance + amount } : null,
       }));
       return { success: true };
     }
@@ -425,6 +427,7 @@ export const useStore = create<AppState>((set, get) => ({
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
 
+    const isTest = provider === 'test_withdraw';
     const wFee = calcWithdrawFee(amount);
     if ((amount + wFee) > user.balance) {
       return { success: false, error: `Insufficient balance. Need K${(amount + wFee).toFixed(2)} (K${amount} + K${wFee} fee)` };
@@ -437,12 +440,12 @@ export const useStore = create<AppState>((set, get) => ({
         type: 'withdraw',
         amount,
         currency: 'ZMW',
-        recipient_name: provider,
+        recipient_name: isTest ? 'Test Withdrawal' : provider,
         recipient_phone: destinationPhone || user.phone,
-        provider,
+        provider: isTest ? 'test' : provider,
         status: 'completed',
         method: 'wallet',
-        note: note || `Withdraw to ${provider}`,
+        note: note || (isTest ? 'Test withdrawal' : `Withdraw to ${provider}`),
         created_at: new Date().toISOString(),
         fee: wFee,
       };

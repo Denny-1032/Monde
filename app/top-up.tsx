@@ -58,7 +58,7 @@ export default function TopUpScreen() {
       Alert.alert('Amount Too Large', 'Maximum top-up amount is K50,000.');
       return;
     }
-    // Test deposits skip PIN
+    // Test deposits skip PIN verification
     if (selectedProvider === 'test_deposit') {
       processTopUpAction();
       return;
@@ -114,7 +114,12 @@ export default function TopUpScreen() {
       </View>
 
       {step === 'amount' && (
-        <>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Provider selector */}
           <TouchableOpacity
             style={[styles.providerSelector, { backgroundColor: colors.surface }]}
@@ -162,12 +167,16 @@ export default function TopUpScreen() {
           {parsedAmount > 0 && (
             <View style={styles.feeSection}>
               <View style={styles.feeRow}>
+                <Text style={[styles.feeLabel, { color: colors.text, fontWeight: '600' }]}>You receive</Text>
+                <Text style={[styles.feeValue, { color: colors.success, fontWeight: '700' }]}>{formatCurrency(parsedAmount)}</Text>
+              </View>
+              <View style={styles.feeRow}>
                 <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Fee (1% + K1)</Text>
                 <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
               </View>
               <View style={styles.feeRow}>
-                <Text style={[styles.feeLabel, { color: colors.text, fontWeight: '600' }]}>You receive</Text>
-                <Text style={[styles.feeValue, { color: colors.success, fontWeight: '700' }]}>{formatCurrency(parsedAmount - estimatedFee)}</Text>
+                <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Charged from {selectedProvider === 'test_deposit' ? 'test source' : (provider?.name || 'source')}</Text>
+                <Text style={[styles.feeValue, { color: colors.textSecondary, fontWeight: '600' }]}>{formatCurrency(parsedAmount + estimatedFee)}</Text>
               </View>
             </View>
           )}
@@ -181,7 +190,7 @@ export default function TopUpScreen() {
               size="lg"
             />
           </View>
-        </>
+        </ScrollView>
       )}
 
       {step === 'provider' && (

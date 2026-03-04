@@ -47,7 +47,7 @@ export default function RegisterScreen() {
       phone,
       pin,
       safeName,
-      detected || 'airtel'
+      detected || 'unknown'
     );
     if (result.success) {
       // signUp({ phone }) automatically sends OTP via Twilio Verify

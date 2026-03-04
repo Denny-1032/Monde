@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, Alert, TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { FeeSummary, FloatSummary, FeeDetail } from '../constants/types';
-import { getFeeSummary, getFloatSummary, getFeeDetails } from '../lib/api';
+import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue } from '../lib/api';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
 
 type TabId = 'overview' | 'fees' | 'float';
@@ -21,9 +21,13 @@ export default function AdminDashboardScreen() {
   const colors = useColors();
   const user = useStore((s) => s.user);
 
+  const fetchProfile = useStore((s) => s.fetchProfile);
+
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const [feeSummary, setFeeSummary] = useState<FeeSummary | null>(null);
   const [floatSummary, setFloatSummary] = useState<FloatSummary | null>(null);
@@ -69,6 +73,46 @@ export default function AdminDashboardScreen() {
     await loadData();
     setRefreshing(false);
   }, [loadData]);
+
+  const handleWithdrawRevenue = async () => {
+    const amt = parseFloat(withdrawAmount);
+    if (!amt || amt <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+      return;
+    }
+    if (feeSummary && amt > feeSummary.admin_balance) {
+      Alert.alert('Insufficient Revenue', `Only ${formatCurrency(feeSummary.admin_balance)} available.`);
+      return;
+    }
+    Alert.alert(
+      'Confirm Revenue Withdrawal',
+      `Transfer ${formatCurrency(amt)} from fee collection account to your personal balance?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            setWithdrawing(true);
+            try {
+              const result = await adminWithdrawRevenue(amt);
+              if (result.success) {
+                Alert.alert('Success', `${formatCurrency(amt)} transferred to your wallet.`);
+                setWithdrawAmount('');
+                await fetchProfile();
+                await loadData();
+              } else {
+                Alert.alert('Error', result.error || 'Withdrawal failed.');
+              }
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Withdrawal failed.');
+            } finally {
+              setWithdrawing(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const loadMoreFees = async () => {
     if (feeDetails.length >= feeTotal) return;
@@ -245,25 +289,80 @@ export default function AdminDashboardScreen() {
               )}
 
               {/* Integrity check */}
-              {feeSummary && (
-                <View style={[styles.integrityCard, {
-                  backgroundColor: feeSummary.total_fees_collected === feeSummary.admin_balance
-                    ? colors.success + '15'
-                    : colors.error + '15',
-                }]}>
-                  <Ionicons
-                    name={feeSummary.total_fees_collected === feeSummary.admin_balance ? 'checkmark-circle' : 'warning'}
-                    size={20}
-                    color={feeSummary.total_fees_collected === feeSummary.admin_balance ? colors.success : colors.error}
-                  />
-                  <Text style={[styles.integrityText, {
-                    color: feeSummary.total_fees_collected === feeSummary.admin_balance ? colors.success : colors.error,
+              {feeSummary && (() => {
+                const withdrawn = feeSummary.total_fees_collected - feeSummary.admin_balance;
+                const isHealthy = feeSummary.admin_balance <= feeSummary.total_fees_collected && feeSummary.admin_balance >= 0;
+                const hasWithdrawn = withdrawn > 0 && isHealthy;
+                return (
+                  <View style={[styles.integrityCard, {
+                    backgroundColor: isHealthy
+                      ? (hasWithdrawn ? colors.primary + '12' : colors.success + '15')
+                      : colors.error + '15',
                   }]}>
-                    {feeSummary.total_fees_collected === feeSummary.admin_balance
-                      ? 'Ledger matches admin balance — no discrepancy'
-                      : `Discrepancy: ledger ${formatCurrency(feeSummary.total_fees_collected)} vs balance ${formatCurrency(feeSummary.admin_balance)}`}
+                    <Ionicons
+                      name={isHealthy ? 'checkmark-circle' : 'warning'}
+                      size={20}
+                      color={isHealthy ? (hasWithdrawn ? colors.primary : colors.success) : colors.error}
+                    />
+                    <Text style={[styles.integrityText, {
+                      color: isHealthy ? (hasWithdrawn ? colors.primary : colors.success) : colors.error,
+                    }]}>
+                      {!isHealthy
+                        ? `Discrepancy: ledger ${formatCurrency(feeSummary.total_fees_collected)} vs balance ${formatCurrency(feeSummary.admin_balance)}`
+                        : hasWithdrawn
+                        ? `Ledger OK — ${formatCurrency(withdrawn)} withdrawn, ${formatCurrency(feeSummary.admin_balance)} remaining`
+                        : 'Ledger matches admin balance — no discrepancy'}
+                    </Text>
+                  </View>
+                );
+              })()}
+
+              {/* Withdraw Revenue */}
+              {feeSummary && feeSummary.admin_balance > 0 && (
+                <>
+                  <Text style={[styles.sectionTitle, { color: colors.textSecondary, marginTop: Spacing.lg }]}>
+                    Withdraw Revenue
                   </Text>
-                </View>
+                  <View style={[styles.withdrawCard, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.withdrawHint, { color: colors.textSecondary }]}>
+                      Transfer revenue from the fee collection account to your personal wallet.
+                    </Text>
+                    <View style={styles.withdrawRow}>
+                      <View style={[styles.withdrawInput, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <Text style={[styles.withdrawPrefix, { color: colors.textSecondary }]}>K</Text>
+                        <TextInput
+                          style={[styles.withdrawField, { color: colors.text }]}
+                          value={withdrawAmount}
+                          onChangeText={(t) => { if (/^\d*\.?\d{0,2}$/.test(t)) setWithdrawAmount(t); }}
+                          placeholder="0.00"
+                          placeholderTextColor={colors.textLight}
+                          keyboardType="decimal-pad"
+                          editable={!withdrawing}
+                        />
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.withdrawBtn, { backgroundColor: colors.primary, opacity: withdrawing ? 0.6 : 1 }]}
+                        onPress={handleWithdrawRevenue}
+                        disabled={withdrawing}
+                        activeOpacity={0.7}
+                      >
+                        {withdrawing ? (
+                          <ActivityIndicator size="small" color={colors.white} />
+                        ) : (
+                          <Text style={styles.withdrawBtnText}>Withdraw</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setWithdrawAmount(feeSummary.admin_balance.toString())}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.withdrawAll, { color: colors.primary }]}>
+                        Withdraw all ({formatCurrency(feeSummary.admin_balance)})
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
               )}
             </>
           )}
@@ -672,6 +771,62 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FontSize.md,
+  },
+
+  // Withdraw revenue
+  withdrawCard: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  withdrawHint: {
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
+  },
+  withdrawRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  withdrawInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    height: 48,
+  },
+  withdrawPrefix: {
+    fontSize: FontSize.lg,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  withdrawField: {
+    flex: 1,
+    fontSize: FontSize.lg,
+    fontWeight: '600',
+    paddingVertical: 0,
+  },
+  withdrawBtn: {
+    height: 48,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  withdrawBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.md,
+    fontWeight: '700',
+  },
+  withdrawAll: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: Spacing.xs,
   },
 
   // Float tab

@@ -56,9 +56,9 @@ export default function OfflineBanner() {
   if (isOnline) return null;
 
   return (
-    <View style={styles.banner}>
+    <View style={[styles.banner, { backgroundColor: colors.error }]}>
       <Ionicons name="cloud-offline-outline" size={16} color={colors.white} />
-      <Text style={styles.text}>You're offline — some features may be unavailable</Text>
+      <Text style={[styles.text, { color: colors.white }]}>You're offline — some features may be unavailable</Text>
     </View>
   );
 }
@@ -69,12 +69,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.error,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
   },
   text: {
-    color: Colors.white,
     fontSize: FontSize.xs,
     fontWeight: '600',
   },
