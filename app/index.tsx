@@ -67,7 +67,7 @@ export default function SplashScreen() {
       </Animated.View>
       <Animated.View style={{ opacity: textOpacity, alignItems: 'center' }}>
         <Text style={styles.appName}>Monde</Text>
-        <Text style={styles.tagline}>Pay. Tap. Done.</Text>
+        <Text style={styles.tagline}>Tap. Pay. Done.</Text>
       </Animated.View>
     </View>
   );

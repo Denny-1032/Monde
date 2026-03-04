@@ -127,16 +127,17 @@ export default function ForgotPinScreen() {
             <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Enter the phone number associated with your Monde account.</Text>
 
             <View style={styles.phoneRow}>
-              <View style={styles.prefix}>
-                <Text style={styles.prefixText}>+260</Text>
+              <View style={[styles.prefix, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                <Text style={[styles.prefixText, { color: colors.textSecondary }]}>+260</Text>
               </View>
               <TextInput
-                style={styles.phoneInput}
+                style={[styles.phoneInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 value={phone}
                 onChangeText={(t) => { setPhone(t); setError(''); }}
                 keyboardType="phone-pad"
                 maxLength={10}
                 autoFocus
+                placeholderTextColor={colors.textLight}
               />
             </View>
 
@@ -164,13 +165,14 @@ export default function ForgotPinScreen() {
             </Text>
 
             <TextInput
-              style={styles.codeInput}
+              style={[styles.codeInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={code}
               onChangeText={(t) => { setCode(t.replace(/[^0-9]/g, '')); setError(''); }}
               keyboardType="number-pad"
               maxLength={6}
               autoFocus
               textAlign="center"
+              placeholderTextColor={colors.textLight}
             />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -198,7 +200,7 @@ export default function ForgotPinScreen() {
             <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Enter a new 4-digit PIN for your account.</Text>
 
             <TextInput
-              style={styles.codeInput}
+              style={[styles.codeInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={newPin}
               onChangeText={(t) => { setNewPin(t.replace(/[^0-9]/g, '')); setError(''); }}
               keyboardType="number-pad"
@@ -206,6 +208,7 @@ export default function ForgotPinScreen() {
               secureTextEntry
               autoFocus
               textAlign="center"
+              placeholderTextColor={colors.textLight}
             />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -229,7 +232,7 @@ export default function ForgotPinScreen() {
             <Text style={[styles.stepDesc, { color: colors.textSecondary }]}>Re-enter your new 4-digit PIN to confirm.</Text>
 
             <TextInput
-              style={styles.codeInput}
+              style={[styles.codeInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={confirmPin}
               onChangeText={(t) => { setConfirmPin(t.replace(/[^0-9]/g, '')); setError(''); }}
               keyboardType="number-pad"
@@ -237,6 +240,7 @@ export default function ForgotPinScreen() {
               secureTextEntry
               autoFocus
               textAlign="center"
+              placeholderTextColor={colors.textLight}
             />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}

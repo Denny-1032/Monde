@@ -1,5 +1,5 @@
 import { supabase, supabaseVerify, isSupabaseConfigured } from './supabase';
-import { Transaction, UserProfile, LinkedAccount } from '../constants/types';
+import { Transaction, UserProfile, LinkedAccount, FeeSummary, FloatSummary, FeeDetailsResponse } from '../constants/types';
 import { pinToPassword, sanitizeText } from './validation';
 
 // ============================================
@@ -238,6 +238,7 @@ export async function getProfile(userId: string): Promise<{ data: UserProfile | 
       balance: parseFloat(data.balance),
       currency: data.currency,
       avatar_url: data.avatar_url,
+      is_admin: data.is_admin || false,
       created_at: data.created_at,
     },
   };
@@ -351,6 +352,8 @@ export async function getTransactions(
       status: t.status,
       method: t.method,
       note: t.note,
+      fee: t.fee != null ? parseFloat(t.fee) : undefined,
+      reference: t.reference || undefined,
       created_at: t.created_at,
     })),
     nextCursor,
@@ -503,7 +506,25 @@ export async function deleteLinkedAccount(accountId: string): Promise<{ success:
 // Realtime Subscriptions
 // ============================================
 
-export function subscribeToTransactions(userId: string, callback: (txn: any) => void) {
+function mapRealtimeTxn(raw: any): Transaction {
+  return {
+    id: raw.id,
+    type: raw.type,
+    amount: typeof raw.amount === 'number' ? raw.amount : parseFloat(raw.amount),
+    currency: raw.currency,
+    recipient_name: raw.recipient_name,
+    recipient_phone: raw.recipient_phone,
+    provider: raw.provider,
+    status: raw.status,
+    method: raw.method,
+    note: raw.note,
+    fee: raw.fee != null ? (typeof raw.fee === 'number' ? raw.fee : parseFloat(raw.fee)) : undefined,
+    reference: raw.reference || undefined,
+    created_at: raw.created_at,
+  };
+}
+
+export function subscribeToTransactions(userId: string, callback: (txn: Transaction) => void) {
   if (!isSupabaseConfigured) return { unsubscribe: () => {} };
 
   const channel = supabase
@@ -516,7 +537,7 @@ export function subscribeToTransactions(userId: string, callback: (txn: any) => 
         table: 'transactions',
         filter: `sender_id=eq.${userId}`,
       },
-      (payload) => callback(payload.new)
+      (payload) => callback(mapRealtimeTxn(payload.new))
     )
     .on(
       'postgres_changes',
@@ -526,7 +547,7 @@ export function subscribeToTransactions(userId: string, callback: (txn: any) => 
         table: 'transactions',
         filter: `recipient_id=eq.${userId}`,
       },
-      (payload) => callback(payload.new)
+      (payload) => callback(mapRealtimeTxn(payload.new))
     )
     .subscribe();
 
@@ -555,4 +576,61 @@ export function subscribeToBalance(userId: string, callback: (balance: number) =
   return {
     unsubscribe: () => supabase.removeChannel(channel),
   };
+}
+
+// ============================================
+// Admin Functions (admin user only)
+// ============================================
+
+export async function getFeeSummary(): Promise<FeeSummary> {
+  if (!isSupabaseConfigured) {
+    return {
+      success: true,
+      total_fees_collected: 0,
+      topup_fees: 0,
+      withdraw_fees: 0,
+      payment_fees: 0,
+      admin_balance: 0,
+      total_fee_transactions: 0,
+    };
+  }
+
+  const { data, error } = await supabase.rpc('get_monde_fee_summary');
+  if (error) return { success: false, error: error.message } as FeeSummary;
+  return data as FeeSummary;
+}
+
+export async function getFloatSummary(): Promise<FloatSummary> {
+  if (!isSupabaseConfigured) {
+    return {
+      success: true,
+      total_float: 0,
+      admin_balance: 0,
+      system_total: 0,
+      users_with_balance: 0,
+      total_users: 0,
+    };
+  }
+
+  const { data, error } = await supabase.rpc('get_monde_total_float');
+  if (error) return { success: false, error: error.message } as FloatSummary;
+  return data as FloatSummary;
+}
+
+export async function getFeeDetails(
+  limit = 50,
+  offset = 0,
+  feeType: string | null = null,
+): Promise<FeeDetailsResponse> {
+  if (!isSupabaseConfigured) {
+    return { success: true, data: [], total: 0, limit, offset };
+  }
+
+  const { data, error } = await supabase.rpc('get_monde_fee_details', {
+    p_limit: limit,
+    p_offset: offset,
+    p_fee_type: feeType,
+  });
+  if (error) return { success: false, error: error.message } as FeeDetailsResponse;
+  return data as FeeDetailsResponse;
 }

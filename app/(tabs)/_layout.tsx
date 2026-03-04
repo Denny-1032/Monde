@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize } from '../../constants/theme';
@@ -15,8 +15,8 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.textLight,
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: colors.borderLight,
-          borderTopWidth: 1,
+          borderTopColor: colors.borderLight + '40',
+          borderTopWidth: StyleSheet.hairlineWidth,
           height: 64,
           paddingBottom: 8,
           paddingTop: 4,

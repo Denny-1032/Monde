@@ -107,7 +107,9 @@ function RootLayoutInner() {
         <Stack.Screen name="forgot-pin" />
         <Stack.Screen name="terms" />
         <Stack.Screen name="security" />
+        <Stack.Screen name="appearance" />
         <Stack.Screen name="linked-accounts" />
+        <Stack.Screen name="admin" />
         <Stack.Screen name="top-up" />
         <Stack.Screen name="withdraw" />
         <Stack.Screen name="success" options={{ animation: 'fade', gestureEnabled: false }} />

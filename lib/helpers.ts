@@ -76,3 +76,25 @@ export function getInitials(name: string): string {
     .toUpperCase()
     .slice(0, 2);
 }
+
+// ============================================
+// Fee Calculations (must match server-side migration 020)
+// ============================================
+
+/** Top-up fee: 1% + K1 flat */
+export function calcTopUpFee(amount: number): number {
+  if (amount <= 0) return 0;
+  return Math.round((amount * 0.01 + 1.00) * 100) / 100;
+}
+
+/** Withdraw fee: 1.5% + K2 flat */
+export function calcWithdrawFee(amount: number): number {
+  if (amount <= 0) return 0;
+  return Math.round((amount * 0.015 + 2.00) * 100) / 100;
+}
+
+/** P2P payment fee: free ≤ K500, 0.5% above K500 */
+export function calcPaymentFee(amount: number): number {
+  if (amount <= 0 || amount <= 500) return 0;
+  return Math.round((amount * 0.005) * 100) / 100;
+}

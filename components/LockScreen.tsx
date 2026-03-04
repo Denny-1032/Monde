@@ -169,6 +169,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
+    color: Colors.error,
   },
   pad: {
     flex: 1,

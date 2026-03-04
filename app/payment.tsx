@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
-import { formatCurrency, formatPhone } from '../lib/helpers';
+import { formatCurrency, formatPhone, calcPaymentFee } from '../lib/helpers';
 import { sanitizeText, validateAmount, isValidPhone } from '../lib/validation';
 import { verifyPin, searchProfilesByPhone, lookupByHandle } from '../lib/api';
 import Button from '../components/Button';
@@ -173,9 +173,14 @@ export default function PaymentScreen() {
       return;
     }
     const parsedAmount = parseFloat(amount);
+    const fee = calcPaymentFee(parsedAmount);
     const check = validateAmount(parsedAmount, user?.balance || 0);
     if (!check.valid) {
       Alert.alert('Invalid Amount', check.error);
+      return;
+    }
+    if ((parsedAmount + fee) > (user?.balance || 0)) {
+      Alert.alert('Insufficient Balance', `You need ${formatCurrency(parsedAmount + fee)} (${formatCurrency(parsedAmount)} + ${formatCurrency(fee)} fee) but your balance is ${formatCurrency(user?.balance || 0)}.`);
       return;
     }
     setStep('confirm');
@@ -335,6 +340,12 @@ export default function PaymentScreen() {
             <View style={[styles.confirmDivider, { backgroundColor: colors.borderLight }]} />
             <Text style={[styles.confirmAmountLabel, { color: colors.textSecondary }]}>Amount</Text>
             <Text style={[styles.confirmAmount, { color: colors.primary }]}>{formatCurrency(parseFloat(amount) || 0)}</Text>
+            {calcPaymentFee(parseFloat(amount) || 0) > 0 && (
+              <>
+                <Text style={[styles.confirmFee, { color: colors.textSecondary }]}>Fee: {formatCurrency(calcPaymentFee(parseFloat(amount) || 0))}</Text>
+                <Text style={[styles.confirmFee, { color: colors.text, fontWeight: '600', marginTop: 2 }]}>Total: {formatCurrency((parseFloat(amount) || 0) + calcPaymentFee(parseFloat(amount) || 0))}</Text>
+              </>
+            )}
             {note ? <Text style={[styles.confirmNote, { color: colors.textSecondary }]}>"{note}"</Text> : null}
             <View style={styles.confirmMeta}>
               <View style={styles.confirmMetaItem}>
@@ -497,6 +508,10 @@ const styles = StyleSheet.create({
   confirmAmount: {
     fontSize: FontSize.hero,
     fontWeight: '800',
+    marginTop: Spacing.xs,
+  },
+  confirmFee: {
+    fontSize: FontSize.sm,
     marginTop: Spacing.xs,
   },
   confirmNote: {

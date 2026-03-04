@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { useColors } from '../constants/useColors';
 
 interface OtpInputProps {
   length?: number;
@@ -19,6 +20,7 @@ export default function OtpInput({
   onResend,
   resendCooldown = 60,
 }: OtpInputProps) {
+  const colors = useColors();
   const [code, setCode] = useState('');
   const [cooldown, setCooldown] = useState(resendCooldown);
   const inputRef = useRef<TextInput>(null);
@@ -61,11 +63,12 @@ export default function OtpInput({
             key={i}
             style={[
               styles.box,
-              i === code.length && styles.boxActive,
-              error && styles.boxError,
+              { borderColor: colors.border, backgroundColor: colors.surface },
+              i === code.length && { borderColor: colors.primary },
+              error ? { borderColor: colors.error } : undefined,
             ]}
           >
-            <Text style={styles.boxText}>{digit}</Text>
+            <Text style={[styles.boxText, { color: colors.text }]}>{digit}</Text>
           </View>
         ))}
       </TouchableOpacity>
@@ -81,7 +84,7 @@ export default function OtpInput({
         caretHidden
       />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
       {onResend ? (
         <TouchableOpacity
@@ -89,7 +92,7 @@ export default function OtpInput({
           onPress={handleResend}
           disabled={cooldown > 0}
         >
-          <Text style={[styles.resendText, cooldown > 0 && styles.resendDisabled]}>
+          <Text style={[styles.resendText, { color: colors.primary }, cooldown > 0 && { color: colors.textLight }]}>
             {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
           </Text>
         </TouchableOpacity>

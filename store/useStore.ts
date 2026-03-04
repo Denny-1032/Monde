@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Transaction, UserProfile, LinkedAccount } from '../constants/types';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { calcTopUpFee, calcWithdrawFee, calcPaymentFee } from '../lib/helpers';
 import * as api from '../lib/api';
 
 // Track realtime subscription cleanup
@@ -321,7 +322,8 @@ export const useStore = create<AppState>((set, get) => ({
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
 
-    if (amount > user.balance) {
+    const pFee = calcPaymentFee(amount);
+    if ((amount + pFee) > user.balance) {
       return { success: false, error: 'Insufficient balance' };
     }
 
@@ -339,10 +341,11 @@ export const useStore = create<AppState>((set, get) => ({
         method,
         note,
         created_at: new Date().toISOString(),
+        fee: pFee,
       };
       set((state) => ({
         transactions: [txn, ...state.transactions],
-        user: state.user ? { ...state.user, balance: state.user.balance - amount } : null,
+        user: state.user ? { ...state.user, balance: state.user.balance - amount - pFee } : null,
       }));
       return { success: true };
     }
@@ -373,8 +376,9 @@ export const useStore = create<AppState>((set, get) => ({
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
 
-    if (!isSupabaseConfigured || !sessionId) {
-      // Offline mock top-up
+    if (!isSupabaseConfigured || !sessionId || provider === 'test_deposit') {
+      // Offline mock top-up / test deposit
+      const fee = calcTopUpFee(amount);
       const txn: Transaction = {
         id: Date.now().toString(),
         type: 'topup',
@@ -382,15 +386,16 @@ export const useStore = create<AppState>((set, get) => ({
         currency: 'ZMW',
         recipient_name: 'Monde Wallet',
         recipient_phone: user.phone,
-        provider,
+        provider: provider === 'test_deposit' ? 'test' : provider,
         status: 'completed',
         method: 'wallet',
-        note: note || `Top up from ${provider}`,
+        note: note || (provider === 'test_deposit' ? 'Test deposit' : `Top up from ${provider}`),
         created_at: new Date().toISOString(),
+        fee,
       };
       set((state) => ({
         transactions: [txn, ...state.transactions],
-        user: state.user ? { ...state.user, balance: state.user.balance + amount } : null,
+        user: state.user ? { ...state.user, balance: state.user.balance + amount - fee } : null,
       }));
       return { success: true };
     }
@@ -420,8 +425,9 @@ export const useStore = create<AppState>((set, get) => ({
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
 
-    if (amount > user.balance) {
-      return { success: false, error: 'Insufficient balance' };
+    const wFee = calcWithdrawFee(amount);
+    if ((amount + wFee) > user.balance) {
+      return { success: false, error: `Insufficient balance. Need K${(amount + wFee).toFixed(2)} (K${amount} + K${wFee} fee)` };
     }
 
     if (!isSupabaseConfigured || !sessionId) {
@@ -438,10 +444,11 @@ export const useStore = create<AppState>((set, get) => ({
         method: 'wallet',
         note: note || `Withdraw to ${provider}`,
         created_at: new Date().toISOString(),
+        fee: wFee,
       };
       set((state) => ({
         transactions: [txn, ...state.transactions],
-        user: state.user ? { ...state.user, balance: state.user.balance - amount } : null,
+        user: state.user ? { ...state.user, balance: state.user.balance - amount - wFee } : null,
       }));
       return { success: true };
     }

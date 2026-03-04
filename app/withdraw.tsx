@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
-import { formatCurrency, formatPhone } from '../lib/helpers';
+import { formatCurrency, formatPhone, calcWithdrawFee } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import PinConfirm from '../components/PinConfirm';
@@ -33,7 +33,7 @@ export default function WithdrawScreen() {
   const parsedAmount = parseFloat(amount) || 0;
   const provider = Providers.find((p) => p.id === selectedProvider);
   const balance = user?.balance || 0;
-  const estimatedFee = parsedAmount > 0 ? Math.round((parsedAmount * 0.015 + 2) * 100) / 100 : 0;
+  const estimatedFee = calcWithdrawFee(parsedAmount);
 
   const handleNumPress = (key: string) => {
     if (key === '.' && amount.includes('.')) return;
@@ -52,7 +52,16 @@ export default function WithdrawScreen() {
 
   const handleWithdrawAll = () => {
     if (balance > 0) {
-      setAmount(balance.toFixed(2).replace(/\.?0+$/, ''));
+      // Solve for max amount where amount + fee(amount) <= balance
+      // fee = 1.5% * amount + K2, so amount + 0.015*amount + 2 <= balance
+      // → amount <= (balance - 2) / 1.015
+      const maxAmount = Math.floor(((balance - 2) / 1.015) * 100) / 100;
+      const safeAmount = Math.max(0, maxAmount);
+      if (safeAmount <= 0) {
+        setAmount(balance.toFixed(2).replace(/\.?0+$/, ''));
+      } else {
+        setAmount(safeAmount.toFixed(2).replace(/\.?0+$/, ''));
+      }
     }
   };
 
@@ -65,8 +74,8 @@ export default function WithdrawScreen() {
       Alert.alert('Amount Too Large', 'Maximum withdrawal amount is K50,000.');
       return;
     }
-    if (parsedAmount > balance) {
-      Alert.alert('Insufficient Balance', `Your balance is ${formatCurrency(balance)}. You cannot withdraw more than that.`);
+    if ((parsedAmount + estimatedFee) > balance) {
+      Alert.alert('Insufficient Balance', `You need ${formatCurrency(parsedAmount + estimatedFee)} (${formatCurrency(parsedAmount)} + ${formatCurrency(estimatedFee)} fee) but your balance is ${formatCurrency(balance)}.`);
       return;
     }
     setPinError('');
@@ -142,12 +151,12 @@ export default function WithdrawScreen() {
           {/* Amount display */}
           <View style={styles.amountContainer}>
             <Text style={[styles.amountPrefix, { color: colors.textSecondary }]}>K</Text>
-            <Text style={[styles.amountValue, { color: colors.text }, parsedAmount > balance && { color: colors.error }]}>
+            <Text style={[styles.amountValue, { color: colors.text }, (parsedAmount + estimatedFee) > balance && parsedAmount > 0 && { color: colors.error }]}>
               {amount || '0'}
             </Text>
           </View>
-          {parsedAmount > balance && (
-            <Text style={styles.errorText}>Exceeds available balance</Text>
+          {parsedAmount > 0 && (parsedAmount + estimatedFee) > balance && (
+            <Text style={styles.errorText}>Amount + fee exceeds balance</Text>
           )}
 
           {/* Quick amounts + Withdraw All */}
@@ -176,11 +185,17 @@ export default function WithdrawScreen() {
           {/* NumPad */}
           <NumPad onPress={handleNumPress} onDelete={handleDelete} showDecimal={true} />
 
-          {/* Fee info */}
+          {/* Fee breakdown */}
           {parsedAmount > 0 && parsedAmount <= balance && (
-            <View style={styles.feeRow}>
-              <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Estimated fee</Text>
-              <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
+            <View style={styles.feeSection}>
+              <View style={styles.feeRow}>
+                <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Fee (1.5% + K2)</Text>
+                <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
+              </View>
+              <View style={styles.feeRow}>
+                <Text style={[styles.feeLabel, { color: colors.text, fontWeight: '600' }]}>Total deducted</Text>
+                <Text style={[styles.feeValue, { color: colors.error, fontWeight: '700' }]}>{formatCurrency(parsedAmount + estimatedFee)}</Text>
+              </View>
             </View>
           )}
 
@@ -189,7 +204,7 @@ export default function WithdrawScreen() {
             <Button
               title={loading ? 'Processing...' : `Withdraw ${parsedAmount > 0 ? formatCurrency(parsedAmount) : ''}`}
               onPress={handleConfirm}
-              disabled={parsedAmount <= 0 || parsedAmount > balance || loading}
+              disabled={parsedAmount <= 0 || (parsedAmount + estimatedFee) > balance || loading}
               size="lg"
             />
           </View>
@@ -363,6 +378,9 @@ const styles = StyleSheet.create({
   quickBtnText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
+  },
+  feeSection: {
+    paddingVertical: Spacing.xs,
   },
   feeRow: {
     flexDirection: 'row',

@@ -10,7 +10,7 @@ import { validateAmount } from '../lib/validation';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import PinConfirm from '../components/PinConfirm';
-import { formatCurrency } from '../lib/helpers';
+import { formatCurrency, calcPaymentFee } from '../lib/helpers';
 import { verifyPin } from '../lib/api';
 import * as Haptics from 'expo-haptics';
 
@@ -118,6 +118,11 @@ export default function TapScreen() {
       const check = validateAmount(parsedAmount, user?.balance || 0);
       if (!check.valid) {
         Alert.alert('Invalid Amount', check.error);
+        return;
+      }
+      const fee = calcPaymentFee(parsedAmount);
+      if ((parsedAmount + fee) > (user?.balance || 0)) {
+        Alert.alert('Insufficient Balance', `You need ${formatCurrency(parsedAmount + fee)} (${formatCurrency(parsedAmount)} + ${formatCurrency(fee)} fee) but your balance is ${formatCurrency(user?.balance || 0)}.`);
         return;
       }
       // Require PIN for sending

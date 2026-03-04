@@ -7,6 +7,7 @@ import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { formatPhone } from '../../lib/helpers';
+// Admin check now uses is_admin flag from profile, not hardcoded UUID
 import Avatar from '../../components/Avatar';
 
 type MenuItemProps = {
@@ -95,6 +96,7 @@ export default function ProfileScreen() {
         <View style={[styles.menuGroup, { backgroundColor: colors.surface }]}>
           <MenuItem icon="notifications-outline" label="Notifications" onPress={() => Alert.alert('Notifications', 'Push notifications coming in a future update.')} />
           <MenuItem icon="shield-checkmark-outline" label="Security" subtitle="PIN & biometrics" onPress={() => router.push('/security')} />
+          <MenuItem icon="color-palette-outline" label="Appearance" subtitle="Theme & dark mode" onPress={() => router.push('/appearance')} />
           <MenuItem icon="language-outline" label="Language" subtitle="English" onPress={() => Alert.alert('Language', 'Additional languages coming soon.')} />
         </View>
       </View>
@@ -107,6 +109,15 @@ export default function ProfileScreen() {
           <MenuItem icon="document-text-outline" label="Terms & Privacy" onPress={() => router.push('/terms')} />
         </View>
       </View>
+
+      {user?.is_admin && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Administration</Text>
+          <View style={[styles.menuGroup, { backgroundColor: colors.surface }]}>
+            <MenuItem icon="bar-chart-outline" label="Admin Dashboard" subtitle="Fees, float & revenue" onPress={() => router.push('/admin')} />
+          </View>
+        </View>
+      )}
 
       <View style={[styles.section, { marginBottom: 40 }]}>
         <View style={[styles.menuGroup, { backgroundColor: colors.surface }]}>

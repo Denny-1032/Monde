@@ -7,6 +7,9 @@ import {
   getProviderByPhone,
   maskPhone,
   getInitials,
+  calcTopUpFee,
+  calcWithdrawFee,
+  calcPaymentFee,
 } from '../lib/helpers';
 
 describe('formatCurrency', () => {
@@ -93,5 +96,56 @@ describe('getInitials', () => {
   });
   it('limits to 2 characters', () => {
     expect(getInitials('John Michael Doe')).toBe('JM');
+  });
+});
+
+// ============================================
+// Fee Calculations (must match migration 020)
+// ============================================
+
+describe('calcTopUpFee', () => {
+  it('returns 0 for zero or negative amounts', () => {
+    expect(calcTopUpFee(0)).toBe(0);
+    expect(calcTopUpFee(-100)).toBe(0);
+  });
+  it('calculates 1% + K1 flat', () => {
+    expect(calcTopUpFee(1000)).toBe(11.00);   // 10 + 1
+    expect(calcTopUpFee(100)).toBe(2.00);      // 1 + 1
+    expect(calcTopUpFee(50)).toBe(1.50);       // 0.5 + 1
+  });
+  it('rounds to 2 decimal places', () => {
+    expect(calcTopUpFee(33)).toBe(1.33);       // 0.33 + 1
+  });
+});
+
+describe('calcWithdrawFee', () => {
+  it('returns 0 for zero or negative amounts', () => {
+    expect(calcWithdrawFee(0)).toBe(0);
+    expect(calcWithdrawFee(-50)).toBe(0);
+  });
+  it('calculates 1.5% + K2 flat', () => {
+    expect(calcWithdrawFee(1000)).toBe(17.00);  // 15 + 2
+    expect(calcWithdrawFee(100)).toBe(3.50);     // 1.5 + 2
+    expect(calcWithdrawFee(200)).toBe(5.00);     // 3 + 2
+  });
+  it('rounds to 2 decimal places', () => {
+    expect(calcWithdrawFee(33)).toBe(2.50);      // 0.495 → 0.50 + 2
+  });
+});
+
+describe('calcPaymentFee', () => {
+  it('returns 0 for zero or negative amounts', () => {
+    expect(calcPaymentFee(0)).toBe(0);
+    expect(calcPaymentFee(-100)).toBe(0);
+  });
+  it('returns 0 for amounts ≤ K500 (free tier)', () => {
+    expect(calcPaymentFee(1)).toBe(0);
+    expect(calcPaymentFee(499.99)).toBe(0);
+    expect(calcPaymentFee(500)).toBe(0);
+  });
+  it('calculates 0.5% for amounts > K500', () => {
+    expect(calcPaymentFee(1000)).toBe(5.00);
+    expect(calcPaymentFee(501)).toBe(2.51);      // 2.505 → 2.51
+    expect(calcPaymentFee(10000)).toBe(50.00);
   });
 });

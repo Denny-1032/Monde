@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight, // stays static — acceptable
+    borderTopColor: Colors.borderLight,
   },
   actionBtn: {
     flexDirection: 'row',
@@ -388,6 +388,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: FontSize.sm,
     fontWeight: '500',
+    color: Colors.textSecondary,
   },
   input: {
     borderRadius: BorderRadius.md,

@@ -171,6 +171,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: Colors.overlay,
   },
   sheet: {
     borderTopLeftRadius: BorderRadius.xl,
@@ -257,6 +258,7 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: FontSize.md,
     fontWeight: '600',
+    color: Colors.error,
   },
   biometricBtn: {
     flexDirection: 'row',
@@ -269,5 +271,6 @@ const styles = StyleSheet.create({
   biometricText: {
     fontSize: FontSize.md,
     fontWeight: '600',
+    color: Colors.primary,
   },
 });

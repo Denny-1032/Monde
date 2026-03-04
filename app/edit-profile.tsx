@@ -245,6 +245,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
+    borderColor: Colors.white,
   },
   changePhotoText: {
     fontSize: FontSize.sm,

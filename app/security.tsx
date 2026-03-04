@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
-import { useTheme } from '../constants/ThemeContext';
 import { useColors } from '../constants/useColors';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
@@ -17,7 +16,6 @@ export default function SecurityScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState<string>('Fingerprint');
-  const { mode, setMode, isDark } = useTheme();
   const colors = useColors();
 
   useEffect(() => {
@@ -144,43 +142,6 @@ export default function SecurityScreen() {
           </View>
         </View>
 
-        {/* Appearance Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Appearance</Text>
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            <View style={styles.menuItem}>
-              <View style={[styles.menuIcon, { backgroundColor: colors.secondary + '12' }]}>
-                <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colors.secondary} />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={[styles.menuLabel, { color: colors.text }]}>Dark Mode</Text>
-                <Text style={[styles.menuSub, { color: colors.textSecondary }]}>
-                  {mode === 'system' ? 'Following system setting' : mode === 'dark' ? 'Always dark' : 'Always light'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.themeToggle}>
-              {(['light', 'system', 'dark'] as const).map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  style={[styles.themeOption, { backgroundColor: mode === opt ? colors.primary : colors.surfaceAlt }]}
-                  onPress={() => setMode(opt)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={opt === 'light' ? 'sunny-outline' : opt === 'dark' ? 'moon-outline' : 'phone-portrait-outline'}
-                    size={16}
-                    color={mode === opt ? colors.white : colors.textSecondary}
-                  />
-                  <Text style={[styles.themeOptionText, { color: mode === opt ? colors.white : colors.textSecondary }]}>
-                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
         {/* Info */}
         <View style={styles.infoCard}>
           <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
@@ -263,24 +224,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FontSize.sm,
     lineHeight: 20,
-  },
-  themeToggle: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
-  },
-  themeOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: Spacing.sm + 2,
-    borderRadius: BorderRadius.md,
-  },
-  themeOptionText: {
-    fontSize: FontSize.sm,
-    fontWeight: '600',
   },
 });

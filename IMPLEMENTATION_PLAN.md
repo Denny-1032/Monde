@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2026-03-03
+> Last updated: 2026-03-04 (audit iteration)
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -36,6 +36,22 @@
 | 11r | **Reserved handles** — @monde, @admin, @support etc. blocked in client + DB trigger | ✅ DONE | `RESERVED_HANDLES` list in api.ts; migration `015_reserved_handles.sql` |
 | 11s | **Edit profile keyboard fix** — Save button no longer obstructs input fields when keyboard is open | ✅ DONE | Replaced static layout with ScrollView in edit-profile.tsx |
 | 11t | **Receive money UX** — shows handle on QR card; clarifies sender chooses amount when none set | ✅ DONE | receive.tsx updated text + share message |
+| 11u | **Fix blank home screen** — 3 critical bugs: RPC response check, stale segments closure, silent profile creation failures | ✅ DONE | `ensureProfileExists` 3-tier fallback, `segmentsRef` in `_layout.tsx`, return value checks in store |
+| 11v | **Restore profile trigger** — Migration 016 no-op caused missing profiles; migration 019 restores SECURITY DEFINER trigger | ✅ DONE | `019_restore_profile_trigger.sql` with ON CONFLICT idempotency |
+| 11w | **Fix SecureStore 2048 limit** — Session data (3-5K chars) silently dropped on mobile → auth.uid() null | ✅ DONE | Removed artificial limit, added try-catch, expo-secure-store v14 handles large values |
+| 11x | **Top up: linked accounts only** — Show only linked accounts in provider selector + test deposit for fake money | ✅ DONE | top-up.tsx refactored, test deposit skips PIN |
+| 11y | **Motto update** — Changed "Pay. Tap. Done." → "Tap. Pay. Done." | ✅ DONE | splash + README |
+| 11z | **Appearance screen** — Moved dark mode from Security to dedicated Appearance screen in Preferences | ✅ DONE | `appearance.tsx` + profile menu updated |
+| 11aa | **Subtle tab bar divider** — borderTopWidth hairlineWidth + 40% opacity | ✅ DONE | `(tabs)/_layout.tsx` |
+| 11ab | **Web logout** — window.confirm fallback for web platform | ✅ DONE | profile.tsx Platform.OS check |
+| 11ac | **Business model** — Revenue analysis, fee structure, admin account architecture | ✅ DONE | `BUSINESS_MODEL.md` |
+| 11ad | **Monde admin account + fee collection** — System account UUID 0, `monde_fees` ledger, all 3 RPCs updated to collect fees atomically, `get_monde_fee_summary` helper | ✅ DONE | `020_monde_admin_fees.sql` |
+| 11ae | **Client-side fee system** — Shared `calcTopUpFee`/`calcWithdrawFee`/`calcPaymentFee` in helpers.ts, fee breakdowns in top-up/withdraw/payment screens, fees in mock store paths, fee in Transaction type + detail screen + receipt | ✅ DONE | helpers.ts, top-up.tsx, withdraw.tsx, payment.tsx, transaction.tsx, useStore.ts, types.ts |
+| 11af | **Fee system audit** — 6 bugs fixed: withdraw-all ignores fee, balance check ignores fee, button disabled ignores fee, receiptBtn missing borderColor, sendAgainBtn missing backgroundColor, payment confirm missing total row; 9 fee unit tests added | ✅ DONE | withdraw.tsx, transaction.tsx, payment.tsx, helpers.test.ts |
+| 11ag | **End-to-end audit (pass 1)** — 8 gaps fixed: getTransactions dropped fee+reference fields, subscribeToTransactions passed raw untyped payload, PinConfirm missing overlay/cancel/biometric colors, payment.tsx+tap.tsx balance checks ignored fees, LockScreen error text missing color, OtpInput hardcoded light-mode colors (dark mode broken) | ✅ DONE | api.ts, PinConfirm.tsx, payment.tsx, tap.tsx, LockScreen.tsx, OtpInput.tsx |
+| 11ah | **End-to-end audit (pass 2)** — 3 more dark-mode fixes: forgot-pin.tsx hardcoded Colors.* on phone/code inputs (4 TextInputs), edit-profile.tsx cameraOverlay missing borderColor, linked-accounts.tsx chipText missing color | ✅ DONE | forgot-pin.tsx, edit-profile.tsx, linked-accounts.tsx |
+| 11ai | **Admin functions audit & fixes** — Fixed 020 FK violation (added auth.users row for admin), rewrote 021 with admin UID auth checks (not REVOKE), added 3 new admin RPCs (fees_by_period, total_float, fee_details), blocked payments to admin phone | ✅ DONE | `020_monde_admin_fees.sql`, `021_admin_security_and_helpers.sql` |
+| 11aj | **Admin dashboard** — Full in-app admin dashboard with 3 tabs (Overview/Fee Ledger/Float), fee breakdown cards, integrity check, paginated fee ledger with filters, float summary for regulatory compliance, admin-only access guard | ✅ DONE | `admin.tsx`, `api.ts`, `types.ts`, `profile.tsx` |
 
 ## Phase 2: Core Feature Completion
 

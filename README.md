@@ -1,6 +1,6 @@
 # Monde - Mobile Payment Service for Zambia
 
-**Pay. Tap. Done.**
+**Tap. Pay. Done.**
 
 Monde is a mobile payment app focused on two core features: **QR Code payments** and **Tap to Pay (NFC)**. It's designed to be interoperable across all Zambian payment providers — Airtel Money, MTN MoMo, Zamtel Kwacha, FNB, Zanaco, and Absa.
 

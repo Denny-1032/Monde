@@ -68,6 +68,7 @@ export default function TransactionDetailScreen() {
     '',
     `Type: ${typeLabel}`,
     `Amount: ${amountPrefix}${formatCurrency(txn.amount)}`,
+    txn.fee && txn.fee > 0 ? `Fee: ${formatCurrency(txn.fee)}` : null,
     `To: ${txn.recipient_name}`,
     txn.recipient_phone ? `Phone: ${formatPhone(txn.recipient_phone)}` : null,
     `Provider: ${provider?.name || txn.provider}`,
@@ -132,6 +133,7 @@ export default function TransactionDetailScreen() {
           <DetailRow label="Type" value={typeLabel} />
           <DetailRow label="Method" value={txn.method === 'wallet' ? 'Wallet Transfer' : txn.method === 'qr' ? 'QR Code' : txn.method === 'nfc' ? 'Tap to Pay' : 'Manual'} icon={txn.method === 'wallet' ? 'wallet-outline' : txn.method === 'qr' ? 'qr-code-outline' : txn.method === 'nfc' ? 'wifi-outline' : 'send-outline'} />
           <DetailRow label="Provider" value={provider?.name || txn.provider} dotColor={provider?.color} />
+          {txn.fee && txn.fee > 0 ? <DetailRow label="Fee" value={formatCurrency(txn.fee)} /> : null}
           <DetailRow label="Date" value={formattedDate} />
           <DetailRow label="Time" value={formattedTime} />
           <DetailRow label="Transaction ID" value={txn.id} mono />
@@ -140,7 +142,7 @@ export default function TransactionDetailScreen() {
 
         {/* Share Receipt */}
         <TouchableOpacity
-          style={styles.receiptBtn}
+          style={[styles.receiptBtn, { borderColor: colors.primary }]}
           onPress={handleShareReceipt}
           activeOpacity={0.7}
           accessibilityLabel="Share transaction receipt"
@@ -153,7 +155,7 @@ export default function TransactionDetailScreen() {
         {/* Quick action: Send Again (1-tap resend) */}
         {txn.type === 'send' && txn.recipient_phone ? (
           <TouchableOpacity
-            style={styles.sendAgainBtn}
+            style={[styles.sendAgainBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push({
               pathname: '/payment',
               params: {

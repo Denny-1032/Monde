@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
-import { formatCurrency, formatPhone } from '../lib/helpers';
+import { formatCurrency, formatPhone, calcTopUpFee } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import PinConfirm from '../components/PinConfirm';
@@ -32,8 +32,7 @@ export default function TopUpScreen() {
 
   const parsedAmount = parseFloat(amount) || 0;
   const provider = Providers.find((p) => p.id === selectedProvider);
-  // Estimate fee (matches server-side calculation)
-  const estimatedFee = parsedAmount > 0 ? Math.round((parsedAmount * 0.01 + 1) * 100) / 100 : 0;
+  const estimatedFee = calcTopUpFee(parsedAmount);
 
   const handleNumPress = (key: string) => {
     if (key === '.' && amount.includes('.')) return;
@@ -59,17 +58,16 @@ export default function TopUpScreen() {
       Alert.alert('Amount Too Large', 'Maximum top-up amount is K50,000.');
       return;
     }
+    // Test deposits skip PIN
+    if (selectedProvider === 'test_deposit') {
+      processTopUpAction();
+      return;
+    }
     setPinError('');
     setShowPin(true);
   };
 
-  const handlePinConfirm = async (pin: string) => {
-    const phone = user?.phone || '';
-    const { success: pinOk } = await verifyPin(phone, pin);
-    if (!pinOk) {
-      setPinError('Incorrect PIN');
-      return;
-    }
+  const processTopUpAction = async () => {
     setLoading(true);
     try {
       const result = await topUp(parsedAmount, selectedProvider, undefined, selectedAccountId);
@@ -78,7 +76,7 @@ export default function TopUpScreen() {
           pathname: '/success',
           params: {
             amount: parsedAmount.toString(),
-            recipientName: provider?.name || selectedProvider,
+            recipientName: selectedProvider === 'test_deposit' ? 'Test Deposit' : (provider?.name || selectedProvider),
             type: 'topup',
             method: 'wallet',
           },
@@ -92,6 +90,16 @@ export default function TopUpScreen() {
       setLoading(false);
       setShowPin(false);
     }
+  };
+
+  const handlePinConfirm = async (pin: string) => {
+    const phone = user?.phone || '';
+    const { success: pinOk } = await verifyPin(phone, pin);
+    if (!pinOk) {
+      setPinError('Incorrect PIN');
+      return;
+    }
+    await processTopUpAction();
   };
 
   return (
@@ -114,10 +122,12 @@ export default function TopUpScreen() {
             activeOpacity={0.7}
           >
             <View style={styles.providerLeft}>
-              <View style={[styles.providerDot, { backgroundColor: provider?.color || colors.primary }]} />
+              <View style={[styles.providerDot, { backgroundColor: selectedProvider === 'test_deposit' ? colors.success : (provider?.color || colors.primary) }]} />
               <View>
                 <Text style={[styles.providerLabel, { color: colors.textLight }]}>From</Text>
-                <Text style={[styles.providerName, { color: colors.text }]}>{provider?.name || 'Select Provider'}</Text>
+                <Text style={[styles.providerName, { color: colors.text }]}>
+                  {selectedProvider === 'test_deposit' ? 'Test Deposit' : (provider?.name || 'Select Provider')}
+                </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
@@ -148,11 +158,17 @@ export default function TopUpScreen() {
           {/* NumPad */}
           <NumPad onPress={handleNumPress} onDelete={handleDelete} showDecimal={true} />
 
-          {/* Fee info */}
+          {/* Fee breakdown */}
           {parsedAmount > 0 && (
-            <View style={styles.feeRow}>
-              <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Estimated fee</Text>
-              <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
+            <View style={styles.feeSection}>
+              <View style={styles.feeRow}>
+                <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Fee (1% + K1)</Text>
+                <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
+              </View>
+              <View style={styles.feeRow}>
+                <Text style={[styles.feeLabel, { color: colors.text, fontWeight: '600' }]}>You receive</Text>
+                <Text style={[styles.feeValue, { color: colors.success, fontWeight: '700' }]}>{formatCurrency(parsedAmount - estimatedFee)}</Text>
+              </View>
             </View>
           )}
 
@@ -170,7 +186,7 @@ export default function TopUpScreen() {
 
       {step === 'provider' && (
         <ScrollView style={styles.providerList} showsVerticalScrollIndicator={false}>
-          {/* Linked Accounts — 1-tap selection */}
+          {/* Linked Accounts only */}
           {linkedAccounts.length > 0 && (
             <>
               <Text style={[styles.providerListTitle, { color: colors.text }]}>Your Accounts</Text>
@@ -179,7 +195,7 @@ export default function TopUpScreen() {
                 return (
                   <TouchableOpacity
                     key={acc.id}
-                    style={[styles.providerItem, { backgroundColor: colors.surface }, selectedProvider === acc.provider && { borderWidth: 2, borderColor: colors.primary }]}
+                    style={[styles.providerItem, { backgroundColor: colors.surface }, selectedAccountId === acc.id && { borderWidth: 2, borderColor: colors.primary }]}
                     onPress={() => {
                       setSelectedProvider(acc.provider);
                       setSelectedAccountId(acc.id);
@@ -200,30 +216,46 @@ export default function TopUpScreen() {
                   </TouchableOpacity>
                 );
               })}
-              <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.text }]}>All Providers</Text>
             </>
           )}
+
           {linkedAccounts.length === 0 && (
-            <Text style={[styles.providerListTitle, { color: colors.text }]}>Select Provider</Text>
+            <View style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
+              <Ionicons name="wallet-outline" size={48} color={colors.textLight} />
+              <Text style={{ color: colors.text, fontSize: FontSize.md, fontWeight: '600', marginTop: Spacing.md, textAlign: 'center' }}>
+                No linked accounts
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: FontSize.sm, marginTop: Spacing.xs, textAlign: 'center', paddingHorizontal: Spacing.xl }}>
+                Link your Airtel Money, MTN MoMo, or bank account to top up.
+              </Text>
+              <TouchableOpacity
+                style={{ marginTop: Spacing.lg, backgroundColor: colors.primary, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg }}
+                onPress={() => router.push('/linked-accounts')}
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: colors.white, fontWeight: '600', fontSize: FontSize.md }}>Link an Account</Text>
+              </TouchableOpacity>
+            </View>
           )}
-          {Providers.map((p) => (
-            <TouchableOpacity
-              key={p.id}
-              style={[styles.providerItem, { backgroundColor: colors.surface }, selectedProvider === p.id && { borderWidth: 2, borderColor: colors.primary }]}
-              onPress={() => {
-                setSelectedProvider(p.id);
-                setSelectedAccountId(undefined);
-                setStep('amount');
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.providerItemDot, { backgroundColor: p.color }]} />
-              <Text style={[styles.providerItemName, { flex: 1, color: colors.text }]}>{p.name}</Text>
-              {selectedProvider === p.id && (
-                <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-              )}
-            </TouchableOpacity>
-          ))}
+
+          {/* Test Deposit — for development/testing */}
+          <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.textSecondary }]}>Testing</Text>
+          <TouchableOpacity
+            style={[styles.providerItem, { backgroundColor: colors.surface, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderLight }]}
+            onPress={() => {
+              setSelectedProvider('test_deposit');
+              setSelectedAccountId(undefined);
+              setStep('amount');
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.providerItemDot, { backgroundColor: colors.success }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.providerItemName, { color: colors.text }]}>Test Deposit</Text>
+              <Text style={{ fontSize: FontSize.xs, color: colors.textSecondary }}>Add fake money for testing</Text>
+            </View>
+            <Ionicons name="flask-outline" size={20} color={colors.success} />
+          </TouchableOpacity>
         </ScrollView>
       )}
 
@@ -315,12 +347,15 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: '600',
   },
+  feeSection: {
+    paddingVertical: Spacing.xs,
+  },
   feeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
   },
   feeLabel: {
     fontSize: FontSize.sm,
