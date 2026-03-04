@@ -3,32 +3,39 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const SECURE_STORE_MAX_SIZE = 2048;
-
 const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => {
+  getItem: async (key: string): Promise<string | null> => {
     if (Platform.OS === 'web') {
       try { return localStorage.getItem(key); } catch { return null; }
     }
-    return SecureStore.getItemAsync(key);
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch (e) {
+      console.warn('SecureStore getItem error:', e);
+      return null;
+    }
   },
-  setItem: (key: string, value: string) => {
+  setItem: async (key: string, value: string): Promise<void> => {
     if (Platform.OS === 'web') {
       try { localStorage.setItem(key, value); } catch {}
       return;
     }
-    if (value && value.length > SECURE_STORE_MAX_SIZE) {
-      console.warn(`SecureStore: value for "${key}" exceeds ${SECURE_STORE_MAX_SIZE} chars (${value.length}), skipping.`);
-      return;
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch (e) {
+      console.warn('SecureStore setItem error:', e);
     }
-    return SecureStore.setItemAsync(key, value);
   },
-  removeItem: (key: string) => {
+  removeItem: async (key: string): Promise<void> => {
     if (Platform.OS === 'web') {
       try { localStorage.removeItem(key); } catch {}
       return;
     }
-    return SecureStore.deleteItemAsync(key);
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (e) {
+      console.warn('SecureStore removeItem error:', e);
+    }
   },
 };
 
