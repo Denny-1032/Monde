@@ -9,8 +9,6 @@ import { useStore } from '../store/useStore';
 import { formatCurrency, formatPhone, calcWithdrawFee } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
-import PinConfirm from '../components/PinConfirm';
-import { verifyPin } from '../lib/api';
 
 const QUICK_AMOUNTS = [50, 100, 200, 500, 1000, 5000];
 
@@ -26,8 +24,6 @@ export default function WithdrawScreen() {
   const [amount, setAmount] = useState('');
   const [selectedProvider, setSelectedProvider] = useState(user?.provider || 'airtel');
   const [loading, setLoading] = useState(false);
-  const [showPin, setShowPin] = useState(false);
-  const [pinError, setPinError] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
 
   const parsedAmount = parseFloat(amount) || 0;
@@ -78,13 +74,7 @@ export default function WithdrawScreen() {
       Alert.alert('Insufficient Balance', `You need ${formatCurrency(parsedAmount + estimatedFee)} (${formatCurrency(parsedAmount)} + ${formatCurrency(estimatedFee)} fee) but your balance is ${formatCurrency(balance)}.`);
       return;
     }
-    // Test withdrawals skip PIN
-    if (selectedProvider === 'test_withdraw') {
-      processWithdrawAction();
-      return;
-    }
-    setPinError('');
-    setShowPin(true);
+    processWithdrawAction();
   };
 
   const processWithdrawAction = async () => {
@@ -108,18 +98,7 @@ export default function WithdrawScreen() {
       Alert.alert('Error', e?.message || 'Withdrawal failed.');
     } finally {
       setLoading(false);
-      setShowPin(false);
     }
-  };
-
-  const handlePinConfirm = async (pin: string) => {
-    const phone = user?.phone || '';
-    const { success: pinOk } = await verifyPin(phone, pin);
-    if (!pinOk) {
-      setPinError('Incorrect PIN');
-      return;
-    }
-    await processWithdrawAction();
   };
 
   return (
@@ -306,16 +285,6 @@ export default function WithdrawScreen() {
         </ScrollView>
       )}
 
-      {/* PIN Confirmation */}
-      <PinConfirm
-        visible={showPin}
-        title="Authorize Withdrawal"
-        subtitle={`Withdraw ${formatCurrency(parsedAmount)} to ${provider?.name || 'provider'}`}
-        onConfirm={handlePinConfirm}
-        onCancel={() => { setShowPin(false); setPinError(''); }}
-        loading={loading}
-        error={pinError}
-      />
     </View>
   );
 }
@@ -395,7 +364,7 @@ const styles = StyleSheet.create({
   errorText: {
     textAlign: 'center',
     fontSize: FontSize.sm,
-    color: Colors.error,
+    color: '#EF4444',
     marginBottom: Spacing.xs,
   },
   quickAmounts: {

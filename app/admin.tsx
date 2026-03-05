@@ -10,8 +10,9 @@ import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { FeeSummary, FloatSummary, FeeDetail } from '../constants/types';
-import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue } from '../lib/api';
+import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin } from '../lib/api';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
+import PinConfirm from '../components/PinConfirm';
 
 type TabId = 'overview' | 'fees' | 'float';
 
@@ -35,6 +36,10 @@ export default function AdminDashboardScreen() {
   const [feeTotal, setFeeTotal] = useState(0);
   const [feeFilter, setFeeFilter] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [pinVerified, setPinVerified] = useState(false);
+  const [showPinPrompt, setShowPinPrompt] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
 
   // Guard: only admin can view (uses is_admin flag from profile)
   const isAdmin = user?.is_admin === true;
@@ -65,8 +70,14 @@ export default function AdminDashboardScreen() {
   }, [feeFilter]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isAdmin && !pinVerified) {
+      setShowPinPrompt(true);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (pinVerified) loadData();
+  }, [pinVerified, loadData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -122,6 +133,19 @@ export default function AdminDashboardScreen() {
     }
   };
 
+  const handleAdminPinConfirm = async (pin: string) => {
+    setPinLoading(true);
+    const { success } = await verifyPin(user?.phone || '', pin);
+    setPinLoading(false);
+    if (!success) {
+      setPinError('Incorrect PIN. Try again.');
+      return;
+    }
+    setPinError('');
+    setShowPinPrompt(false);
+    setPinVerified(true);
+  };
+
   if (!isAdmin) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
@@ -139,6 +163,36 @@ export default function AdminDashboardScreen() {
             This dashboard is restricted to the Monde admin account.
           </Text>
         </View>
+      </View>
+    );
+  }
+
+  if (!pinVerified) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text }]}>Admin Dashboard</Text>
+          <View style={{ width: 32 }} />
+        </View>
+        <View style={styles.errorState}>
+          <Ionicons name="shield-checkmark" size={48} color={colors.primary} />
+          <Text style={[styles.errorTitle, { color: colors.text }]}>Verify Identity</Text>
+          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+            Enter your PIN to access the admin dashboard.
+          </Text>
+        </View>
+        <PinConfirm
+          visible={showPinPrompt}
+          title="Admin Access"
+          subtitle="Enter your PIN to continue"
+          onConfirm={handleAdminPinConfirm}
+          onCancel={() => { setShowPinPrompt(false); setPinError(''); router.back(); }}
+          loading={pinLoading}
+          error={pinError}
+        />
       </View>
     );
   }

@@ -9,8 +9,6 @@ import { useStore } from '../store/useStore';
 import { formatCurrency, formatPhone, calcTopUpFee } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
-import PinConfirm from '../components/PinConfirm';
-import { verifyPin } from '../lib/api';
 
 const QUICK_AMOUNTS = [50, 100, 200, 500, 1000, 5000];
 
@@ -26,8 +24,6 @@ export default function TopUpScreen() {
   const [amount, setAmount] = useState('');
   const [selectedProvider, setSelectedProvider] = useState(user?.provider || 'airtel');
   const [loading, setLoading] = useState(false);
-  const [showPin, setShowPin] = useState(false);
-  const [pinError, setPinError] = useState('');
   const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
 
   const parsedAmount = parseFloat(amount) || 0;
@@ -58,13 +54,7 @@ export default function TopUpScreen() {
       Alert.alert('Amount Too Large', 'Maximum top-up amount is K50,000.');
       return;
     }
-    // Test deposits skip PIN verification
-    if (selectedProvider === 'test_deposit') {
-      processTopUpAction();
-      return;
-    }
-    setPinError('');
-    setShowPin(true);
+    processTopUpAction();
   };
 
   const processTopUpAction = async () => {
@@ -88,18 +78,7 @@ export default function TopUpScreen() {
       Alert.alert('Error', e?.message || 'Top-up failed.');
     } finally {
       setLoading(false);
-      setShowPin(false);
     }
-  };
-
-  const handlePinConfirm = async (pin: string) => {
-    const phone = user?.phone || '';
-    const { success: pinOk } = await verifyPin(phone, pin);
-    if (!pinOk) {
-      setPinError('Incorrect PIN');
-      return;
-    }
-    await processTopUpAction();
   };
 
   return (
@@ -268,16 +247,6 @@ export default function TopUpScreen() {
         </ScrollView>
       )}
 
-      {/* PIN Confirmation */}
-      <PinConfirm
-        visible={showPin}
-        title="Authorize Top-Up"
-        subtitle={`Top up ${formatCurrency(parsedAmount)} from ${provider?.name || 'provider'}`}
-        onConfirm={handlePinConfirm}
-        onCancel={() => { setShowPin(false); setPinError(''); }}
-        loading={loading}
-        error={pinError}
-      />
     </View>
   );
 }

@@ -310,7 +310,6 @@ const styles = StyleSheet.create({
   },
   readOnlyHint: {
     fontSize: FontSize.xs,
-    color: Colors.textLight,
     marginLeft: 'auto',
   },
   footer: {

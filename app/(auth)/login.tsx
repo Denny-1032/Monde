@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   error: {
     textAlign: 'center',
-    color: Colors.error,
+    color: '#EF4444',
     fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
   },

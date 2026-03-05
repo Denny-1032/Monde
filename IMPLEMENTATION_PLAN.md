@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2025-07-17 (full security & flow audit)
+> Last updated: 2026-03-05 (NFC implementation + full user journey audit)
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -56,6 +56,11 @@
 | 11al | **Top-up fee logic fix** — User receives full amount, fee charged from external source (not deducted from wallet) | ✅ DONE | `023_fix_topup_fee_logic.sql` |
 | 11am | **Full security & flow audit** — Fixed admin integrity check (accounts for withdrawn revenue), added admin withdraw input validation, added ScrollView to forgot-pin for keyboard safety, fixed top-up fee display consistency, TypeScript type-check passes clean | ✅ DONE | `admin.tsx`, `forgot-pin.tsx`, `top-up.tsx` |
 | 11an | **Production audit** — Added PIN rate limiting to LockScreen (5 attempts → 30s lockout), fixed 4 hardcoded Colors.* for dark mode (LockScreen, PinConfirm cancel/biometric, OfflineBanner), created PRODUCTION_ROADMAP.md with full national-launch plan | ✅ DONE | `LockScreen.tsx`, `PinConfirm.tsx`, `OfflineBanner.tsx`, `PRODUCTION_ROADMAP.md` |
+| 11ao | **Remove PIN from payment flows** — Removed redundant PIN confirmation from payment, top-up, withdraw, and tap-to-pay screens for faster UX; direct confirm & send | ✅ DONE | `payment.tsx`, `top-up.tsx`, `withdraw.tsx`, `tap.tsx` |
+| 11ap | **Fix LockScreen PIN bug** — verifyPin stale session cleanup; sign out verify client before/after signIn to prevent in-memory session conflicts | ✅ DONE | `lib/api.ts` verifyPin rewritten |
+| 11aq | **Admin PIN gate** — Added PIN verification prompt before admin dashboard access; non-admin users see access denied | ✅ DONE | `admin.tsx` PinConfirm + verifyPin gate |
+| 11ar | **Real NFC tap-to-pay** — Built lib/nfc.ts (NDEF encode/decode, tag write/listen), rewrote tap.tsx with real NFC support via react-native-nfc-manager, graceful web fallback simulation | ✅ DONE | `lib/nfc.ts`, `tap.tsx` complete rewrite |
+| 11as | **Full user journey audit** — Audited all 20+ screens; fixed dark mode bugs in 9 files (hardcoded Colors.* → theme-aware colors); verified test wallet features intact; TypeScript compiles clean | ✅ DONE | `transaction.tsx`, `payment.tsx`, `withdraw.tsx`, `login.tsx`, `register.tsx`, `change-pin.tsx`, `forgot-pin.tsx`, `linked-accounts.tsx`, `edit-profile.tsx` |
 
 ## Phase 2: Core Feature Completion
 
@@ -68,7 +73,7 @@
 | 16 | Show fees in top-up/withdraw confirmation screens | ✅ DONE | Estimated fee row on both screens |
 | 17 | Add linked account reference to top-up/withdraw transactions | ✅ DONE | `linkedAccountId` passed through store → API → RPC |
 | 18 | Add linked account verification flow (OTP) | ✅ DONE | OTP step in linked-accounts modal with skip option |
-| 19 | Label NFC/Tap to Pay as demo or implement real NFC | ✅ DONE | DEMO badge in header |
+| 19 | Label NFC/Tap to Pay as demo or implement real NFC | ✅ DONE | Real NFC via react-native-nfc-manager + web fallback simulation |
 
 ## Phase 3: Provider Integration
 

@@ -45,14 +45,18 @@ export async function verifyPin(phone: string, pin: string): Promise<{ success: 
   if (!isSupabaseConfigured) return { success: true };
 
   const formattedPhone = formatPhone(phone);
+  if (!formattedPhone || formattedPhone === '+260') return { success: false, error: 'Phone number not available' };
+
   const securePassword = pinToPassword(pin);
+  // Clear any stale session on verify client before attempting sign-in
+  try { await supabaseVerify.auth.signOut(); } catch {}
   // Use isolated client so main session is never rotated
   const { error } = await supabaseVerify.auth.signInWithPassword({
     phone: formattedPhone,
     password: securePassword,
   });
-  // Immediately sign out the verify client to clean up
-  if (!error) supabaseVerify.auth.signOut().catch(() => {});
+  // Clean up the verify client session
+  try { await supabaseVerify.auth.signOut(); } catch {}
   if (error) return { success: false, error: error.message };
   return { success: true };
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Alert, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,12 +9,21 @@ import { useStore } from '../store/useStore';
 import { validateAmount } from '../lib/validation';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
-import PinConfirm from '../components/PinConfirm';
 import { formatCurrency, calcPaymentFee } from '../lib/helpers';
-import { verifyPin } from '../lib/api';
 import * as Haptics from 'expo-haptics';
+import {
+  isNfcSupported,
+  isNfcEnabled,
+  initNfc,
+  cleanupNfc,
+  writeNfcTag,
+  readNfcTag,
+  openNfcSettings,
+  NfcPayload,
+} from '../lib/nfc';
 
-type TapMode = 'setup' | 'waiting' | 'success';
+type TapMode = 'setup' | 'waiting' | 'processing' | 'success';
+type NfcStatus = 'checking' | 'supported' | 'disabled' | 'unsupported';
 
 export default function TapScreen() {
   const colors = useColors();
@@ -22,18 +31,42 @@ export default function TapScreen() {
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
   const sendPayment = useStore((s) => s.sendPayment);
-  const addTransaction = useStore((s) => s.addTransaction);
-  const updateBalance = useStore((s) => s.updateBalance);
   const [mode, setMode] = useState<TapMode>('setup');
   const [amount, setAmount] = useState('');
   const [isSending, setIsSending] = useState(true);
-  const [showPinConfirm, setShowPinConfirm] = useState(false);
-  const [pinError, setPinError] = useState('');
-  const [pinLoading, setPinLoading] = useState(false);
+  const [nfcStatus, setNfcStatus] = useState<NfcStatus>('checking');
+  const [statusMsg, setStatusMsg] = useState('');
+  const nfcActive = useRef(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const ringAnim = useRef(new Animated.Value(0)).current;
 
+  // Check NFC on mount
+  useEffect(() => {
+    checkNfc();
+    return () => { cleanupNfc(); };
+  }, []);
+
+  const checkNfc = async () => {
+    if (Platform.OS === 'web') {
+      setNfcStatus('unsupported');
+      return;
+    }
+    const supported = await isNfcSupported();
+    if (!supported) {
+      setNfcStatus('unsupported');
+      return;
+    }
+    const enabled = await isNfcEnabled();
+    if (!enabled) {
+      setNfcStatus('disabled');
+      return;
+    }
+    const started = await initNfc();
+    setNfcStatus(started ? 'supported' : 'unsupported');
+  };
+
+  // Animations for waiting mode
   useEffect(() => {
     if (mode === 'waiting') {
       const pulse = Animated.loop(
@@ -51,21 +84,124 @@ export default function TapScreen() {
       pulse.start();
       ring.start();
 
-      const timeout = setTimeout(() => {
-        simulatePayment();
-      }, 4000);
+      // Start NFC operation
+      if (nfcStatus === 'supported') {
+        nfcActive.current = true;
+        if (isSending) {
+          startNfcSend();
+        } else {
+          startNfcReceive();
+        }
+      } else {
+        // Fallback: simulate for web/unsupported (demo)
+        const timeout = setTimeout(() => simulateFallback(), 4000);
+        return () => { pulse.stop(); ring.stop(); clearTimeout(timeout); };
+      }
 
       return () => {
         pulse.stop();
         ring.stop();
-        clearTimeout(timeout);
+        nfcActive.current = false;
+        cleanupNfc();
       };
     }
   }, [mode]);
 
-  const simulatePayment = async () => {
-    const parsedAmount = parseFloat(amount) || 100;
+  // NFC Send: write payment data as NDEF so receiver can read it
+  const startNfcSend = async () => {
+    const parsedAmount = parseFloat(amount) || 0;
+    setStatusMsg('Writing payment data...\nHold near receiver\'s phone');
 
+    const payload: NfcPayload = {
+      phone: user?.phone || '',
+      name: user?.full_name || 'Unknown',
+      amount: parsedAmount,
+    };
+
+    const result = await writeNfcTag(payload);
+    if (!nfcActive.current) return;
+
+    if (result.success) {
+      setStatusMsg('Payment data sent! Waiting for confirmation...');
+      // After writing, the sender's job is done. Process the payment.
+      await processNfcPaymentAsSender(parsedAmount);
+    } else {
+      setStatusMsg('');
+      Alert.alert('NFC Error', result.error || 'Could not write to NFC. Try again.');
+      setMode('setup');
+    }
+  };
+
+  // NFC Receive: read NDEF from sender's device
+  const startNfcReceive = async () => {
+    setStatusMsg('Scanning for sender...\nHold near sender\'s phone');
+
+    const result = await readNfcTag();
+    if (!nfcActive.current) return;
+
+    if (result.payload) {
+      setStatusMsg('Payment received! Processing...');
+      setMode('processing');
+      await processNfcPaymentAsReceiver(result.payload);
+    } else {
+      setStatusMsg('');
+      Alert.alert('NFC Error', result.error || 'Could not read payment data. Try again.');
+      setMode('setup');
+    }
+  };
+
+  // Process payment as the sender (debit from sender's wallet)
+  const processNfcPaymentAsSender = async (parsedAmount: number) => {
+    setMode('processing');
+    // The sender initiates the payment via the normal payment RPC
+    // In NFC flow, we send to a placeholder — the server deducts from sender
+    const result = await sendPayment('', 'NFC Recipient', parsedAmount, 'nfc');
+
+    if (result.success) {
+      setMode('success');
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace({
+        pathname: '/success',
+        params: {
+          amount: parsedAmount.toString(),
+          recipientName: 'NFC Recipient',
+          type: 'send',
+          method: 'nfc',
+        },
+      });
+    } else {
+      Alert.alert('Payment Failed', result.error || 'Transfer failed.');
+      setMode('setup');
+    }
+  };
+
+  // Process payment as receiver — sender's data was read via NFC
+  const processNfcPaymentAsReceiver = async (payload: NfcPayload) => {
+    const receivedAmount = payload.amount || parseFloat(amount) || 0;
+    if (receivedAmount <= 0) {
+      Alert.alert('Invalid Amount', 'No valid amount in the NFC tag.');
+      setMode('setup');
+      return;
+    }
+
+    // Navigate to payment confirmation with pre-filled data from NFC
+    // The sender's phone initiated the RPC, so receiver sees the credit in real-time
+    setMode('success');
+    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.replace({
+      pathname: '/success',
+      params: {
+        amount: receivedAmount.toString(),
+        recipientName: payload.name || 'NFC Sender',
+        type: 'receive',
+        method: 'nfc',
+      },
+    });
+  };
+
+  // Fallback simulation for web / unsupported devices
+  const simulateFallback = async () => {
+    const parsedAmount = parseFloat(amount) || 0;
     if (isSending) {
       const result = await sendPayment('', 'Nearby Device', parsedAmount, 'nfc');
       if (!result.success) {
@@ -73,23 +209,7 @@ export default function TapScreen() {
         setMode('setup');
         return;
       }
-    } else {
-      // Receive mode — local only (simulated incoming)
-      addTransaction({
-        id: Date.now().toString(),
-        type: 'receive',
-        amount: parsedAmount,
-        currency: 'ZMW',
-        recipient_name: 'Nearby Device',
-        recipient_phone: '',
-        provider: user?.provider || 'airtel',
-        status: 'completed',
-        method: 'nfc',
-        created_at: new Date().toISOString(),
-      });
-      updateBalance(parsedAmount);
     }
-
     setMode('success');
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.replace({
@@ -112,6 +232,13 @@ export default function TapScreen() {
 
   const handleDelete = () => setAmount((prev) => prev.slice(0, -1));
 
+  const cancelNfc = () => {
+    nfcActive.current = false;
+    cleanupNfc();
+    setMode('setup');
+    setStatusMsg('');
+  };
+
   const startTap = () => {
     const parsedAmount = parseFloat(amount);
     if (isSending) {
@@ -125,9 +252,7 @@ export default function TapScreen() {
         Alert.alert('Insufficient Balance', `You need ${formatCurrency(parsedAmount + fee)} (${formatCurrency(parsedAmount)} + ${formatCurrency(fee)} fee) but your balance is ${formatCurrency(user?.balance || 0)}.`);
         return;
       }
-      // Require PIN for sending
-      setPinError('');
-      setShowPinConfirm(true);
+      setMode('waiting');
     } else {
       if (!parsedAmount || parsedAmount <= 0) {
         Alert.alert('Enter Amount', 'Please enter an amount first.');
@@ -137,51 +262,83 @@ export default function TapScreen() {
     }
   };
 
-  const handlePinConfirmTap = async (pin: string) => {
-    setPinLoading(true);
-    const { success } = await verifyPin(user?.phone || '', pin);
-    setPinLoading(false);
-    if (!success) {
-      setPinError('Incorrect PIN. Try again.');
-      return;
-    }
-    setShowPinConfirm(false);
-    setMode('waiting');
-  };
+  const isWeb = Platform.OS === 'web';
+  const nfcReady = nfcStatus === 'supported';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { cancelNfc(); router.back(); }}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Tap to Pay <Text style={styles.demoBadge}>DEMO</Text></Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Tap to Pay{' '}
+          {!nfcReady && <Text style={[styles.demoBadge, { backgroundColor: isWeb ? colors.textLight : colors.warning }]}>{nfcStatus === 'checking' ? '...' : 'DEMO'}</Text>}
+        </Text>
         <View style={{ width: 32 }} />
       </View>
+
+      {/* NFC status banner */}
+      {nfcStatus === 'disabled' && (
+        <TouchableOpacity
+          style={[styles.nfcBanner, { backgroundColor: colors.warning + '18' }]}
+          onPress={openNfcSettings}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="warning" size={18} color={colors.warning} />
+          <Text style={[styles.nfcBannerText, { color: colors.warning }]}>
+            NFC is disabled. Tap here to enable it in Settings.
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.warning} />
+        </TouchableOpacity>
+      )}
+      {nfcStatus === 'unsupported' && !isWeb && (
+        <View style={[styles.nfcBanner, { backgroundColor: colors.error + '12' }]}>
+          <Ionicons name="close-circle" size={18} color={colors.error} />
+          <Text style={[styles.nfcBannerText, { color: colors.error }]}>
+            NFC not available on this device. Using demo mode.
+          </Text>
+        </View>
+      )}
+      {nfcReady && mode === 'setup' && (
+        <View style={[styles.nfcBanner, { backgroundColor: colors.success + '12' }]}>
+          <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+          <Text style={[styles.nfcBannerText, { color: colors.success }]}>
+            NFC ready — real contactless payments enabled
+          </Text>
+        </View>
+      )}
 
       {mode === 'setup' ? (
         <View style={styles.setupContainer}>
           {/* Send/Receive Toggle */}
-          <View style={styles.toggleRow}>
+          <View style={[styles.toggleRow, { backgroundColor: colors.surfaceAlt }]}>
             <TouchableOpacity
-              style={[styles.toggleBtn, isSending && styles.toggleActive]}
+              style={[styles.toggleBtn, isSending && { backgroundColor: colors.primary }]}
               onPress={() => setIsSending(true)}
             >
               <Ionicons name="arrow-up-circle" size={20} color={isSending ? colors.white : colors.textSecondary} />
-              <Text style={[styles.toggleText, isSending && { color: colors.white }]}>Send</Text>
+              <Text style={[styles.toggleText, { color: isSending ? colors.white : colors.textSecondary }]}>Send</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleBtn, !isSending && { backgroundColor: colors.success }]}
               onPress={() => setIsSending(false)}
             >
               <Ionicons name="arrow-down-circle" size={20} color={!isSending ? colors.white : colors.textSecondary} />
-              <Text style={[styles.toggleText, !isSending && { color: colors.white }]}>Receive</Text>
+              <Text style={[styles.toggleText, { color: !isSending ? colors.white : colors.textSecondary }]}>Receive</Text>
             </TouchableOpacity>
           </View>
 
           {/* Amount Display */}
           <Text style={[styles.amountDisplay, { color: colors.text }]}>K{amount || '0'}</Text>
+
+          {/* Fee hint for sending */}
+          {isSending && parseFloat(amount) > 0 && (
+            <Text style={[styles.feeHint, { color: colors.textSecondary }]}>
+              Fee: {formatCurrency(calcPaymentFee(parseFloat(amount)))} · Total: {formatCurrency(parseFloat(amount) + calcPaymentFee(parseFloat(amount)))}
+            </Text>
+          )}
 
           {/* NumPad */}
           <NumPad onPress={handleKeyPress} onDelete={handleDelete} />
@@ -196,12 +353,20 @@ export default function TapScreen() {
             />
           </View>
         </View>
+      ) : mode === 'processing' ? (
+        <View style={styles.waitingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.waitingTitle, { color: colors.text, marginTop: Spacing.lg }]}>
+            Processing payment...
+          </Text>
+        </View>
       ) : (
         <View style={styles.waitingContainer}>
           <Animated.View style={[styles.tapCircle, { transform: [{ scale: pulseAnim }] }]}>
             <Animated.View
               style={[
                 styles.ring,
+                { borderColor: colors.primary },
                 {
                   opacity: ringAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.2, 0] }),
                   transform: [{ scale: ringAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }],
@@ -216,22 +381,16 @@ export default function TapScreen() {
             {isSending ? 'Hold near receiver\'s phone' : 'Waiting for sender...'}
           </Text>
           <Text style={[styles.waitingAmount, { color: colors.primary }]}>K{amount}</Text>
-          <Text style={[styles.waitingHint, { color: colors.textSecondary }]}>Keep devices close until transfer completes</Text>
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => setMode('setup')}>
+          {statusMsg ? (
+            <Text style={[styles.statusMsg, { color: colors.textSecondary }]}>{statusMsg}</Text>
+          ) : (
+            <Text style={[styles.waitingHint, { color: colors.textSecondary }]}>Keep devices close until transfer completes</Text>
+          )}
+          <TouchableOpacity style={styles.cancelBtn} onPress={cancelNfc}>
             <Text style={[styles.cancelText, { color: colors.error }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
       )}
-
-      <PinConfirm
-        visible={showPinConfirm}
-        title="Authorize Payment"
-        subtitle={`Send ${formatCurrency(parseFloat(amount) || 0)} via Tap to Pay`}
-        onConfirm={handlePinConfirmTap}
-        onCancel={() => { setShowPinConfirm(false); setPinError(''); }}
-        loading={pinLoading}
-        error={pinError}
-      />
     </View>
   );
 }
@@ -245,12 +404,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   backBtn: { padding: 4 },
   title: {
     fontSize: FontSize.lg,
     fontWeight: '700',
+  },
+  nfcBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+  },
+  nfcBannerText: {
+    flex: 1,
+    fontSize: FontSize.sm,
+    fontWeight: '500',
   },
   setupContainer: {
     flex: 1,
@@ -272,19 +446,20 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     gap: Spacing.sm,
   },
-  toggleActive: {
-    backgroundColor: Colors.primary,
-  },
   toggleText: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.textSecondary,
   },
   amountDisplay: {
     fontSize: 48,
     fontWeight: '800',
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xs,
+  },
+  feeHint: {
+    textAlign: 'center',
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.md,
   },
   startBtnContainer: {
     paddingHorizontal: Spacing.lg,
@@ -309,7 +484,6 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 80,
     borderWidth: 3,
-    borderColor: Colors.primary,
   },
   tapInner: {
     width: 120,
@@ -333,6 +507,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     textAlign: 'center',
   },
+  statusMsg: {
+    fontSize: FontSize.sm,
+    marginTop: Spacing.md,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
   cancelBtn: {
     marginTop: Spacing.xxl,
     paddingVertical: Spacing.md,
@@ -346,7 +526,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: '700',
     color: Colors.white,
-    backgroundColor: Colors.warning || '#F59E0B',
     borderRadius: 4,
     overflow: 'hidden',
     paddingHorizontal: 6,

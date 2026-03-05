@@ -42,12 +42,12 @@ export default function TransactionDetailScreen() {
   const provider = Providers.find((p) => p.id === txn.provider);
 
   const statusColor =
-    txn.status === 'completed' ? Colors.success :
-    txn.status === 'failed' ? Colors.error : Colors.warning;
+    txn.status === 'completed' ? colors.success :
+    txn.status === 'failed' ? colors.error : colors.warning;
 
   const typeLabel = isTopUp ? 'Top Up' : isWithdraw ? 'Withdrawal' : isReceive ? 'Received' : isPayment ? 'Payment' : 'Sent';
   const amountPrefix = (isReceive || isTopUp) ? '+' : '-';
-  const amountColor = (isReceive || isTopUp) ? Colors.success : Colors.text;
+  const amountColor = (isReceive || isTopUp) ? colors.success : colors.text;
 
   const date = new Date(txn.created_at);
   const formattedDate = date.toLocaleDateString('en-ZM', {
@@ -107,7 +107,7 @@ export default function TransactionDetailScreen() {
           <Avatar
             name={txn.recipient_name}
             size={64}
-            color={isTopUp ? Colors.success : isWithdraw ? Colors.secondary : isReceive ? Colors.success : isPayment ? Colors.secondary : Colors.primaryLight}
+            color={isTopUp ? colors.success : isWithdraw ? colors.secondary : isReceive ? colors.success : isPayment ? colors.secondary : colors.primaryLight}
           />
           <Text style={[styles.recipientName, { color: colors.text }]}>{txn.recipient_name}</Text>
           {txn.recipient_phone ? (
@@ -330,6 +330,6 @@ const styles = StyleSheet.create({
   sendAgainText: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.white,
+    color: '#FFFFFF',
   },
 });

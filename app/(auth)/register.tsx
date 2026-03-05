@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   errorText: {
-    color: Colors.error,
+    color: '#EF4444',
     fontSize: FontSize.sm,
     textAlign: 'center',
     marginTop: Spacing.md,

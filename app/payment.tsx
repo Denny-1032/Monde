@@ -8,10 +8,9 @@ import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatPhone, calcPaymentFee } from '../lib/helpers';
 import { sanitizeText, validateAmount, isValidPhone } from '../lib/validation';
-import { verifyPin, searchProfilesByPhone, lookupByHandle } from '../lib/api';
+import { searchProfilesByPhone, lookupByHandle } from '../lib/api';
 import Button from '../components/Button';
 import Avatar from '../components/Avatar';
-import PinConfirm from '../components/PinConfirm';
 import * as Contacts from 'expo-contacts';
 import * as Haptics from 'expo-haptics';
 
@@ -45,8 +44,6 @@ export default function PaymentScreen() {
   const [amount, setAmount] = useState(params.amount || '');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPinConfirm, setShowPinConfirm] = useState(false);
-  const [pinError, setPinError] = useState('');
 
   // Contact & user lookup
   const [suggestions, setSuggestions] = useState<ContactSuggestion[]>([]);
@@ -186,21 +183,8 @@ export default function PaymentScreen() {
     setStep('confirm');
   };
 
-  const handleConfirm = () => {
-    setPinError('');
-    setShowPinConfirm(true);
-  };
-
-  const handlePinConfirm = async (pin: string) => {
-    const phone = user?.phone || '';
+  const handleConfirm = async () => {
     setLoading(true);
-    const { success: pinOk } = await verifyPin(phone, pin);
-    if (!pinOk) {
-      setLoading(false);
-      setPinError('Incorrect PIN. Try again.');
-      return;
-    }
-
     const parsedAmount = parseFloat(amount);
     const safeName = sanitizeText(recipientName) || 'Unknown';
     const safeNote = note ? sanitizeText(note) : undefined;
@@ -212,7 +196,6 @@ export default function PaymentScreen() {
       safeNote,
     );
     setLoading(false);
-    setShowPinConfirm(false);
 
     if (result.success) {
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -363,15 +346,6 @@ export default function PaymentScreen() {
       )}
     </KeyboardAvoidingView>
 
-    <PinConfirm
-      visible={showPinConfirm}
-      title="Authorize Payment"
-      subtitle={`Send ${formatCurrency(parseFloat(amount) || 0)} to ${recipientName || 'recipient'}`}
-      onConfirm={handlePinConfirm}
-      onCancel={() => { setShowPinConfirm(false); setPinError(''); }}
-      loading={loading}
-      error={pinError}
-    />
     </>
   );
 }
@@ -437,7 +411,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: '#E5E7EB',
   },
   suggestionName: {
     fontSize: FontSize.md,
@@ -451,10 +425,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
+    backgroundColor: Colors.primary + '15',
   },
   mondeBadgeText: {
     fontSize: FontSize.xs,
     fontWeight: '700',
+    color: Colors.primary,
   },
   recipientPreview: {
     flexDirection: 'row',
