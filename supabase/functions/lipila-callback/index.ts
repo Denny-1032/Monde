@@ -85,12 +85,28 @@ Deno.serve(async (req: Request) => {
     // Log the callback for audit purposes
     console.log(`[lipila-callback] referenceId=${referenceId} status=${status} type=${type} paymentType=${paymentType} amount=${amount} identifier=${identifier}`);
 
-    // Try to find the transaction by reference field matching the Lipila referenceId
-    const { data: txn, error: findErr } = await adminClient
+    // Try to find the transaction by lipila_reference_id (primary) or reference (fallback)
+    let txn: any = null;
+    let findErr: any = null;
+
+    const { data: txn1, error: err1 } = await adminClient
       .from("transactions")
       .select("id, status, type")
-      .eq("reference", referenceId)
+      .eq("lipila_reference_id", referenceId)
       .maybeSingle();
+    txn = txn1;
+    findErr = err1;
+
+    // Fallback: try the reference column for older transactions
+    if (!txn && !findErr) {
+      const { data: txn2, error: err2 } = await adminClient
+        .from("transactions")
+        .select("id, status, type")
+        .eq("reference", referenceId)
+        .maybeSingle();
+      txn = txn2;
+      findErr = err2;
+    }
 
     if (findErr) {
       console.error(`[lipila-callback] DB lookup error: ${findErr.message}`);

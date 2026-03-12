@@ -399,7 +399,7 @@ export async function getTransactions(
   let query = supabase
     .from('transactions')
     .select('*')
-    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+    .eq('sender_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit + 1); // fetch one extra to detect if there's a next page
 
@@ -492,6 +492,18 @@ export async function processTopUp(params: {
   });
 
   if (error) return { success: false, error: error.message };
+
+  // Store Lipila referenceId so the callback handler can match it
+  if (lipilaResult.referenceId && data?.transaction_id) {
+    await supabase
+      .from('transactions')
+      .update({ lipila_reference_id: lipilaResult.referenceId })
+      .eq('id', data.transaction_id)
+      .then(({ error: refErr }) => {
+        if (refErr) console.warn('Failed to store Lipila referenceId:', refErr.message);
+      });
+  }
+
   return data;
 }
 
@@ -529,6 +541,18 @@ export async function processWithdraw(params: {
   });
 
   if (error) return { success: false, error: error.message };
+
+  // Store Lipila referenceId so the callback handler can match it
+  if (lipilaResult.referenceId && data?.transaction_id) {
+    await supabase
+      .from('transactions')
+      .update({ lipila_reference_id: lipilaResult.referenceId })
+      .eq('id', data.transaction_id)
+      .then(({ error: refErr }) => {
+        if (refErr) console.warn('Failed to store Lipila referenceId:', refErr.message);
+      });
+  }
+
   return data;
 }
 
@@ -637,16 +661,6 @@ export function subscribeToTransactions(userId: string, callback: (txn: Transact
         schema: 'public',
         table: 'transactions',
         filter: `sender_id=eq.${userId}`,
-      },
-      (payload) => callback(mapRealtimeTxn(payload.new))
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'transactions',
-        filter: `recipient_id=eq.${userId}`,
       },
       (payload) => callback(mapRealtimeTxn(payload.new))
     )
