@@ -3,6 +3,7 @@ import { Transaction, UserProfile, LinkedAccount, FeeSummary, FloatSummary, FeeD
 import { pinToPassword, sanitizeText } from './validation';
 
 const TEST_PROVIDERS = new Set(['test_deposit', 'test_withdraw']);
+const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
 
 async function getLinkedAccountPhone(userId: string, linkedAccountId?: string): Promise<string | undefined> {
   if (!linkedAccountId || !isSupabaseConfigured) return undefined;
@@ -42,6 +43,12 @@ async function callLipila(params: {
     return { success: true };
   }
 
+  // Skip Lipila when not enabled (development/testing mode)
+  // In this mode, wallet operations proceed without real money movement
+  if (!LIPILA_ENABLED) {
+    return { success: true };
+  }
+
   // Only call Lipila for supported MoMo providers (bank providers not yet supported via API)
   if (!LIPILA_MOMO_PROVIDERS.has(params.provider)) {
     return { success: true };
@@ -69,8 +76,14 @@ async function callLipila(params: {
     },
   });
 
-  if (error) return { success: false, error: error.message };
-  if (!data?.success) return { success: false, error: data?.error || 'Lipila request failed' };
+  if (error) {
+    console.warn('[callLipila] Edge Function error:', error.message);
+    return { success: false, error: `Payment provider error: ${error.message}` };
+  }
+  if (!data?.success) {
+    console.warn('[callLipila] Lipila error:', data?.error);
+    return { success: false, error: data?.error || 'Payment provider request failed' };
+  }
   return { success: true, referenceId: data?.referenceId };
 }
 
