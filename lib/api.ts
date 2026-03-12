@@ -2,6 +2,78 @@ import { supabase, supabaseVerify, isSupabaseConfigured } from './supabase';
 import { Transaction, UserProfile, LinkedAccount, FeeSummary, FloatSummary, FeeDetailsResponse } from '../constants/types';
 import { pinToPassword, sanitizeText } from './validation';
 
+const TEST_PROVIDERS = new Set(['test_deposit', 'test_withdraw']);
+
+async function getLinkedAccountPhone(userId: string, linkedAccountId?: string): Promise<string | undefined> {
+  if (!linkedAccountId || !isSupabaseConfigured) return undefined;
+  const { data } = await supabase
+    .from('linked_accounts')
+    .select('account_phone')
+    .eq('id', linkedAccountId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data?.account_phone || undefined;
+}
+
+async function getUserPhone(userId: string): Promise<string | undefined> {
+  if (!isSupabaseConfigured) return undefined;
+  const { data } = await supabase
+    .from('profiles')
+    .select('phone')
+    .eq('id', userId)
+    .maybeSingle();
+  return data?.phone || undefined;
+}
+
+// Mobile money providers that Lipila supports
+const LIPILA_MOMO_PROVIDERS = new Set(['airtel', 'mtn', 'zamtel']);
+
+async function callLipila(params: {
+  action: 'collect' | 'disburse';
+  amount: number;
+  userId: string;
+  provider: string;
+  linkedAccountId?: string;
+  destinationPhone?: string;
+  note?: string;
+}): Promise<{ success: boolean; referenceId?: string; error?: string }> {
+  // Skip Lipila for test providers or when Supabase isn't configured
+  if (TEST_PROVIDERS.has(params.provider) || !isSupabaseConfigured) {
+    return { success: true };
+  }
+
+  // Only call Lipila for supported MoMo providers (bank providers not yet supported via API)
+  if (!LIPILA_MOMO_PROVIDERS.has(params.provider)) {
+    return { success: true };
+  }
+
+  // Resolve the account number: destination phone > linked account phone > user's own phone
+  const linkedPhone = await getLinkedAccountPhone(params.userId, params.linkedAccountId);
+  const userPhone = await getUserPhone(params.userId);
+  const accountNumber = params.destinationPhone || linkedPhone || userPhone;
+  if (!accountNumber) {
+    return { success: false, error: 'No phone/account number available for provider transaction.' };
+  }
+
+  const narration =
+    params.note ||
+    (params.action === 'collect' ? `Monde top-up via ${params.provider}` : `Monde withdrawal via ${params.provider}`);
+
+  const { data, error } = await supabase.functions.invoke('lipila-payments', {
+    body: {
+      action: params.action,
+      amount: params.amount,
+      accountNumber,
+      currency: 'ZMW',
+      narration,
+    },
+  });
+
+  if (error) return { success: false, error: error.message };
+  if (!data?.success) return { success: false, error: data?.error || 'Lipila request failed' };
+  return { success: true, referenceId: data?.referenceId };
+}
+
 // ============================================
 // Auth Functions
 // Uses native phone-based auth (Twilio Verify)
@@ -398,6 +470,18 @@ export async function processTopUp(params: {
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
+  const lipilaResult = await callLipila({
+    action: 'collect',
+    amount: params.amount,
+    userId: params.userId,
+    provider: params.provider,
+    linkedAccountId: params.linkedAccountId,
+    note: params.note,
+  });
+  if (!lipilaResult.success) {
+    return { success: false, error: lipilaResult.error || 'Top-up provider request failed' };
+  }
+
   const { data, error } = await supabase.rpc('process_topup', {
     p_user_id: params.userId,
     p_amount: params.amount,
@@ -420,6 +504,19 @@ export async function processWithdraw(params: {
   linkedAccountId?: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  const lipilaResult = await callLipila({
+    action: 'disburse',
+    amount: params.amount,
+    userId: params.userId,
+    provider: params.provider,
+    linkedAccountId: params.linkedAccountId,
+    destinationPhone: params.destinationPhone,
+    note: params.note,
+  });
+  if (!lipilaResult.success) {
+    return { success: false, error: lipilaResult.error || 'Withdrawal provider request failed' };
+  }
 
   const { data, error } = await supabase.rpc('process_withdraw', {
     p_user_id: params.userId,

@@ -75,16 +75,16 @@
 | 18 | Add linked account verification flow (OTP) | ✅ DONE | OTP step in linked-accounts modal with skip option |
 | 19 | Label NFC/Tap to Pay as demo or implement real NFC | ✅ DONE | Real NFC via react-native-nfc-manager + web fallback simulation |
 
-## Phase 3: Provider Integration
+## Phase 3: Provider Integration (Lipila Payment Gateway)
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| 20 | Integrate Airtel Money API | ⬜ TODO | Deferred — launch with manual top-up |
-| 21 | Integrate MTN MoMo API | ⬜ TODO | Deferred |
-| 22 | Integrate Zamtel Kwacha API | ⬜ TODO | Deferred |
-| 23 | Add webhook handlers for async provider confirmations | ⬜ TODO | Deferred |
-| 24 | Add transaction status polling for pending transactions | ⬜ TODO | Deferred |
-| 25 | Handle provider-side failures and reversals | ⬜ TODO | Deferred |
+| 20 | Integrate Airtel Money API | ✅ DONE | Via Lipila MoMo collections/disbursements (`lipila-payments` Edge Function) |
+| 21 | Integrate MTN MoMo API | ✅ DONE | Via Lipila MoMo collections/disbursements (`lipila-payments` Edge Function) |
+| 22 | Integrate Zamtel Kwacha API | ✅ DONE | Via Lipila MoMo collections/disbursements (`lipila-payments` Edge Function) |
+| 23 | Add webhook handlers for async provider confirmations | ✅ DONE | `lipila-callback` Edge Function + `lipila_callbacks` table (migration 024) |
+| 24 | Add transaction status polling for pending transactions | ✅ DONE | Status check action in `lipila-payments` Edge Function (`GET /check-status`) |
+| 25 | Handle provider-side failures and reversals | ⬜ TODO | Callback updates transaction status; manual reconciliation via admin dashboard |
 
 ## Phase 4: Polish & Production Readiness
 
