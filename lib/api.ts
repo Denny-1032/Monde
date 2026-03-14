@@ -1,6 +1,7 @@
 import { supabase, supabaseVerify, isSupabaseConfigured } from './supabase';
 import { Transaction, UserProfile, LinkedAccount, FeeSummary, FloatSummary, FeeDetailsResponse } from '../constants/types';
 import { pinToPassword, sanitizeText } from './validation';
+import { calcTopUpFee } from './helpers';
 
 const TEST_PROVIDERS = new Set(['test_deposit', 'test_withdraw']);
 const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
@@ -76,8 +77,16 @@ async function callLipila(params: {
   // Use raw fetch() instead of supabase.functions.invoke() to avoid
   // the generic "non-2xx status code" wrapping that hides actual errors.
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData?.session?.access_token;
+    // Refresh session first to ensure a valid access token — prevents
+    // "Invalid or expired session" after app lock/unlock or idle periods
+    let accessToken: string | undefined;
+    const { data: refreshData } = await supabase.auth.refreshSession();
+    accessToken = refreshData?.session?.access_token;
+    if (!accessToken) {
+      // Fallback: try cached session (may still be valid)
+      const { data: sessionData } = await supabase.auth.getSession();
+      accessToken = sessionData?.session?.access_token;
+    }
     if (!accessToken) {
       return { success: false, error: 'Not authenticated. Please sign in again.' };
     }
@@ -526,9 +535,15 @@ export async function processTopUp(params: {
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
+  // Collect amount + Monde fee from external provider so the fee is sourced
+  // from mobile money, not created from thin air. The DB RPC credits the full
+  // p_amount to the user and separately credits the fee to the admin account.
+  const mondeFee = calcTopUpFee(params.amount);
+  const lipilaCollectAmount = Math.round((params.amount + mondeFee) * 100) / 100;
+
   const lipilaResult = await callLipila({
     action: 'collect',
-    amount: params.amount,
+    amount: lipilaCollectAmount,
     userId: params.userId,
     provider: params.provider,
     linkedAccountId: params.linkedAccountId,

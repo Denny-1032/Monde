@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2026-03-05 (NFC implementation + full user journey audit)
+> Last updated: 2025-06-18 (Admin fix, session refresh, fee fix, balance-after, NFC diagnostics)
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -61,6 +61,11 @@
 | 11aq | **Admin PIN gate** — Added PIN verification prompt before admin dashboard access; non-admin users see access denied | ✅ DONE | `admin.tsx` PinConfirm + verifyPin gate |
 | 11ar | **Real NFC tap-to-pay** — Built lib/nfc.ts (NDEF encode/decode, tag write/listen), rewrote tap.tsx with real NFC support via react-native-nfc-manager, graceful web fallback simulation | ✅ DONE | `lib/nfc.ts`, `tap.tsx` complete rewrite |
 | 11as | **Full user journey audit** — Audited all 20+ screens; fixed dark mode bugs in 9 files (hardcoded Colors.* → theme-aware colors); verified test wallet features intact; TypeScript compiles clean | ✅ DONE | `transaction.tsx`, `payment.tsx`, `withdraw.tsx`, `login.tsx`, `register.tsx`, `change-pin.tsx`, `forgot-pin.tsx`, `linked-accounts.tsx`, `edit-profile.tsx` |
+| 11at | **Fix admin sign-in** — UUID 00000000... rejected by GoTrue; created real admin user via Auth Admin API; UUID 0 preserved as ledger-only fee account | ✅ DONE | `scripts/diagnose-and-fix.mjs` |
+| 11au | **Fix session expiry on top-up** — Added `refreshSession()` before `callLipila` to prevent stale JWT after app lock/unlock | ✅ DONE | `lib/api.ts` callLipila |
+| 11av | **Fix fee discrepancy** — Lipila collection now includes Monde fee (amount + fee) so fee is sourced from external provider, not created from thin air | ✅ DONE | `lib/api.ts` processTopUp |
+| 11aw | **Balance after transaction** — History screen computes running balance; TransactionItem shows "Bal: KX.XX" below each amount | ✅ DONE | `history.tsx`, `TransactionItem.tsx`, `types.ts` |
+| 11ax | **NFC diagnostic logging** — Added clear error message when NFC fails in Expo Go (requires dev build) | ✅ DONE | `lib/nfc.ts` |
 
 ## Phase 2: Core Feature Completion
 

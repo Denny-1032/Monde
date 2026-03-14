@@ -18,6 +18,7 @@ export type Transaction = {
   note?: string;
   fee?: number;
   reference?: string;
+  balance_after?: number;
   created_at: string;
 };
 

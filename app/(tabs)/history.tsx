@@ -54,8 +54,26 @@ export default function HistoryScreen() {
     setRefreshing(false);
   }, []);
 
+  const balance = useStore((s) => s.user?.balance ?? 0);
+
   const sections = useMemo(() => {
-    const filtered = transactions.filter((txn) => {
+    // Compute balance_after for each transaction by working backwards from
+    // the current balance. Transactions are sorted newest-first.
+    let runningBalance = balance;
+    const withBalance = transactions.map((txn) => {
+      const bal = runningBalance;
+      // Reverse the effect of this transaction to get prior balance
+      const isInflow = txn.type === 'receive' || txn.type === 'topup';
+      const fee = txn.fee ?? 0;
+      if (isInflow) {
+        runningBalance = runningBalance - txn.amount;
+      } else {
+        runningBalance = runningBalance + txn.amount + fee;
+      }
+      return { ...txn, balance_after: Math.round(bal * 100) / 100 };
+    });
+
+    const filtered = withBalance.filter((txn) => {
       if (filter === 'sent') return txn.type === 'send';
       if (filter === 'received') return txn.type === 'receive';
       if (filter === 'topup') return txn.type === 'topup';
@@ -63,7 +81,7 @@ export default function HistoryScreen() {
       return true;
     });
     return groupByDate(filtered);
-  }, [transactions, filter]);
+  }, [transactions, filter, balance]);
 
   const renderItem = useCallback(({ item }: { item: Transaction }) => (
     <TransactionItem

@@ -49,9 +49,16 @@ function TransactionItem({ transaction, onPress }: Props) {
           <Text style={[styles.metaText, { color: colors.textLight }]}>{formatDate(transaction.created_at)}</Text>
         </View>
       </View>
-      <Text style={[styles.amount, { color: amountColor }]}>
-        {amountPrefix}{formatCurrency(transaction.amount)}
-      </Text>
+      <View style={styles.amountCol}>
+        <Text style={[styles.amount, { color: amountColor }]}>
+          {amountPrefix}{formatCurrency(transaction.amount)}
+        </Text>
+        {transaction.balance_after != null && (
+          <Text style={[styles.balanceAfter, { color: colors.textLight }]}>
+            Bal: {formatCurrency(transaction.balance_after)}
+          </Text>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -80,9 +87,16 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: FontSize.xs,
   },
+  amountCol: {
+    alignItems: 'flex-end',
+  },
   amount: {
     fontSize: FontSize.md,
     fontWeight: '700',
+  },
+  balanceAfter: {
+    fontSize: FontSize.xs - 1,
+    marginTop: 2,
   },
 });
 

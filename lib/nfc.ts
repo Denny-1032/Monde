@@ -12,12 +12,19 @@ export interface NfcPayload {
 
 const MONDE_URI_PREFIX = 'monde://pay?';
 
-/** Check if device has NFC hardware */
+/** Check if device has NFC hardware.
+ *  NOTE: react-native-nfc-manager is a native module that does NOT work in
+ *  Expo Go. It requires a development build (EAS Build / expo prebuild).
+ *  In Expo Go, isSupported() will throw "NfcManager is not available". */
 export async function isNfcSupported(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {
-    return await NfcManager.isSupported();
-  } catch {
+    const supported = await NfcManager.isSupported();
+    console.log('[NFC] isSupported:', supported);
+    return supported;
+  } catch (e: any) {
+    console.warn('[NFC] isSupported check failed:', e?.message || e,
+      '— If running in Expo Go, NFC requires a development build (expo prebuild / EAS Build).');
     return false;
   }
 }
