@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,9 +23,19 @@ export default function TopUpScreen() {
 
   const [step, setStep] = useState<'provider' | 'amount' | 'confirm'>('amount');
   const [amount, setAmount] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState(user?.provider || 'airtel');
+  const defaultAccount = linkedAccounts.find((a) => a.is_default);
+  const [selectedProvider, setSelectedProvider] = useState(defaultAccount?.provider || user?.provider || 'airtel');
   const [loading, setLoading] = useState(false);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(defaultAccount?.id);
+
+  // Auto-select default linked account if loaded after initial render
+  useEffect(() => {
+    if (!selectedAccountId && linkedAccounts.length > 0) {
+      const def = linkedAccounts.find((a) => a.is_default) || linkedAccounts[0];
+      setSelectedProvider(def.provider);
+      setSelectedAccountId(def.id);
+    }
+  }, [linkedAccounts]);
 
   const parsedAmount = parseFloat(amount) || 0;
   const provider = Providers.find((p) => p.id === selectedProvider);
@@ -115,7 +125,7 @@ export default function TopUpScreen() {
               <View>
                 <Text style={[styles.providerLabel, { color: colors.textLight }]}>From</Text>
                 <Text style={[styles.providerName, { color: colors.text }]}>
-                  {selectedProvider === 'test_deposit' ? 'Test Deposit' : (provider?.name || 'Select Provider')}
+                  {selectedProvider === 'test_deposit' ? 'Test Deposit' : (selectedAccountId ? (linkedAccounts.find((a) => a.id === selectedAccountId)?.account_name || provider?.name) : (provider?.name || 'Select Provider'))}
                 </Text>
               </View>
             </View>
@@ -183,7 +193,7 @@ export default function TopUpScreen() {
           {linkedAccounts.length > 0 && (
             <>
               <Text style={[styles.providerListTitle, { color: colors.text }]}>Your Accounts</Text>
-              {linkedAccounts.map((acc) => {
+              {[...linkedAccounts].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)).map((acc) => {
                 const ap = Providers.find((p) => p.id === acc.provider);
                 return (
                   <TouchableOpacity

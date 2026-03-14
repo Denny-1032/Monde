@@ -124,17 +124,28 @@ async function callLipila(params: {
     console.log(`[callLipila] Response HTTP ${response.status}:`, rawText.substring(0, 500));
 
     if (!data?.success) {
-      const errorMsg = data?.error || '';
-      const lipilaMsg = data?.lipilaResponse?.message || '';
-      const detail = lipilaMsg && lipilaMsg !== errorMsg ? `${errorMsg} — ${lipilaMsg}` : errorMsg;
-      console.warn('[callLipila] Lipila error:', errorMsg);
+      // Build the most descriptive error possible
+      const errorMsg = data?.error || data?.message || data?.msg || '';
+      const lipilaMsg = data?.lipilaResponse?.message || data?.lipilaResponse?.error || '';
+      const httpInfo = data?.lipilaStatusCode ? ` (HTTP ${data.lipilaStatusCode})` : '';
+      let detail = '';
+      if (errorMsg && lipilaMsg && lipilaMsg !== errorMsg) {
+        detail = `${errorMsg} — ${lipilaMsg}${httpInfo}`;
+      } else if (errorMsg) {
+        detail = `${errorMsg}${httpInfo}`;
+      } else if (lipilaMsg) {
+        detail = `${lipilaMsg}${httpInfo}`;
+      }
+      console.warn('[callLipila] Lipila error:', errorMsg || '(no error field)');
+      console.warn('[callLipila] Full response:', rawText.substring(0, 1000));
       if (data?.lipilaResponse) {
         console.warn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
       }
-      if (data?.lipilaStatusCode) {
-        console.warn('[callLipila] Lipila HTTP status:', data.lipilaStatusCode);
+      // If we still have no detail, dump what we got so the user can report the issue
+      if (!detail) {
+        detail = `Unexpected response from payment service (HTTP ${response.status}): ${rawText.substring(0, 200)}`;
       }
-      return { success: false, error: detail || 'Payment provider request failed. Please check your linked account and try again.' };
+      return { success: false, error: detail };
     }
     return { success: true, referenceId: data?.referenceId };
   } catch (err: any) {

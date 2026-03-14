@@ -120,9 +120,15 @@ function generateIcon(size, isAdaptive) {
   // Fill green background
   fillRect(png, 0, 0, size, size, BRAND_GREEN);
 
-  // Draw centered M — adaptive icons get clipped, so use smaller area
-  const mSize = isAdaptive ? Math.round(size * 0.50) : Math.round(size * 0.58);
-  drawCleanM(png, Math.round(size / 2), Math.round(size / 2), mSize, WHITE);
+  // Draw white circle badge in center (matching splash screen style)
+  const cx = Math.round(size / 2);
+  const cy = Math.round(size / 2);
+  const circleRadius = isAdaptive ? Math.round(size * 0.22) : Math.round(size * 0.28);
+  fillCircle(png, cx, cy, circleRadius, WHITE);
+
+  // Draw green M inside the white circle
+  const mSize = Math.round(circleRadius * 1.25);
+  drawCleanM(png, cx, cy, mSize, BRAND_GREEN);
 
   return png;
 }
