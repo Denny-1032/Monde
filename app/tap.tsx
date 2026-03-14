@@ -301,14 +301,7 @@ export default function TapScreen() {
           </Text>
         </View>
       )}
-      {nfcReady && mode === 'setup' && (
-        <View style={[styles.nfcBanner, { backgroundColor: colors.success + '12' }]}>
-          <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-          <Text style={[styles.nfcBannerText, { color: colors.success }]}>
-            NFC ready — real contactless payments enabled
-          </Text>
-        </View>
-      )}
+      {/* NFC ready: no banner needed — only show errors/warnings */}
 
       {mode === 'setup' ? (
         <View style={styles.setupContainer}>

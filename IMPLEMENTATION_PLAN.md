@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2025-06-20 (3% fee model, admin accounts tab, dark mode audit pass 3)
+> Last updated: 2026-03-14 (EAS fix, app icon, NFC UX, PDF export, Lipila go-live, APK build)
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -69,6 +69,12 @@
 | 11ay | **3% fee model** — Unified flat 3% fee with K10 minimum for top-ups and withdrawals; Monde keeps 0.5%/1.5% respectively after Lipila's share; updated helpers, tests (35 pass), SQL migration 026, API, UI labels, withdraw-all formula | ✅ DONE | `helpers.ts`, `helpers.test.ts`, `026_fee_model_3_percent.sql`, `api.ts`, `top-up.tsx`, `withdraw.tsx` |
 | 11az | **Admin accounts tab** — User search by name/phone/handle, transaction history with month picker, PDF statement export via Share API; added `adminSearchUsers` + `adminGetUserTransactions` API functions | ✅ DONE | `admin.tsx`, `api.ts` |
 | 11ba | **Dark mode audit pass 3** — Fixed 10 hardcoded colors across 7 files: error text (#EF4444), border colors (#E5E7EB), chip text (#6B7280), progress dots (#6C63FF) — all now use dynamic theme colors | ✅ DONE | `login.tsx`, `register.tsx`, `change-pin.tsx`, `forgot-pin.tsx`, `withdraw.tsx`, `payment.tsx`, `linked-accounts.tsx` |
+| 11bb | **Fix EAS build demo mode** — Created `.easignore` (excludes `android/`, `ios/` but includes `.env`) so EAS cloud builds receive Supabase credentials instead of falling back to mock data | ✅ DONE | `.easignore` |
+| 11bc | **App icon redesign** — Generated proper 1024x1024 icon with bold white "M" + tap/NFC indicator on Monde green; replaced tiny placeholder "M"; favicon also regenerated | ✅ DONE | `assets/icon.png`, `assets/adaptive-icon.png`, `assets/favicon.png`, `scripts/generate-icons.js` |
+| 11bd | **NFC UX cleanup** — Removed "NFC ready" success banner from tap.tsx; now only shows errors (unsupported device) or warnings (NFC disabled) | ✅ DONE | `tap.tsx` |
+| 11be | **PDF statement export** — Replaced text-based account statement with professional HTML→PDF via `expo-print` + `expo-sharing`; styled header, summary cards, transaction table | ✅ DONE | `admin.tsx`, `expo-print`, `expo-sharing` |
+| 11bf | **Lipila go-live script** — Created `scripts/go-live-lipila.mjs` that updates `.env`, pushes secrets to Supabase, validates config; edge function already supports live mode | ✅ DONE | `scripts/go-live-lipila.mjs` |
+| 11bg | **app.json cleanup** — Fixed duplicate CAMERA permission, removed unnecessary RECORD_AUDIO; EAS project linked to acecode10 | ✅ DONE | `app.json` |
 
 ## Phase 2: Core Feature Completion
 

@@ -3,6 +3,8 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   RefreshControl, ActivityIndicator, Alert, TextInput, Share, Platform,
 } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -192,17 +194,8 @@ export default function AdminDashboardScreen() {
     setExporting(true);
     try {
       const period = `${MONTH_NAMES[dateMonth]} ${dateYear}`;
-      let text = `MONDE WALLET — ACCOUNT STATEMENT\n`;
-      text += `${'='.repeat(40)}\n`;
-      text += `Account: ${selectedUser.full_name}\n`;
-      text += `Phone: ${formatPhone(selectedUser.phone)}\n`;
-      if (selectedUser.handle) text += `Handle: @${selectedUser.handle}\n`;
-      text += `Period: ${period}\n`;
-      text += `Current Balance: ${formatCurrency(selectedUser.balance)}\n`;
-      text += `Total Transactions: ${userTxnTotal}\n`;
-      text += `${'='.repeat(40)}\n\n`;
 
-      // Summary
+      // Summary calculations
       let totalIn = 0, totalOut = 0, totalFees = 0;
       userTxns.forEach((t) => {
         const isIn = t.type === 'receive' || t.type === 'topup';
@@ -210,33 +203,89 @@ export default function AdminDashboardScreen() {
         else totalOut += t.amount;
         totalFees += t.fee ?? 0;
       });
-      text += `SUMMARY\n`;
-      text += `  Total In:   ${formatCurrency(totalIn)}\n`;
-      text += `  Total Out:  ${formatCurrency(totalOut)}\n`;
-      text += `  Total Fees: ${formatCurrency(totalFees)}\n\n`;
 
-      text += `TRANSACTIONS\n`;
-      text += `${'-'.repeat(40)}\n`;
-
-      userTxns.forEach((t) => {
+      // Build transaction rows HTML
+      const txnRows = userTxns.map((t, i) => {
         const date = new Date(t.created_at);
-        const dateStr = `${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-        const sign = (t.type === 'receive' || t.type === 'topup') ? '+' : '-';
-        const feeStr = t.fee ? `  Fee: ${formatCurrency(t.fee)}` : '';
-        text += `${dateStr}  ${t.type.toUpperCase().padEnd(10)} ${sign}${formatCurrency(t.amount)}${feeStr}\n`;
-        text += `  ${t.recipient_name || ''} ${t.note || ''}\n`;
-        if (t.reference) text += `  Ref: ${t.reference}\n`;
-        text += '\n';
-      });
+        const dateStr = `${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
+        const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        const isIn = t.type === 'receive' || t.type === 'topup';
+        const sign = isIn ? '+' : '-';
+        const amtColor = isIn ? '#16a34a' : '#dc2626';
+        const feeStr = t.fee ? formatCurrency(t.fee) : '-';
+        const bgColor = i % 2 === 0 ? '#f9fafb' : '#ffffff';
+        return `<tr style="background:${bgColor}">
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;">${dateStr}<br/><span style="color:#6b7280;font-size:11px;">${timeStr}</span></td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-transform:capitalize;">${t.type}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;">${t.recipient_name || t.note || '-'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;color:${amtColor};font-weight:600;text-align:right;">${sign}${formatCurrency(t.amount)}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;color:#6b7280;">${feeStr}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:center;">${t.reference ? t.reference.slice(0, 12) + '...' : '-'}</td>
+        </tr>`;
+      }).join('');
 
-      text += `${'='.repeat(40)}\n`;
-      text += `Generated: ${new Date().toLocaleString()}\n`;
-      text += `Monde Wallet — Tap. Pay. Done.\n`;
+      const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<style>
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; color: #1f2937; }
+  .header { background: #0A6E3C; color: white; padding: 24px 28px; border-radius: 8px; margin-bottom: 24px; }
+  .header h1 { margin: 0 0 4px 0; font-size: 22px; font-weight: 700; }
+  .header p { margin: 2px 0; font-size: 13px; opacity: 0.9; }
+  .info-grid { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .info-card { flex: 1; min-width: 140px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; }
+  .info-card .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .info-card .value { font-size: 18px; font-weight: 700; color: #0A6E3C; }
+  .summary { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .summary-card { flex: 1; min-width: 100px; padding: 12px 16px; border-radius: 8px; text-align: center; }
+  .summary-card .label { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+  .summary-card .value { font-size: 16px; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; }
+  th { background: #f3f4f6; padding: 10px; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; text-align: left; border-bottom: 2px solid #e5e7eb; }
+  th:nth-child(4), th:nth-child(5) { text-align: right; }
+  th:last-child { text-align: center; }
+  .footer { margin-top: 24px; text-align: center; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 16px; }
+</style></head><body>
+  <div class="header">
+    <h1>Monde Wallet</h1>
+    <p>Account Statement — ${period}</p>
+  </div>
+  <div class="info-grid">
+    <div class="info-card"><div class="label">Account Holder</div><div class="value" style="font-size:15px;">${selectedUser.full_name}</div></div>
+    <div class="info-card"><div class="label">Phone</div><div class="value" style="font-size:15px;">${formatPhone(selectedUser.phone)}</div></div>
+    ${selectedUser.handle ? `<div class="info-card"><div class="label">Handle</div><div class="value" style="font-size:15px;">@${selectedUser.handle}</div></div>` : ''}
+    <div class="info-card"><div class="label">Balance</div><div class="value">${formatCurrency(selectedUser.balance)}</div></div>
+  </div>
+  <div class="summary">
+    <div class="summary-card" style="background:#f0fdf4;"><div class="label">Money In</div><div class="value" style="color:#16a34a;">+${formatCurrency(totalIn)}</div></div>
+    <div class="summary-card" style="background:#fef2f2;"><div class="label">Money Out</div><div class="value" style="color:#dc2626;">-${formatCurrency(totalOut)}</div></div>
+    <div class="summary-card" style="background:#fffbeb;"><div class="label">Fees Paid</div><div class="value" style="color:#d97706;">${formatCurrency(totalFees)}</div></div>
+    <div class="summary-card" style="background:#f3f4f6;"><div class="label">Transactions</div><div class="value">${userTxnTotal}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Details</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Fee</th><th style="text-align:center;">Reference</th></tr></thead>
+    <tbody>${txnRows}</tbody>
+  </table>
+  <div class="footer">
+    <p>Generated on ${new Date().toLocaleString()}</p>
+    <p><strong>Monde Wallet</strong> — Tap. Pay. Done.</p>
+  </div>
+</body></html>`;
 
-      await Share.share({
-        title: `Monde Statement - ${selectedUser.full_name} - ${period}`,
-        message: text,
-      });
+      // Generate PDF and share
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Monde Statement - ${selectedUser.full_name} - ${period}`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        // Fallback to text share on platforms without sharing
+        await Share.share({
+          title: `Statement generated`,
+          message: `PDF saved at: ${uri}`,
+        });
+      }
     } catch (e: any) {
       if (e?.message !== 'User did not share') {
         Alert.alert('Export Failed', e?.message || 'Could not export statement.');
@@ -800,8 +849,8 @@ export default function AdminDashboardScreen() {
                           <ActivityIndicator size="small" color="#fff" />
                         ) : (
                           <>
-                            <Ionicons name="share-outline" size={20} color="#fff" />
-                            <Text style={styles.exportBtnText}>Export Statement</Text>
+                            <Ionicons name="document-text-outline" size={20} color="#fff" />
+                            <Text style={styles.exportBtnText}>Export PDF Statement</Text>
                           </>
                         )}
                       </TouchableOpacity>

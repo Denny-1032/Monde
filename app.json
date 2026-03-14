@@ -26,9 +26,9 @@
       },
       "package": "com.monde.pay",
       "permissions": [
-        "CAMERA",
-        "NFC",
-        "VIBRATE"
+        "android.permission.CAMERA",
+        "android.permission.NFC",
+        "android.permission.VIBRATE"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": true,
@@ -60,9 +60,15 @@
     },
     "extra": {
       "SUPABASE_URL": "process.env.EXPO_PUBLIC_SUPABASE_URL",
-      "SUPABASE_ANON_KEY": "process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY"
+      "SUPABASE_ANON_KEY": "process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY",
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "92755b41-9a8b-45e3-8cb6-96e9250b8a59"
+      }
     },
-    "owner": "denny-1032",
+    "owner": "acecode10",
     "description": "Monde - The simplest way to send & receive money in Zambia via QR Code and Tap to Pay. Supports Airtel, MTN, Zamtel, FNB, Zanaco, and Absa.",
     "primaryColor": "#0A6E3C"
   }
