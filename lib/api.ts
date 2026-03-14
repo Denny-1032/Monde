@@ -113,22 +113,28 @@ async function callLipila(params: {
     });
 
     let data: any = null;
+    const rawText = await response.text().catch(() => '');
     try {
-      data = await response.json();
+      data = rawText ? JSON.parse(rawText) : null;
     } catch {
-      const text = await response.text().catch(() => '');
-      console.error('[callLipila] Non-JSON response:', response.status, text.substring(0, 200));
-      return { success: false, error: `Edge Function error (HTTP ${response.status})` };
+      console.error('[callLipila] Non-JSON response:', response.status, rawText.substring(0, 500));
+      return { success: false, error: `Payment service error (HTTP ${response.status}). Please try again.` };
     }
 
-    console.log(`[callLipila] Response HTTP ${response.status}:`, JSON.stringify(data).substring(0, 300));
+    console.log(`[callLipila] Response HTTP ${response.status}:`, rawText.substring(0, 500));
 
     if (!data?.success) {
-      console.warn('[callLipila] Lipila error:', data?.error);
+      const errorMsg = data?.error || '';
+      const lipilaMsg = data?.lipilaResponse?.message || '';
+      const detail = lipilaMsg && lipilaMsg !== errorMsg ? `${errorMsg} — ${lipilaMsg}` : errorMsg;
+      console.warn('[callLipila] Lipila error:', errorMsg);
       if (data?.lipilaResponse) {
         console.warn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
       }
-      return { success: false, error: data?.error || 'Payment provider request failed' };
+      if (data?.lipilaStatusCode) {
+        console.warn('[callLipila] Lipila HTTP status:', data.lipilaStatusCode);
+      }
+      return { success: false, error: detail || 'Payment provider request failed. Please check your linked account and try again.' };
     }
     return { success: true, referenceId: data?.referenceId };
   } catch (err: any) {

@@ -10,6 +10,7 @@ import { formatCurrency, formatPhone, calcTopUpFee } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 
+const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
 const QUICK_AMOUNTS = [50, 100, 200, 500, 1000, 5000];
 
 export default function TopUpScreen() {
@@ -226,24 +227,28 @@ export default function TopUpScreen() {
             </View>
           )}
 
-          {/* Test Deposit — for development/testing */}
-          <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.textSecondary }]}>Testing</Text>
-          <TouchableOpacity
-            style={[styles.providerItem, { backgroundColor: colors.surface, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderLight }]}
-            onPress={() => {
-              setSelectedProvider('test_deposit');
-              setSelectedAccountId(undefined);
-              setStep('amount');
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.providerItemDot, { backgroundColor: colors.success }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.providerItemName, { color: colors.text }]}>Test Deposit</Text>
-              <Text style={{ fontSize: FontSize.xs, color: colors.textSecondary }}>Add fake money for testing</Text>
-            </View>
-            <Ionicons name="flask-outline" size={20} color={colors.success} />
-          </TouchableOpacity>
+          {/* Test Deposit — only visible when Lipila is NOT enabled (dev/testing) */}
+          {!LIPILA_ENABLED && (
+            <>
+              <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.textSecondary }]}>Testing</Text>
+              <TouchableOpacity
+                style={[styles.providerItem, { backgroundColor: colors.surface, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderLight }]}
+                onPress={() => {
+                  setSelectedProvider('test_deposit');
+                  setSelectedAccountId(undefined);
+                  setStep('amount');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.providerItemDot, { backgroundColor: colors.success }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.providerItemName, { color: colors.text }]}>Test Deposit</Text>
+                  <Text style={{ fontSize: FontSize.xs, color: colors.textSecondary }}>Add fake money for testing</Text>
+                </View>
+                <Ionicons name="flask-outline" size={20} color={colors.success} />
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       )}
 

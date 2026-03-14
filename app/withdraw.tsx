@@ -10,6 +10,7 @@ import { formatCurrency, formatPhone, calcWithdrawFee } from '../lib/helpers';
 import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 
+const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
 const QUICK_AMOUNTS = [50, 100, 200, 500, 1000, 5000];
 
 export default function WithdrawScreen() {
@@ -48,18 +49,10 @@ export default function WithdrawScreen() {
 
   const handleWithdrawAll = () => {
     if (balance > 0) {
-      // Solve for max amount where amount + fee(amount) <= balance
-      // fee = max(3% * amount, K10)
-      // For amounts where 3% >= K10 (i.e. amount >= 333.34):
-      //   amount + 0.03*amount <= balance → amount <= balance / 1.03
-      // For smaller amounts where fee = K10:
-      //   amount + 10 <= balance → amount <= balance - 10
-      const byPercent = Math.floor((balance / 1.03) * 100) / 100;
-      const byFlat = Math.floor((balance - 10) * 100) / 100;
-      // Use the lower of the two to be safe, then verify
-      let maxAmount = Math.min(byPercent, byFlat);
-      // Double-check: if the computed fee for maxAmount is K10 (minimum),
-      // then byFlat is correct; otherwise byPercent is correct
+      // Solve for max amount where amount + 3%*amount <= balance
+      // amount * 1.03 <= balance → amount <= balance / 1.03
+      let maxAmount = Math.floor((balance / 1.03) * 100) / 100;
+      // Safety check
       if (maxAmount > 0) {
         const fee = calcWithdrawFee(maxAmount);
         if (maxAmount + fee > balance) {
@@ -67,11 +60,7 @@ export default function WithdrawScreen() {
         }
       }
       const safeAmount = Math.max(0, maxAmount);
-      if (safeAmount <= 0) {
-        setAmount(balance.toFixed(2).replace(/\.?0+$/, ''));
-      } else {
-        setAmount(safeAmount.toFixed(2).replace(/\.?0+$/, ''));
-      }
+      setAmount(safeAmount > 0 ? safeAmount.toFixed(2).replace(/\.?0+$/, '') : balance.toFixed(2).replace(/\.?0+$/, ''));
     }
   };
 
@@ -278,24 +267,28 @@ export default function WithdrawScreen() {
             </View>
           )}
 
-          {/* Test Withdraw — for development/testing */}
-          <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.textSecondary }]}>Testing</Text>
-          <TouchableOpacity
-            style={[styles.providerItem, { backgroundColor: colors.surface, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderLight }]}
-            onPress={() => {
-              setSelectedProvider('test_withdraw');
-              setSelectedAccountId(undefined);
-              setStep('amount');
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.providerItemDot, { backgroundColor: colors.success }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.providerItemName, { color: colors.text }]}>Test Withdrawal</Text>
-              <Text style={{ fontSize: FontSize.xs, color: colors.textSecondary }}>Deduct from wallet for testing</Text>
-            </View>
-            <Ionicons name="flask-outline" size={20} color={colors.success} />
-          </TouchableOpacity>
+          {/* Test Withdraw — only visible when Lipila is NOT enabled (dev/testing) */}
+          {!LIPILA_ENABLED && (
+            <>
+              <Text style={[styles.providerListTitle, { marginTop: Spacing.lg, color: colors.textSecondary }]}>Testing</Text>
+              <TouchableOpacity
+                style={[styles.providerItem, { backgroundColor: colors.surface, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderLight }]}
+                onPress={() => {
+                  setSelectedProvider('test_withdraw');
+                  setSelectedAccountId(undefined);
+                  setStep('amount');
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.providerItemDot, { backgroundColor: colors.success }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.providerItemName, { color: colors.text }]}>Test Withdrawal</Text>
+                  <Text style={{ fontSize: FontSize.xs, color: colors.textSecondary }}>Deduct from wallet for testing</Text>
+                </View>
+                <Ionicons name="flask-outline" size={20} color={colors.success} />
+              </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       )}
 
