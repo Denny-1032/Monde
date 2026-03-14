@@ -1,7 +1,7 @@
 import { supabase, supabaseVerify, isSupabaseConfigured } from './supabase';
 import { Transaction, UserProfile, LinkedAccount, FeeSummary, FloatSummary, FeeDetailsResponse } from '../constants/types';
 import { pinToPassword, sanitizeText } from './validation';
-import { calcTopUpFee } from './helpers';
+import { calcTopUpFee, calcWithdrawFee } from './helpers';
 
 const TEST_PROVIDERS = new Set(['test_deposit', 'test_withdraw']);
 const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
@@ -535,11 +535,11 @@ export async function processTopUp(params: {
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
-  // Collect amount + Monde fee from external provider so the fee is sourced
-  // from mobile money, not created from thin air. The DB RPC credits the full
-  // p_amount to the user and separately credits the fee to the admin account.
-  const mondeFee = calcTopUpFee(params.amount);
-  const lipilaCollectAmount = Math.round((params.amount + mondeFee) * 100) / 100;
+  // Collect amount + 3% fee from MoMo via Lipila.
+  // User wallet gets credited the full p_amount by the DB RPC.
+  // Lipila takes ~2.5% from Monde's Lipila wallet; Monde keeps ~0.5%.
+  const totalFee = calcTopUpFee(params.amount);
+  const lipilaCollectAmount = Math.round((params.amount + totalFee) * 100) / 100;
 
   const lipilaResult = await callLipila({
     action: 'collect',
@@ -588,6 +588,9 @@ export async function processWithdraw(params: {
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
+  // Disburse the net amount to user's MoMo.
+  // The DB RPC deducts (amount + 3% fee) from user's Monde balance.
+  // Lipila takes ~1.5% from Monde's Lipila wallet; Monde keeps ~1.5%.
   const lipilaResult = await callLipila({
     action: 'disburse',
     amount: params.amount,
@@ -816,6 +819,91 @@ export async function adminWithdrawRevenue(
 
   if (error) return { success: false, error: error.message };
   return data;
+}
+
+// ============================================
+// Admin: User Account Lookup & History
+// ============================================
+
+export async function adminSearchUsers(
+  query: string,
+): Promise<{ data: { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean }[]; error?: string }> {
+  if (!isSupabaseConfigured) return { data: [] };
+
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return { data: [] };
+
+  // Search by phone, name, or handle
+  let dbQuery = supabase
+    .from('profiles')
+    .select('id, phone, full_name, balance, handle, is_admin')
+    .limit(20);
+
+  if (trimmed.startsWith('@')) {
+    dbQuery = dbQuery.ilike('handle', `%${trimmed.slice(1)}%`);
+  } else if (/^\+?\d+$/.test(trimmed)) {
+    dbQuery = dbQuery.ilike('phone', `%${trimmed.replace(/[^0-9]/g, '')}%`);
+  } else {
+    dbQuery = dbQuery.ilike('full_name', `%${trimmed}%`);
+  }
+
+  const { data, error } = await dbQuery;
+  if (error) return { data: [], error: error.message };
+  return { data: (data || []) as any[] };
+}
+
+export async function adminGetUserTransactions(
+  userId: string,
+  startDate?: string,
+  endDate?: string,
+  limit = 100,
+  offset = 0,
+): Promise<{ data: Transaction[]; total: number; error?: string }> {
+  if (!isSupabaseConfigured) return { data: [], total: 0 };
+
+  let countQuery = supabase
+    .from('transactions')
+    .select('id', { count: 'exact', head: true })
+    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+
+  let dataQuery = supabase
+    .from('transactions')
+    .select('*')
+    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (startDate) {
+    countQuery = countQuery.gte('created_at', startDate);
+    dataQuery = dataQuery.gte('created_at', startDate);
+  }
+  if (endDate) {
+    countQuery = countQuery.lte('created_at', endDate);
+    dataQuery = dataQuery.lte('created_at', endDate);
+  }
+
+  const [{ count, error: countErr }, { data, error }] = await Promise.all([countQuery, dataQuery]);
+
+  if (error) return { data: [], total: 0, error: error.message };
+
+  return {
+    data: (data || []).map((t: any) => ({
+      id: t.id,
+      type: t.type,
+      amount: parseFloat(t.amount),
+      currency: t.currency,
+      recipient_name: t.recipient_name,
+      recipient_phone: t.recipient_phone,
+      provider: t.provider,
+      status: t.status,
+      method: t.method,
+      note: t.note,
+      fee: t.fee != null ? parseFloat(t.fee) : undefined,
+      reference: t.reference || undefined,
+      created_at: t.created_at,
+    })),
+    total: count ?? 0,
+  };
 }
 
 export async function getFeeDetails(

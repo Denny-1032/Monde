@@ -150,7 +150,7 @@ export default function TopUpScreen() {
                 <Text style={[styles.feeValue, { color: colors.success, fontWeight: '700' }]}>{formatCurrency(parsedAmount)}</Text>
               </View>
               <View style={styles.feeRow}>
-                <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Fee (1% + K1)</Text>
+                <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Fee (3%)</Text>
                 <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
               </View>
               <View style={styles.feeRow}>

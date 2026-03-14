@@ -144,7 +144,7 @@ export default function ChangePinScreen() {
         <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: Spacing.md }} />
       ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
       <View style={styles.pad}>
         {KEYS.map((row, i) => (
@@ -219,7 +219,6 @@ const styles = StyleSheet.create({
   },
   error: {
     textAlign: 'center',
-    color: '#EF4444',
     fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.lg,

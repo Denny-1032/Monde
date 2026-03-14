@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  RefreshControl, ActivityIndicator, Alert, TextInput,
+  RefreshControl, ActivityIndicator, Alert, TextInput, Share, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,11 +10,16 @@ import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { FeeSummary, FloatSummary, FeeDetail } from '../constants/types';
-import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin } from '../lib/api';
+import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetUserTransactions } from '../lib/api';
+import { Transaction } from '../constants/types';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
 import PinConfirm from '../components/PinConfirm';
 
-type TabId = 'overview' | 'fees' | 'float';
+type TabId = 'overview' | 'fees' | 'float' | 'accounts';
+
+type AdminUser = { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean };
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
@@ -36,6 +41,18 @@ export default function AdminDashboardScreen() {
   const [feeTotal, setFeeTotal] = useState(0);
   const [feeFilter, setFeeFilter] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  // Accounts tab state
+  const [userSearch, setUserSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<AdminUser[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [userTxns, setUserTxns] = useState<Transaction[]>([]);
+  const [userTxnTotal, setUserTxnTotal] = useState(0);
+  const [txnLoading, setTxnLoading] = useState(false);
+  const [dateMonth, setDateMonth] = useState(new Date().getMonth());
+  const [dateYear, setDateYear] = useState(new Date().getFullYear());
+  const [exporting, setExporting] = useState(false);
   const [pinVerified, setPinVerified] = useState(false);
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinError, setPinError] = useState('');
@@ -132,6 +149,102 @@ export default function AdminDashboardScreen() {
       setFeeDetails((prev) => [...prev, ...details.data]);
     }
   };
+
+  // --- Accounts tab handlers ---
+  const handleUserSearch = useCallback(async (q: string) => {
+    setUserSearch(q);
+    if (q.trim().length < 2) { setSearchResults([]); return; }
+    setSearchLoading(true);
+    const { data } = await adminSearchUsers(q);
+    setSearchResults(data);
+    setSearchLoading(false);
+  }, []);
+
+  const loadUserTxns = useCallback(async (uid: string, month: number, year: number) => {
+    setTxnLoading(true);
+    const startDate = new Date(year, month, 1).toISOString();
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+    const { data, total } = await adminGetUserTransactions(uid, startDate, endDate);
+    setUserTxns(data);
+    setUserTxnTotal(total);
+    setTxnLoading(false);
+  }, []);
+
+  const selectUser = useCallback(async (u: AdminUser) => {
+    setSelectedUser(u);
+    setSearchResults([]);
+    setUserSearch('');
+    await loadUserTxns(u.id, dateMonth, dateYear);
+  }, [dateMonth, dateYear, loadUserTxns]);
+
+  const changeMonth = useCallback((delta: number) => {
+    let m = dateMonth + delta;
+    let y = dateYear;
+    if (m < 0) { m = 11; y--; }
+    if (m > 11) { m = 0; y++; }
+    setDateMonth(m);
+    setDateYear(y);
+    if (selectedUser) loadUserTxns(selectedUser.id, m, y);
+  }, [dateMonth, dateYear, selectedUser, loadUserTxns]);
+
+  const generateStatement = useCallback(async () => {
+    if (!selectedUser || userTxns.length === 0) return;
+    setExporting(true);
+    try {
+      const period = `${MONTH_NAMES[dateMonth]} ${dateYear}`;
+      let text = `MONDE WALLET — ACCOUNT STATEMENT\n`;
+      text += `${'='.repeat(40)}\n`;
+      text += `Account: ${selectedUser.full_name}\n`;
+      text += `Phone: ${formatPhone(selectedUser.phone)}\n`;
+      if (selectedUser.handle) text += `Handle: @${selectedUser.handle}\n`;
+      text += `Period: ${period}\n`;
+      text += `Current Balance: ${formatCurrency(selectedUser.balance)}\n`;
+      text += `Total Transactions: ${userTxnTotal}\n`;
+      text += `${'='.repeat(40)}\n\n`;
+
+      // Summary
+      let totalIn = 0, totalOut = 0, totalFees = 0;
+      userTxns.forEach((t) => {
+        const isIn = t.type === 'receive' || t.type === 'topup';
+        if (isIn) totalIn += t.amount;
+        else totalOut += t.amount;
+        totalFees += t.fee ?? 0;
+      });
+      text += `SUMMARY\n`;
+      text += `  Total In:   ${formatCurrency(totalIn)}\n`;
+      text += `  Total Out:  ${formatCurrency(totalOut)}\n`;
+      text += `  Total Fees: ${formatCurrency(totalFees)}\n\n`;
+
+      text += `TRANSACTIONS\n`;
+      text += `${'-'.repeat(40)}\n`;
+
+      userTxns.forEach((t) => {
+        const date = new Date(t.created_at);
+        const dateStr = `${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        const sign = (t.type === 'receive' || t.type === 'topup') ? '+' : '-';
+        const feeStr = t.fee ? `  Fee: ${formatCurrency(t.fee)}` : '';
+        text += `${dateStr}  ${t.type.toUpperCase().padEnd(10)} ${sign}${formatCurrency(t.amount)}${feeStr}\n`;
+        text += `  ${t.recipient_name || ''} ${t.note || ''}\n`;
+        if (t.reference) text += `  Ref: ${t.reference}\n`;
+        text += '\n';
+      });
+
+      text += `${'='.repeat(40)}\n`;
+      text += `Generated: ${new Date().toLocaleString()}\n`;
+      text += `Monde Wallet — Tap. Pay. Done.\n`;
+
+      await Share.share({
+        title: `Monde Statement - ${selectedUser.full_name} - ${period}`,
+        message: text,
+      });
+    } catch (e: any) {
+      if (e?.message !== 'User did not share') {
+        Alert.alert('Export Failed', e?.message || 'Could not export statement.');
+      }
+    } finally {
+      setExporting(false);
+    }
+  }, [selectedUser, userTxns, dateMonth, dateYear, userTxnTotal]);
 
   const handleAdminPinConfirm = async (pin: string) => {
     setPinLoading(true);
@@ -230,14 +343,14 @@ export default function AdminDashboardScreen() {
 
       {/* Tabs */}
       <View style={styles.tabRow}>
-        {(['overview', 'fees', 'float'] as TabId[]).map((tab) => (
+        {(['overview', 'fees', 'float', 'accounts'] as TabId[]).map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, activeTab === tab && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
             onPress={() => setActiveTab(tab)}
           >
             <Text style={[styles.tabText, { color: activeTab === tab ? colors.primary : colors.textSecondary }]}>
-              {tab === 'overview' ? 'Overview' : tab === 'fees' ? 'Fee Ledger' : 'Float'}
+              {tab === 'overview' ? 'Overview' : tab === 'fees' ? 'Fees' : tab === 'float' ? 'Float' : 'Accounts'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -551,6 +664,168 @@ export default function AdminDashboardScreen() {
                   Monde's revenue ({formatCurrency(floatSummary.admin_balance)}) is separate.
                 </Text>
               </View>
+            </>
+          )}
+
+          {/* ====== ACCOUNTS TAB ====== */}
+          {activeTab === 'accounts' && (
+            <>
+              {/* User search */}
+              <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Ionicons name="search" size={18} color={colors.textLight} />
+                <TextInput
+                  style={[styles.searchInput, { color: colors.text }]}
+                  placeholder="Search by name, phone, or @handle"
+                  placeholderTextColor={colors.textLight}
+                  value={userSearch}
+                  onChangeText={handleUserSearch}
+                  autoCapitalize="none"
+                />
+                {userSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => { setUserSearch(''); setSearchResults([]); }}>
+                    <Ionicons name="close-circle" size={18} color={colors.textLight} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Search results */}
+              {searchLoading && <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: Spacing.sm }} />}
+              {searchResults.length > 0 && (
+                <View style={{ marginBottom: Spacing.md }}>
+                  {searchResults.map((u) => (
+                    <TouchableOpacity
+                      key={u.id}
+                      style={[styles.userResult, { backgroundColor: colors.surface }]}
+                      onPress={() => selectUser(u)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.userName, { color: colors.text }]}>{u.full_name}</Text>
+                        <Text style={[styles.userPhone, { color: colors.textSecondary }]}>
+                          {formatPhone(u.phone)}{u.handle ? ` · @${u.handle}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={[styles.userBalance, { color: colors.primary }]}>{formatCurrency(u.balance)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Selected user header */}
+              {selectedUser && (
+                <>
+                  <View style={[styles.selectedUserCard, { backgroundColor: colors.primary }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.selectedUserName}>{selectedUser.full_name}</Text>
+                      <Text style={styles.selectedUserPhone}>
+                        {formatPhone(selectedUser.phone)}{selectedUser.handle ? ` · @${selectedUser.handle}` : ''}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.selectedUserBalLabel}>Balance</Text>
+                      <Text style={styles.selectedUserBal}>{formatCurrency(selectedUser.balance)}</Text>
+                    </View>
+                  </View>
+
+                  {/* Month picker */}
+                  <View style={styles.monthPicker}>
+                    <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthArrow}>
+                      <Ionicons name="chevron-back" size={22} color={colors.primary} />
+                    </TouchableOpacity>
+                    <Text style={[styles.monthLabel, { color: colors.text }]}>
+                      {MONTH_NAMES[dateMonth]} {dateYear}
+                    </Text>
+                    <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthArrow}>
+                      <Ionicons name="chevron-forward" size={22} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Transaction list */}
+                  {txnLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: Spacing.lg }} />
+                  ) : userTxns.length === 0 ? (
+                    <View style={styles.emptyState}>
+                      <Ionicons name="document-text-outline" size={48} color={colors.textLight} />
+                      <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                        No transactions in {MONTH_NAMES[dateMonth]} {dateYear}
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={[styles.resultCount, { color: colors.textSecondary }]}>
+                        {userTxnTotal} transaction{userTxnTotal !== 1 ? 's' : ''}
+                      </Text>
+
+                      {userTxns.map((txn) => {
+                        const isIn = txn.type === 'receive' || txn.type === 'topup';
+                        const txnColor = isIn ? colors.success : colors.error;
+                        const txnDate = new Date(txn.created_at);
+                        return (
+                          <View key={txn.id} style={[styles.txnRow, { backgroundColor: colors.surface }]}>
+                            <View style={styles.txnRowTop}>
+                              <View style={[styles.txnTypeBadge, { backgroundColor: txnColor + '18' }]}>
+                                <Text style={[styles.txnTypeBadgeText, { color: txnColor }]}>
+                                  {txn.type.charAt(0).toUpperCase() + txn.type.slice(1)}
+                                </Text>
+                              </View>
+                              <Text style={[styles.txnAmount, { color: txnColor }]}>
+                                {isIn ? '+' : '-'}{formatCurrency(txn.amount)}
+                              </Text>
+                            </View>
+                            <View style={styles.txnRowBottom}>
+                              <Text style={[styles.txnNote, { color: colors.text }]} numberOfLines={1}>
+                                {txn.recipient_name || txn.note || '—'}
+                              </Text>
+                              <Text style={[styles.txnDate, { color: colors.textLight }]}>
+                                {txnDate.getDate()} {MONTH_NAMES[txnDate.getMonth()]} {String(txnDate.getHours()).padStart(2, '0')}:{String(txnDate.getMinutes()).padStart(2, '0')}
+                              </Text>
+                            </View>
+                            {txn.fee != null && txn.fee > 0 && (
+                              <Text style={[styles.txnFee, { color: colors.textSecondary }]}>
+                                Fee: {formatCurrency(txn.fee)}
+                              </Text>
+                            )}
+                          </View>
+                        );
+                      })}
+
+                      {/* Export button */}
+                      <TouchableOpacity
+                        style={[styles.exportBtn, { backgroundColor: colors.primary, opacity: exporting ? 0.6 : 1 }]}
+                        onPress={generateStatement}
+                        disabled={exporting}
+                        activeOpacity={0.7}
+                      >
+                        {exporting ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Ionicons name="share-outline" size={20} color="#fff" />
+                            <Text style={styles.exportBtnText}>Export Statement</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {/* Clear selection */}
+                  <TouchableOpacity
+                    onPress={() => { setSelectedUser(null); setUserTxns([]); }}
+                    style={{ alignItems: 'center', paddingVertical: Spacing.md }}
+                  >
+                    <Text style={{ color: colors.textSecondary, fontSize: FontSize.sm }}>Clear selection</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {!selectedUser && searchResults.length === 0 && !searchLoading && (
+                <View style={styles.emptyState}>
+                  <Ionicons name="people-outline" size={48} color={colors.textLight} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                    Search for a user to view their account history
+                  </Text>
+                </View>
+              )}
             </>
           )}
         </ScrollView>
@@ -901,6 +1176,140 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
   },
   floatValue: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+  },
+
+  // Accounts tab
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    height: 48,
+    marginBottom: Spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: FontSize.md,
+    paddingVertical: 0,
+  },
+  userResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  userName: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+  },
+  userPhone: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  userBalance: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+  },
+  selectedUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  selectedUserName: {
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  selectedUserPhone: {
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
+  },
+  selectedUserBalLabel: {
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.65)',
+  },
+  selectedUserBal: {
+    fontSize: FontSize.xl,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  monthPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  monthArrow: {
+    padding: Spacing.xs,
+  },
+  monthLabel: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    minWidth: 100,
+    textAlign: 'center',
+  },
+  txnRow: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  txnRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  txnTypeBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  txnTypeBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+  },
+  txnAmount: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+  },
+  txnRowBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  txnNote: {
+    fontSize: FontSize.sm,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  txnDate: {
+    fontSize: FontSize.xs,
+  },
+  txnFee: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginTop: Spacing.md,
+  },
+  exportBtnText: {
+    color: '#fff',
     fontSize: FontSize.md,
     fontWeight: '700',
   },

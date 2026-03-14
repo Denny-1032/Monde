@@ -10,6 +10,8 @@ import {
   calcTopUpFee,
   calcWithdrawFee,
   calcPaymentFee,
+  calcMondeFeeTopUp,
+  calcMondeFeeWithdraw,
 } from '../lib/helpers';
 
 describe('formatCurrency', () => {
@@ -100,7 +102,8 @@ describe('getInitials', () => {
 });
 
 // ============================================
-// Fee Calculations (must match migration 020)
+// Fee Calculations (must match migration 026)
+// Top-up & Withdraw: 3%, K10 minimum
 // ============================================
 
 describe('calcTopUpFee', () => {
@@ -108,13 +111,18 @@ describe('calcTopUpFee', () => {
     expect(calcTopUpFee(0)).toBe(0);
     expect(calcTopUpFee(-100)).toBe(0);
   });
-  it('calculates 1% + K1 flat', () => {
-    expect(calcTopUpFee(1000)).toBe(11.00);   // 10 + 1
-    expect(calcTopUpFee(100)).toBe(2.00);      // 1 + 1
-    expect(calcTopUpFee(50)).toBe(1.50);       // 0.5 + 1
+  it('calculates 3% of amount', () => {
+    expect(calcTopUpFee(1000)).toBe(30.00);   // 3% of 1000
+    expect(calcTopUpFee(500)).toBe(15.00);    // 3% of 500
+    expect(calcTopUpFee(5000)).toBe(150.00);  // 3% of 5000
   });
-  it('rounds to 2 decimal places', () => {
-    expect(calcTopUpFee(33)).toBe(1.33);       // 0.33 + 1
+  it('enforces K10 minimum fee', () => {
+    expect(calcTopUpFee(100)).toBe(10);       // 3% = K3, min K10
+    expect(calcTopUpFee(50)).toBe(10);        // 3% = K1.50, min K10
+    expect(calcTopUpFee(333)).toBe(10);       // 3% = K9.99, min K10
+  });
+  it('K10 threshold: 334+ gives > K10', () => {
+    expect(calcTopUpFee(334)).toBe(10.02);    // 3% = K10.02
   });
 });
 
@@ -123,13 +131,42 @@ describe('calcWithdrawFee', () => {
     expect(calcWithdrawFee(0)).toBe(0);
     expect(calcWithdrawFee(-50)).toBe(0);
   });
-  it('calculates 1.5% + K2 flat', () => {
-    expect(calcWithdrawFee(1000)).toBe(17.00);  // 15 + 2
-    expect(calcWithdrawFee(100)).toBe(3.50);     // 1.5 + 2
-    expect(calcWithdrawFee(200)).toBe(5.00);     // 3 + 2
+  it('calculates 3% of amount', () => {
+    expect(calcWithdrawFee(1000)).toBe(30.00);
+    expect(calcWithdrawFee(500)).toBe(15.00);
   });
-  it('rounds to 2 decimal places', () => {
-    expect(calcWithdrawFee(33)).toBe(2.50);      // 0.495 → 0.50 + 2
+  it('enforces K10 minimum fee', () => {
+    expect(calcWithdrawFee(100)).toBe(10);
+    expect(calcWithdrawFee(200)).toBe(10);     // 3% = K6, min K10
+  });
+});
+
+describe('calcMondeFeeTopUp', () => {
+  it('returns Monde share (total fee - Lipila 2.5%)', () => {
+    // K1000: total fee K30, Lipila K25, Monde K5
+    expect(calcMondeFeeTopUp(1000)).toBe(5.00);
+    // K500: total fee K15, Lipila K12.50, Monde K2.50
+    expect(calcMondeFeeTopUp(500)).toBe(2.50);
+  });
+  it('returns 0 for zero amounts', () => {
+    expect(calcMondeFeeTopUp(0)).toBe(0);
+  });
+  it('handles minimum fee correctly', () => {
+    // K100: total fee K10 (min), Lipila K2.50, Monde K7.50
+    expect(calcMondeFeeTopUp(100)).toBe(7.50);
+  });
+});
+
+describe('calcMondeFeeWithdraw', () => {
+  it('returns Monde share (total fee - Lipila 1.5%)', () => {
+    // K1000: total fee K30, Lipila K15, Monde K15
+    expect(calcMondeFeeWithdraw(1000)).toBe(15.00);
+    // K500: total fee K15, Lipila K7.50, Monde K7.50
+    expect(calcMondeFeeWithdraw(500)).toBe(7.50);
+  });
+  it('handles minimum fee correctly', () => {
+    // K100: total fee K10 (min), Lipila K1.50, Monde K8.50
+    expect(calcMondeFeeWithdraw(100)).toBe(8.50);
   });
 });
 
@@ -145,7 +182,7 @@ describe('calcPaymentFee', () => {
   });
   it('calculates 0.5% for amounts > K500', () => {
     expect(calcPaymentFee(1000)).toBe(5.00);
-    expect(calcPaymentFee(501)).toBe(2.51);      // 2.505 → 2.51
+    expect(calcPaymentFee(501)).toBe(2.51);
     expect(calcPaymentFee(10000)).toBe(50.00);
   });
 });

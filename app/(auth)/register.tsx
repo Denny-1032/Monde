@@ -152,7 +152,7 @@ export default function RegisterScreen() {
               </Text>
             </TouchableOpacity>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text> : null}
 
             <Button
               title={phoneChecking ? 'Checking...' : 'Continue'}
@@ -222,7 +222,7 @@ export default function RegisterScreen() {
               ))}
             </View>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text> : null}
 
             <View style={styles.pad}>
               {PIN_KEYS.map((row, i) => (
@@ -395,7 +395,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   errorText: {
-    color: '#EF4444',
     fontSize: FontSize.sm,
     textAlign: 'center',
     marginTop: Spacing.md,

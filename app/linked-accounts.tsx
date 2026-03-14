@@ -138,7 +138,7 @@ export default function LinkedAccountsScreen() {
                     </View>
                   )}
                 </View>
-                <View style={styles.accountActions}>
+                <View style={[styles.accountActions, { borderTopColor: colors.borderLight }]}>
                   {!account.is_default && (
                     <TouchableOpacity
                       style={styles.actionBtn}
@@ -189,7 +189,7 @@ export default function LinkedAccountsScreen() {
                       activeOpacity={0.7}
                     >
                       <View style={[styles.chipDot, { backgroundColor: p.color }]} />
-                      <Text style={[styles.chipText, addProvider === p.id && { color: p.color, fontWeight: '700' }]}>{p.name}</Text>
+                      <Text style={[styles.chipText, { color: colors.textSecondary }, addProvider === p.id && { color: p.color, fontWeight: '700' }]}>{p.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: undefined, // set dynamically
   },
   actionBtn: {
     flexDirection: 'row',
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: FontSize.sm,
     fontWeight: '500',
-    color: '#6B7280',
+    color: undefined, // set dynamically via style array
   },
   input: {
     borderRadius: BorderRadius.md,

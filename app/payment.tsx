@@ -254,7 +254,7 @@ export default function PaymentScreen() {
             {showSuggestions && suggestions.length > 0 && (
               <View style={[styles.suggestionsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 {suggestions.map((s) => (
-                  <TouchableOpacity key={s.id + s.phone} style={styles.suggestionItem} onPress={() => selectSuggestion(s)}>
+                  <TouchableOpacity key={s.id + s.phone} style={[styles.suggestionItem, { borderBottomColor: colors.borderLight }]} onPress={() => selectSuggestion(s)}>
                     <Avatar name={s.name} size={34} imageUrl={s.avatar_url} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.suggestionName, { color: colors.text }]}>{s.name}</Text>
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: undefined, // set dynamically
   },
   suggestionName: {
     fontSize: FontSize.md,

@@ -49,9 +49,23 @@ export default function WithdrawScreen() {
   const handleWithdrawAll = () => {
     if (balance > 0) {
       // Solve for max amount where amount + fee(amount) <= balance
-      // fee = 1.5% * amount + K2, so amount + 0.015*amount + 2 <= balance
-      // → amount <= (balance - 2) / 1.015
-      const maxAmount = Math.floor(((balance - 2) / 1.015) * 100) / 100;
+      // fee = max(3% * amount, K10)
+      // For amounts where 3% >= K10 (i.e. amount >= 333.34):
+      //   amount + 0.03*amount <= balance → amount <= balance / 1.03
+      // For smaller amounts where fee = K10:
+      //   amount + 10 <= balance → amount <= balance - 10
+      const byPercent = Math.floor((balance / 1.03) * 100) / 100;
+      const byFlat = Math.floor((balance - 10) * 100) / 100;
+      // Use the lower of the two to be safe, then verify
+      let maxAmount = Math.min(byPercent, byFlat);
+      // Double-check: if the computed fee for maxAmount is K10 (minimum),
+      // then byFlat is correct; otherwise byPercent is correct
+      if (maxAmount > 0) {
+        const fee = calcWithdrawFee(maxAmount);
+        if (maxAmount + fee > balance) {
+          maxAmount = Math.floor((maxAmount - 0.01) * 100) / 100;
+        }
+      }
       const safeAmount = Math.max(0, maxAmount);
       if (safeAmount <= 0) {
         setAmount(balance.toFixed(2).replace(/\.?0+$/, ''));
@@ -151,7 +165,7 @@ export default function WithdrawScreen() {
             </Text>
           </View>
           {parsedAmount > 0 && (parsedAmount + estimatedFee) > balance && (
-            <Text style={styles.errorText}>Amount + fee exceeds balance</Text>
+            <Text style={[styles.errorText, { color: colors.error }]}>Amount + fee exceeds balance</Text>
           )}
 
           {/* Quick amounts + Withdraw All */}
@@ -188,7 +202,7 @@ export default function WithdrawScreen() {
                 <Text style={[styles.feeValue, { color: colors.success, fontWeight: '700' }]}>{formatCurrency(parsedAmount)}</Text>
               </View>
               <View style={styles.feeRow}>
-                <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Fee (1.5% + K2)</Text>
+                <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Fee (3%)</Text>
                 <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(estimatedFee)}</Text>
               </View>
               <View style={styles.feeRow}>
@@ -364,7 +378,6 @@ const styles = StyleSheet.create({
   errorText: {
     textAlign: 'center',
     fontSize: FontSize.sm,
-    color: '#EF4444',
     marginBottom: Spacing.xs,
   },
   quickAmounts: {

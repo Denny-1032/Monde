@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2025-06-18 (Admin fix, session refresh, fee fix, balance-after, NFC diagnostics)
+> Last updated: 2025-06-20 (3% fee model, admin accounts tab, dark mode audit pass 3)
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -66,6 +66,9 @@
 | 11av | **Fix fee discrepancy** — Lipila collection now includes Monde fee (amount + fee) so fee is sourced from external provider, not created from thin air | ✅ DONE | `lib/api.ts` processTopUp |
 | 11aw | **Balance after transaction** — History screen computes running balance; TransactionItem shows "Bal: KX.XX" below each amount | ✅ DONE | `history.tsx`, `TransactionItem.tsx`, `types.ts` |
 | 11ax | **NFC diagnostic logging** — Added clear error message when NFC fails in Expo Go (requires dev build) | ✅ DONE | `lib/nfc.ts` |
+| 11ay | **3% fee model** — Unified flat 3% fee with K10 minimum for top-ups and withdrawals; Monde keeps 0.5%/1.5% respectively after Lipila's share; updated helpers, tests (35 pass), SQL migration 026, API, UI labels, withdraw-all formula | ✅ DONE | `helpers.ts`, `helpers.test.ts`, `026_fee_model_3_percent.sql`, `api.ts`, `top-up.tsx`, `withdraw.tsx` |
+| 11az | **Admin accounts tab** — User search by name/phone/handle, transaction history with month picker, PDF statement export via Share API; added `adminSearchUsers` + `adminGetUserTransactions` API functions | ✅ DONE | `admin.tsx`, `api.ts` |
+| 11ba | **Dark mode audit pass 3** — Fixed 10 hardcoded colors across 7 files: error text (#EF4444), border colors (#E5E7EB), chip text (#6B7280), progress dots (#6C63FF) — all now use dynamic theme colors | ✅ DONE | `login.tsx`, `register.tsx`, `change-pin.tsx`, `forgot-pin.tsx`, `withdraw.tsx`, `payment.tsx`, `linked-accounts.tsx` |
 
 ## Phase 2: Core Feature Completion
 

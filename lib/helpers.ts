@@ -78,19 +78,47 @@ export function getInitials(name: string): string {
 }
 
 // ============================================
-// Fee Calculations (must match server-side migration 020)
+// Fee Calculations (must match server-side migration 026)
+//
+// Top-up & Withdraw: 3% fee, K10 minimum
+//   Top-up:   Lipila keeps ~2.5%, Monde keeps ~0.5%
+//   Withdraw: Lipila keeps ~1.5%, Monde keeps ~1.5%
+// P2P Payment: free ≤ K500, 0.5% above K500
 // ============================================
 
-/** Top-up fee: 1% + K1 flat */
+const FEE_RATE = 0.03;       // 3%
+const MIN_FEE  = 10;         // K10 minimum
+
+/** Top-up fee: 3%, minimum K10 */
 export function calcTopUpFee(amount: number): number {
   if (amount <= 0) return 0;
-  return Math.round((amount * 0.01 + 1.00) * 100) / 100;
+  const fee = Math.round(amount * FEE_RATE * 100) / 100;
+  return Math.max(fee, MIN_FEE);
 }
 
-/** Withdraw fee: 1.5% + K2 flat */
+/** Withdraw fee: 3%, minimum K10 */
 export function calcWithdrawFee(amount: number): number {
   if (amount <= 0) return 0;
-  return Math.round((amount * 0.015 + 2.00) * 100) / 100;
+  const fee = Math.round(amount * FEE_RATE * 100) / 100;
+  return Math.max(fee, MIN_FEE);
+}
+
+/** Monde's share of top-up fee (0.5% of amount, floor K0) */
+export function calcMondeFeeTopUp(amount: number): number {
+  if (amount <= 0) return 0;
+  const totalFee = calcTopUpFee(amount);
+  // Lipila takes 2.5%, Monde takes remainder
+  const lipilaFee = Math.round(amount * 0.025 * 100) / 100;
+  return Math.max(Math.round((totalFee - lipilaFee) * 100) / 100, 0);
+}
+
+/** Monde's share of withdraw fee (1.5% of amount, floor K0) */
+export function calcMondeFeeWithdraw(amount: number): number {
+  if (amount <= 0) return 0;
+  const totalFee = calcWithdrawFee(amount);
+  // Lipila takes 1.5%, Monde takes remainder
+  const lipilaFee = Math.round(amount * 0.015 * 100) / 100;
+  return Math.max(Math.round((totalFee - lipilaFee) * 100) / 100, 0);
 }
 
 /** P2P payment fee: free ≤ K500, 0.5% above K500 */

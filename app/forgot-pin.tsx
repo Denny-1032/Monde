@@ -141,7 +141,7 @@ export default function ForgotPinScreen() {
               />
             </View>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
             <Button
               title="Send Reset Code"
@@ -175,7 +175,7 @@ export default function ForgotPinScreen() {
               placeholderTextColor={colors.textLight}
             />
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
             <Button
               title="Verify Code"
@@ -211,7 +211,7 @@ export default function ForgotPinScreen() {
               placeholderTextColor={colors.textLight}
             />
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
             <Button
               title="Continue"
@@ -243,7 +243,7 @@ export default function ForgotPinScreen() {
               placeholderTextColor={colors.textLight}
             />
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
             <Button
               title="Reset PIN"
@@ -291,7 +291,8 @@ export default function ForgotPinScreen() {
             key={s}
             style={[
               styles.progressDot,
-              (step === s || ['phone', 'verify', 'newpin', 'confirm', 'done'].indexOf(step) > i) && styles.progressDotActive,
+              { backgroundColor: colors.borderLight },
+              (step === s || ['phone', 'verify', 'newpin', 'confirm', 'done'].indexOf(step) > i) && [styles.progressDotActive, { backgroundColor: colors.primary }],
             ]}
           />
         ))}
@@ -335,10 +336,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: undefined, // set dynamically
   },
   progressDotActive: {
-    backgroundColor: '#6C63FF',
+    backgroundColor: undefined, // set dynamically
     width: 24,
   },
   stepContainer: {
@@ -404,7 +405,6 @@ const styles = StyleSheet.create({
     letterSpacing: 8,
   },
   error: {
-    color: '#EF4444',
     fontSize: FontSize.sm,
     textAlign: 'center',
     marginBottom: Spacing.md,
