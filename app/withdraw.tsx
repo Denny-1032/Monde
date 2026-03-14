@@ -69,6 +69,10 @@ export default function WithdrawScreen() {
       Alert.alert('Invalid Amount', 'Please enter an amount greater than zero.');
       return;
     }
+    if (parsedAmount < 5) {
+      Alert.alert('Amount Too Small', 'Minimum withdrawal amount is K5.');
+      return;
+    }
     if (parsedAmount > 50000) {
       Alert.alert('Amount Too Large', 'Maximum withdrawal amount is K50,000.');
       return;

@@ -1,9 +1,9 @@
 -- ============================================
--- 027: Remove K10 minimum fee — use flat 3% only
+-- 027: Remove K10 minimum fee, add K5 minimum amount
 -- ============================================
--- The K10 minimum caused absurd fees on small amounts
--- (e.g. K10 deposit = K10 fee = 100%).
--- Now: flat 3% with no minimum.
+-- Fee: flat 3% with no minimum fee.
+-- Amount: minimum K5 for top-ups and withdrawals.
+--   K5   → K0.15 fee
 --   K10  → K0.30 fee
 --   K100 → K3.00 fee
 --   K500 → K15.00 fee
@@ -34,8 +34,8 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Unauthorized');
   END IF;
 
-  IF p_amount <= 0 THEN
-    RETURN json_build_object('success', false, 'error', 'Amount must be greater than zero');
+  IF p_amount < 5 THEN
+    RETURN json_build_object('success', false, 'error', 'Minimum top-up amount is K5');
   END IF;
 
   IF p_amount > 50000 THEN
@@ -126,8 +126,8 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Unauthorized');
   END IF;
 
-  IF p_amount <= 0 THEN
-    RETURN json_build_object('success', false, 'error', 'Amount must be greater than zero');
+  IF p_amount < 5 THEN
+    RETURN json_build_object('success', false, 'error', 'Minimum withdrawal amount is K5');
   END IF;
 
   IF p_amount > 50000 THEN

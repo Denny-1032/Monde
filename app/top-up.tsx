@@ -51,6 +51,10 @@ export default function TopUpScreen() {
       Alert.alert('Invalid Amount', 'Please enter an amount greater than zero.');
       return;
     }
+    if (parsedAmount < 5) {
+      Alert.alert('Amount Too Small', 'Minimum top-up amount is K5.');
+      return;
+    }
     if (parsedAmount > 50000) {
       Alert.alert('Amount Too Large', 'Maximum top-up amount is K50,000.');
       return;
