@@ -38,21 +38,28 @@ async function callLipila(params: {
   destinationPhone?: string;
   note?: string;
 }): Promise<{ success: boolean; referenceId?: string; error?: string }> {
+  console.log(`[callLipila] provider=${params.provider}, LIPILA_ENABLED=${LIPILA_ENABLED}, supabaseConfigured=${isSupabaseConfigured}`);
+
   // Skip Lipila for test providers or when Supabase isn't configured
   if (TEST_PROVIDERS.has(params.provider) || !isSupabaseConfigured) {
+    console.log('[callLipila] Skipping: test provider or Supabase not configured');
     return { success: true };
   }
 
   // Skip Lipila when not enabled (development/testing mode)
   // In this mode, wallet operations proceed without real money movement
   if (!LIPILA_ENABLED) {
+    console.log('[callLipila] Skipping: EXPO_PUBLIC_LIPILA_ENABLED is not "true"');
     return { success: true };
   }
 
   // Only call Lipila for supported MoMo providers (bank providers not yet supported via API)
   if (!LIPILA_MOMO_PROVIDERS.has(params.provider)) {
+    console.log(`[callLipila] Skipping: provider "${params.provider}" not a supported MoMo provider`);
     return { success: true };
   }
+
+  console.log(`[callLipila] Calling Edge Function for ${params.action} ${params.amount} via ${params.provider}`);
 
   // Resolve the account number: destination phone > linked account phone > user's own phone
   const linkedPhone = await getLinkedAccountPhone(params.userId, params.linkedAccountId);
