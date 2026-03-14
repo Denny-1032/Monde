@@ -79,14 +79,14 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { headers: CORS_HEADERS });
   }
   if (req.method !== "POST") {
-    return json({ success: false, error: "Method not allowed" }, 405);
+    return json({ success: false, error: "Method not allowed" });
   }
 
   try {
     // 1. Verify Supabase session
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return json({ success: false, error: "No authorization header" }, 401);
+      return json({ success: false, error: "No authorization header" });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -97,25 +97,29 @@ Deno.serve(async (req: Request) => {
     });
     const { data: authData, error: authError } = await userClient.auth.getUser();
     if (authError || !authData?.user) {
-      return json({ success: false, error: "Invalid or expired session" }, 401);
+      console.error("[lipila] Auth failed:", authError?.message);
+      return json({ success: false, error: "Invalid or expired session" });
     }
+    console.log(`[lipila] Authenticated user: ${authData.user.id}`);
 
     // 2. Parse request
     const body = (await req.json()) as LipilaRequestBody;
     if (!body.action || !["collect", "disburse", "status"].includes(body.action)) {
-      return json({ success: false, error: "Invalid action. Use collect, disburse, or status." }, 400);
+      return json({ success: false, error: "Invalid action. Use collect, disburse, or status." });
     }
+    console.log(`[lipila] Action: ${body.action}, amount: ${body.amount}, account: ${body.accountNumber}`);
 
     // 3. Resolve Lipila config
     const config = getLipilaConfig();
+    console.log(`[lipila] Config: mode=${config.mode}, baseUrl=${config.baseUrl}, apiKeySet=${!!config.apiKey}, callbackUrl=${config.callbackUrl || '(none)'}`);
     if (!config.apiKey) {
-      return json({ success: false, error: `Lipila ${config.mode} API key is not configured. Set LIPILA_${config.mode.toUpperCase()}_API_KEY.` }, 500);
+      return json({ success: false, error: `Lipila ${config.mode} API key is not configured. Set LIPILA_${config.mode.toUpperCase()}_API_KEY.` });
     }
 
     // 4. Status check
     if (body.action === "status") {
       if (!body.referenceId) {
-        return json({ success: false, error: "referenceId is required for status check" }, 400);
+        return json({ success: false, error: "referenceId is required for status check" });
       }
       const ep = getEndpoint("status", config.baseUrl, body.referenceId);
       const statusRes = await fetch(ep.url, {
@@ -127,22 +131,23 @@ Deno.serve(async (req: Request) => {
       });
       const statusData = await statusRes.json().catch(() => null);
       if (!statusRes.ok) {
-        return json({ success: false, error: statusData?.message || `Status check failed (${statusRes.status})`, lipilaResponse: statusData }, statusRes.status === 404 ? 404 : 502);
+        console.error(`[lipila] Status check failed: HTTP ${statusRes.status}`, statusData);
+        return json({ success: false, error: statusData?.message || `Status check failed (HTTP ${statusRes.status})`, lipilaResponse: statusData });
       }
       return json({ success: true, ...statusData });
     }
 
     // 5. Validate collect/disburse params
     if (!body.amount || body.amount <= 0) {
-      return json({ success: false, error: "amount must be greater than 0" }, 400);
+      return json({ success: false, error: "amount must be greater than 0" });
     }
     if (!body.accountNumber) {
-      return json({ success: false, error: "accountNumber is required" }, 400);
+      return json({ success: false, error: "accountNumber is required" });
     }
 
     const accountNumber = toAccountNumber(body.accountNumber);
     if (!accountNumber || accountNumber.length < 12) {
-      return json({ success: false, error: `Invalid account number: ${accountNumber}` }, 400);
+      return json({ success: false, error: `Invalid account number: ${accountNumber}` });
     }
 
     const referenceId = body.referenceId || `monde-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -190,13 +195,16 @@ Deno.serve(async (req: Request) => {
       lipilaData = { raw: rawText };
     }
 
+    console.log(`[lipila] Lipila response: HTTP ${lipilaRes.status}`, rawText.substring(0, 500));
+
     if (!lipilaRes.ok) {
+      console.error(`[lipila] Lipila API error: HTTP ${lipilaRes.status}`, lipilaData);
       return json({
         success: false,
         error: lipilaData?.message || `Lipila ${body.action} failed (HTTP ${lipilaRes.status})`,
         lipilaStatusCode: lipilaRes.status,
         lipilaResponse: lipilaData,
-      }, 502);
+      });
     }
 
     // 7. Check response status
@@ -204,11 +212,12 @@ Deno.serve(async (req: Request) => {
     const accepted = ["successful", "pending"].includes(status);
 
     if (!accepted) {
+      console.warn(`[lipila] Unexpected status: ${lipilaData?.status}`, lipilaData);
       return json({
         success: false,
         error: lipilaData?.message || `Lipila transaction status: ${lipilaData?.status}`,
         lipilaResponse: lipilaData,
-      }, 400);
+      });
     }
 
     // 8. Return success
@@ -223,6 +232,7 @@ Deno.serve(async (req: Request) => {
       message: lipilaData?.message || "Transaction sent for processing",
     });
   } catch (err: any) {
-    return json({ success: false, error: err?.message || "Internal error" }, 500);
+    console.error("[lipila] Unhandled error:", err);
+    return json({ success: false, error: err?.message || "Internal error" });
   }
 });
