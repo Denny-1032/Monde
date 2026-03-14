@@ -77,8 +77,22 @@ async function callLipila(params: {
   });
 
   if (error) {
-    console.warn('[callLipila] Edge Function error:', error.message);
-    return { success: false, error: `Payment provider error: ${error.message}` };
+    // supabase.functions.invoke wraps non-2xx into a generic error message.
+    // Try to extract the actual response body from error.context (Response).
+    let detail = error.message;
+    try {
+      const ctx = (error as any).context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) detail = body.error;
+        // If the body has lipilaResponse, include it for debugging
+        if (body?.lipilaResponse) {
+          console.warn('[callLipila] Lipila response detail:', JSON.stringify(body.lipilaResponse));
+        }
+      }
+    } catch { /* context not available or not JSON */ }
+    console.warn('[callLipila] Edge Function error:', detail);
+    return { success: false, error: detail };
   }
   if (!data?.success) {
     console.warn('[callLipila] Lipila error:', data?.error);
