@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { AppState, AppStateStatus, View, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -13,7 +13,9 @@ import OfflineBanner from '../components/OfflineBanner';
 // On native: font is loaded from the .ttf in node_modules
 // On web: expo-font handles font injection from the bundled asset
 
-const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes in background
+const INACTIVITY_LOCK_MS = 5 * 60 * 1000; // 5 minutes foreground inactivity
+const SESSION_EXPIRY_MS = 30 * 60 * 1000; // 30 minutes total inactivity → sign out
 
 function useProtectedRoute() {
   const segments = useSegments();
@@ -57,9 +59,18 @@ function useProtectedRoute() {
 
 function useAutoLock() {
   const isAuthenticated = useStore((s) => s.isAuthenticated);
+  const logout = useStore((s) => s.logout);
   const [locked, setLocked] = useState(false);
   const backgroundTime = useRef<number | null>(null);
+  const lastActivity = useRef<number>(Date.now());
+  const inactivityTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Track user touch activity — call this from the root View's onTouchStart
+  const recordActivity = useCallback(() => {
+    lastActivity.current = Date.now();
+  }, []);
+
+  // Background lock
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
       if (!isAuthenticated) return;
@@ -68,24 +79,49 @@ function useAutoLock() {
       } else if (state === 'active' && backgroundTime.current) {
         const elapsed = Date.now() - backgroundTime.current;
         backgroundTime.current = null;
-        if (elapsed >= LOCK_TIMEOUT_MS) {
+        if (elapsed >= SESSION_EXPIRY_MS) {
+          // Long absence → full sign out
+          logout();
+        } else if (elapsed >= LOCK_TIMEOUT_MS) {
           setLocked(true);
         }
+        lastActivity.current = Date.now();
       }
     });
     return () => sub.remove();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, logout]);
 
-  return { locked, unlock: () => setLocked(false) };
+  // Foreground inactivity lock
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    inactivityTimer.current = setInterval(() => {
+      const idle = Date.now() - lastActivity.current;
+      if (idle >= SESSION_EXPIRY_MS) {
+        logout();
+      } else if (idle >= INACTIVITY_LOCK_MS && !locked) {
+        setLocked(true);
+      }
+    }, 30_000); // check every 30s
+    return () => {
+      if (inactivityTimer.current) clearInterval(inactivityTimer.current);
+    };
+  }, [isAuthenticated, locked, logout]);
+
+  const unlock = useCallback(() => {
+    setLocked(false);
+    lastActivity.current = Date.now();
+  }, []);
+
+  return { locked, unlock, recordActivity };
 }
 
 function RootLayoutInner() {
   useProtectedRoute();
-  const { locked, unlock } = useAutoLock();
+  const { locked, unlock, recordActivity } = useAutoLock();
   const { colors, isDark } = useTheme();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }} onTouchStart={recordActivity}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{

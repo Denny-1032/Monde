@@ -73,39 +73,59 @@ async function callLipila(params: {
     params.note ||
     (params.action === 'collect' ? `Monde top-up via ${params.provider}` : `Monde withdrawal via ${params.provider}`);
 
-  const { data, error } = await supabase.functions.invoke('lipila-payments', {
-    body: {
-      action: params.action,
-      amount: params.amount,
-      accountNumber,
-      currency: 'ZMW',
-      narration,
-    },
-  });
+  // Use raw fetch() instead of supabase.functions.invoke() to avoid
+  // the generic "non-2xx status code" wrapping that hides actual errors.
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+      return { success: false, error: 'Not authenticated. Please sign in again.' };
+    }
 
-  if (error) {
-    // supabase.functions.invoke wraps non-2xx into a generic error message.
-    // Try to extract the actual response body from error.context (Response).
-    let detail = error.message;
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+    const fnUrl = `${supabaseUrl}/functions/v1/lipila-payments`;
+
+    console.log(`[callLipila] POST ${fnUrl}`);
+    const response = await fetch(fnUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': anonKey,
+      },
+      body: JSON.stringify({
+        action: params.action,
+        amount: params.amount,
+        accountNumber,
+        currency: 'ZMW',
+        narration,
+      }),
+    });
+
+    let data: any = null;
     try {
-      const ctx = (error as any).context;
-      if (ctx && typeof ctx.json === 'function') {
-        const body = await ctx.json();
-        if (body?.error) detail = body.error;
-        // If the body has lipilaResponse, include it for debugging
-        if (body?.lipilaResponse) {
-          console.warn('[callLipila] Lipila response detail:', JSON.stringify(body.lipilaResponse));
-        }
+      data = await response.json();
+    } catch {
+      const text = await response.text().catch(() => '');
+      console.error('[callLipila] Non-JSON response:', response.status, text.substring(0, 200));
+      return { success: false, error: `Edge Function error (HTTP ${response.status})` };
+    }
+
+    console.log(`[callLipila] Response HTTP ${response.status}:`, JSON.stringify(data).substring(0, 300));
+
+    if (!data?.success) {
+      console.warn('[callLipila] Lipila error:', data?.error);
+      if (data?.lipilaResponse) {
+        console.warn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
       }
-    } catch { /* context not available or not JSON */ }
-    console.warn('[callLipila] Edge Function error:', detail);
-    return { success: false, error: detail };
+      return { success: false, error: data?.error || 'Payment provider request failed' };
+    }
+    return { success: true, referenceId: data?.referenceId };
+  } catch (err: any) {
+    console.error('[callLipila] Fetch error:', err?.message);
+    return { success: false, error: err?.message || 'Failed to connect to payment service' };
   }
-  if (!data?.success) {
-    console.warn('[callLipila] Lipila error:', data?.error);
-    return { success: false, error: data?.error || 'Payment provider request failed' };
-  }
-  return { success: true, referenceId: data?.referenceId };
 }
 
 // ============================================
@@ -114,7 +134,9 @@ async function callLipila(params: {
 // ============================================
 
 function formatPhone(phone: string): string {
-  return phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+  if (phone.startsWith('+260')) return phone;
+  if (phone.startsWith('260') && phone.length >= 12) return `+${phone}`;
+  return `+260${phone.replace(/^0/, '')}`;
 }
 
 export async function signUpWithPhone(phone: string, pin: string, metadata: {
