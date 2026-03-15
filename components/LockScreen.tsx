@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
-import { verifyPin as verifyPinApi } from '../lib/api';
+import { verifyPin as verifyPinApi, ensureFreshSession } from '../lib/api';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 
@@ -46,7 +46,10 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
         fallbackLabel: 'Use PIN',
         disableDeviceFallback: true,
       });
-      if (result.success) onUnlock();
+      if (result.success) {
+        await ensureFreshSession();
+        onUnlock();
+      }
     } catch {}
   };
 
@@ -75,10 +78,15 @@ export default function LockScreen({ onUnlock }: LockScreenProps) {
   const handleVerifyPin = async (enteredPin: string) => {
     setLoading(true);
     const { success } = await verifyPinApi(user?.phone || '', enteredPin);
-    setLoading(false);
     if (success) {
+      // Refresh the main Supabase session so subsequent API calls have a valid JWT
+      await ensureFreshSession();
+      setLoading(false);
       onUnlock();
-    } else {
+      return;
+    }
+    setLoading(false);
+    {
       setAttempts((a) => {
         const next = a + 1;
         if (next >= MAX_PIN_ATTEMPTS) {

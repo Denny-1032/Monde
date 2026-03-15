@@ -6,6 +6,27 @@ import { calcTopUpFee, calcWithdrawFee } from './helpers';
 const TEST_PROVIDERS = new Set(['test_deposit', 'test_withdraw']);
 const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
 
+/**
+ * Refresh the main Supabase client session to ensure a valid JWT.
+ * Call this before any RPC or edge-function call that may run after
+ * the app was locked/backgrounded.  Returns the fresh access token
+ * or null if the session is unrecoverable (user must re-login).
+ */
+export async function ensureFreshSession(): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (data?.session?.access_token) return data.session.access_token;
+    if (error) console.warn('[ensureFreshSession] refresh failed:', error.message);
+    // Fallback: try cached session (may still be valid)
+    const { data: cached } = await supabase.auth.getSession();
+    return cached?.session?.access_token || null;
+  } catch (e: any) {
+    console.error('[ensureFreshSession] error:', e?.message);
+    return null;
+  }
+}
+
 async function getLinkedAccountPhone(userId: string, linkedAccountId?: string): Promise<string | undefined> {
   if (!linkedAccountId || !isSupabaseConfigured) return undefined;
   const { data } = await supabase
@@ -77,16 +98,8 @@ async function callLipila(params: {
   // Use raw fetch() instead of supabase.functions.invoke() to avoid
   // the generic "non-2xx status code" wrapping that hides actual errors.
   try {
-    // Refresh session first to ensure a valid access token — prevents
-    // "Invalid or expired session" after app lock/unlock or idle periods
-    let accessToken: string | undefined;
-    const { data: refreshData } = await supabase.auth.refreshSession();
-    accessToken = refreshData?.session?.access_token;
-    if (!accessToken) {
-      // Fallback: try cached session (may still be valid)
-      const { data: sessionData } = await supabase.auth.getSession();
-      accessToken = sessionData?.session?.access_token;
-    }
+    // Refresh session to ensure a valid JWT — prevents "Invalid JWT" after lock/unlock
+    const accessToken = await ensureFreshSession();
     if (!accessToken) {
       return { success: false, error: 'Not authenticated. Please sign in again.' };
     }
@@ -527,6 +540,10 @@ export async function processPayment(params: {
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
+  // Ensure fresh JWT before RPC call
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired. Please sign in again.' };
+
   const { data, error } = await supabase.rpc('process_payment', {
     p_sender_id: params.senderId,
     p_recipient_phone: params.recipientPhone,
@@ -551,6 +568,10 @@ export async function processTopUp(params: {
   linkedAccountId?: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  // Ensure fresh JWT before any API calls — prevents "Invalid JWT" after lock/unlock
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired. Please sign in again.' };
 
   // Collect amount + 3% fee from MoMo via Lipila.
   // User wallet gets credited the full p_amount by the DB RPC.
@@ -604,6 +625,10 @@ export async function processWithdraw(params: {
   linkedAccountId?: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  // Ensure fresh JWT before any API calls — prevents "Invalid JWT" after lock/unlock
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired. Please sign in again.' };
 
   // Disburse the net amount to user's MoMo.
   // The DB RPC deducts (amount + 3% fee) from user's Monde balance.
