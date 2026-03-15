@@ -113,21 +113,55 @@ Deno.serve(async (req: Request) => {
     }
 
     if (txn) {
-      // Update the transaction status based on callback
-      const newStatus = isSuccess ? "completed" : isFailed ? "failed" : txn.status;
-      if (newStatus !== txn.status) {
-        const { error: updateErr } = await adminClient
-          .from("transactions")
-          .update({
-            status: newStatus,
-            note: `Lipila ${status}: ${message || ""}`.trim(),
-          })
-          .eq("id", txn.id);
-
-        if (updateErr) {
-          console.error(`[lipila-callback] Update error: ${updateErr.message}`);
+      // --- Two-phase top-up: pending → confirmed/failed ---
+      if (txn.type === "topup" && txn.status === "pending") {
+        if (isSuccess) {
+          // User approved the MoMo prompt → credit their wallet
+          const { data: confirmData, error: confirmErr } = await adminClient
+            .rpc("confirm_pending_topup", { p_transaction_id: txn.id });
+          if (confirmErr) {
+            console.error(`[lipila-callback] confirm_pending_topup error: ${confirmErr.message}`);
+          } else {
+            console.log(`[lipila-callback] Top-up ${txn.id} confirmed:`, confirmData);
+          }
+        } else if (isFailed) {
+          // User cancelled or MoMo rejected → mark transaction as failed (no balance change)
+          await adminClient
+            .from("transactions")
+            .update({ status: "failed", note: `Lipila ${status}: ${message || "Payment declined"}`.trim() })
+            .eq("id", txn.id);
+          console.log(`[lipila-callback] Top-up ${txn.id} failed: ${message || status}`);
+        }
+      }
+      // --- Withdrawal reversal: if disbursement failed, refund the user ---
+      else if (txn.type === "withdraw" && isFailed && txn.status === "completed") {
+        const { data: reverseData, error: reverseErr } = await adminClient
+          .rpc("reverse_failed_withdraw", {
+            p_transaction_id: txn.id,
+            p_reason: `Lipila disbursement failed: ${message || status}`,
+          });
+        if (reverseErr) {
+          console.error(`[lipila-callback] reverse_failed_withdraw error: ${reverseErr.message}`);
         } else {
-          console.log(`[lipila-callback] Transaction ${txn.id} updated to ${newStatus}`);
+          console.log(`[lipila-callback] Withdrawal ${txn.id} reversed:`, reverseData);
+        }
+      }
+      // --- Standard status update for other cases ---
+      else {
+        const newStatus = isSuccess ? "completed" : isFailed ? "failed" : txn.status;
+        if (newStatus !== txn.status) {
+          const { error: updateErr } = await adminClient
+            .from("transactions")
+            .update({
+              status: newStatus,
+              note: `Lipila ${status}: ${message || ""}`.trim(),
+            })
+            .eq("id", txn.id);
+          if (updateErr) {
+            console.error(`[lipila-callback] Update error: ${updateErr.message}`);
+          } else {
+            console.log(`[lipila-callback] Transaction ${txn.id} updated to ${newStatus}`);
+          }
         }
       }
     } else {

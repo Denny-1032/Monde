@@ -360,6 +360,11 @@ export const useStore = create<AppState>((set, get) => ({
         note,
       });
       if (!result.success) {
+        // Session errors → silent logout, no alert
+        if (/session|expired|jwt|token/i.test(result.error || '')) {
+          get().logout();
+          return { success: false };
+        }
         return { success: false, error: result.error || 'Payment failed' };
       }
       // Refresh data from server (parallel)
@@ -412,10 +417,17 @@ export const useStore = create<AppState>((set, get) => ({
         linkedAccountId,
       });
       if (!result.success) {
+        // Session errors → silent logout, no alert
+        if (/session|expired|jwt|token/i.test(result.error || '')) {
+          get().logout();
+          return { success: false };
+        }
         return { success: false, error: result.error || 'Top-up failed' };
       }
-      await Promise.all([get().fetchProfile(), get().fetchTransactions()]);
-      return { success: true };
+      // Top-up is now PENDING — balance updates via realtime when callback confirms.
+      // Only refresh transactions to show the pending entry.
+      await get().fetchTransactions();
+      return { success: true, status: 'pending' };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Top-up failed' };
     } finally {
@@ -467,6 +479,11 @@ export const useStore = create<AppState>((set, get) => ({
         linkedAccountId,
       });
       if (!result.success) {
+        // Session errors → silent logout, no alert
+        if (/session|expired|jwt|token/i.test(result.error || '')) {
+          get().logout();
+          return { success: false };
+        }
         return { success: false, error: result.error || 'Withdrawal failed' };
       }
       await Promise.all([get().fetchProfile(), get().fetchTransactions()]);

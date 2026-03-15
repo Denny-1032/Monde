@@ -84,10 +84,11 @@ export default function TopUpScreen() {
             recipientName: selectedProvider === 'test_deposit' ? 'Test Deposit' : (provider?.name || selectedProvider),
             type: 'topup',
             method: 'wallet',
+            status: (result as any).status || 'completed',
           },
         });
-      } else {
-        Alert.alert('Top-Up Failed', result.error || 'Something went wrong.');
+      } else if (result.error) {
+        Alert.alert('Top-Up Failed', result.error);
       }
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Top-up failed.');

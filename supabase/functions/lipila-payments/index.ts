@@ -188,50 +188,63 @@ Deno.serve(async (req: Request) => {
     let lipilaBody: Record<string, unknown>;
 
     if (body.action === "collect" && paymentMethod === "card") {
-      // Card collection — nested customerInfo + collectionRequest structure
+      // Card collection — nested customerInfo + collectionRequest structure per Lipila docs
       const accountNumber = body.accountNumber || "";
+      const nameParts = (body.accountHolderName || "Customer User").split(" ");
+      const firstName = body.firstName || nameParts[0] || "Customer";
+      const lastName = body.lastName || nameParts.slice(1).join(" ") || "User";
+      const phone = toAccountNumber(body.phoneNumber || accountNumber) || "260000000000";
+      const email = body.email || `${phone}@monde.app`;
       lipilaBody = {
         customerInfo: {
-          firstName: body.firstName || body.accountHolderName?.split(" ")[0] || "Customer",
-          lastName: body.lastName || body.accountHolderName?.split(" ").slice(1).join(" ") || "User",
-          phoneNumber: toAccountNumber(body.phoneNumber || accountNumber),
+          firstName,
+          lastName,
+          phoneNumber: phone,
           city: body.city || "Lusaka",
           country: body.country || "ZM",
-          address: body.address || "Zambia",
+          address: body.address || "Lusaka, Zambia",
           zip: body.zip || "10101",
-          email: body.email || "",
+          email,
         },
         collectionRequest: {
           referenceId,
           amount: body.amount,
           narration: body.narration || "Monde top-up via card",
-          accountNumber: toAccountNumber(accountNumber),
+          accountNumber: phone,
           currency: body.currency || "ZMW",
-          backUrl: body.backUrl || config.callbackUrl || "",
-          redirectUrl: body.redirectUrl || config.callbackUrl || "",
+          backUrl: body.backUrl || config.callbackUrl || "https://monde.app",
+          redirectUrl: body.redirectUrl || config.callbackUrl || "https://monde.app",
         },
       };
     } else if (body.action === "disburse" && paymentMethod === "bank") {
-      // Bank disbursement — flat body with swiftCode and name fields
+      // Bank disbursement — flat body per Lipila docs
       const accountNumber = body.accountNumber || "";
       if (!accountNumber) {
         return json({ success: false, error: "Bank account number is required for bank disbursements" });
       }
+      const swiftCode = body.swiftCode || "";
+      if (!swiftCode) {
+        return json({ success: false, error: "Swift code is required for bank disbursements. Supported banks: FNB, Zanaco, Absa." });
+      }
+      const nameParts = (body.accountHolderName || "").split(" ");
+      const firstName = body.firstName || nameParts[0] || "Account";
+      const lastName = body.lastName || nameParts.slice(1).join(" ") || "Holder";
+      const phone = toAccountNumber(body.phoneNumber || "") || "260000000000";
       lipilaBody = {
         referenceId,
         amount: body.amount,
         currency: body.currency || "ZMW",
         narration: body.narration || "Monde withdrawal to bank",
         accountNumber,
-        swiftCode: body.swiftCode || "",
-        firstName: body.firstName || body.accountHolderName?.split(" ")[0] || "",
-        lastName: body.lastName || body.accountHolderName?.split(" ").slice(1).join(" ") || "",
-        accountHolderName: body.accountHolderName || `${body.firstName || ""} ${body.lastName || ""}`.trim(),
-        phoneNumber: toAccountNumber(body.phoneNumber || ""),
-        email: body.email || "",
+        swiftCode,
+        firstName,
+        lastName,
+        accountHolderName: body.accountHolderName || `${firstName} ${lastName}`,
+        phoneNumber: phone,
       };
-      if (!lipilaBody.swiftCode) {
-        return json({ success: false, error: "Swift code is required for bank disbursements. Supported banks: FNB, Zanaco, Absa." });
+      // Only include email if provided (optional per Lipila docs)
+      if (body.email) {
+        lipilaBody.email = body.email;
       }
     } else {
       // MoMo collection or MoMo disbursement — standard flat body

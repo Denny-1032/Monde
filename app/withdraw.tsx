@@ -108,8 +108,8 @@ export default function WithdrawScreen() {
             method: 'wallet',
           },
         });
-      } else {
-        Alert.alert('Withdrawal Failed', result.error || 'Something went wrong.');
+      } else if (result.error) {
+        Alert.alert('Withdrawal Failed', result.error);
       }
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Withdrawal failed.');

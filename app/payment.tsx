@@ -208,8 +208,8 @@ export default function PaymentScreen() {
           method,
         },
       });
-    } else {
-      Alert.alert('Payment Failed', result.error || 'Something went wrong.');
+    } else if (result.error) {
+      Alert.alert('Payment Failed', result.error);
     }
   };
 

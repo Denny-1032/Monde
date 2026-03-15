@@ -15,7 +15,10 @@ export default function SuccessScreen() {
     recipientName: string;
     type: string;
     method: string;
+    status: string;
   }>();
+
+  const isPending = params.status === 'pending';
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -40,6 +43,7 @@ export default function SuccessScreen() {
   const isWallet = params.method === 'wallet';
 
   const getTitle = () => {
+    if (isTopUp && isPending) return 'Top-Up Pending';
     if (isTopUp) return 'Wallet Topped Up!';
     if (isWithdraw) return 'Withdrawal Complete!';
     if (isSend) return 'Money Sent!';
@@ -47,6 +51,7 @@ export default function SuccessScreen() {
   };
 
   const getSubtitle = () => {
+    if (isTopUp && isPending) return 'Approve the payment on your phone to complete the top-up.';
     if (isTopUp) return `from ${params.recipientName}`;
     if (isWithdraw) return `to ${params.recipientName}`;
     if (isSend) return `to ${params.recipientName}`;
@@ -68,8 +73,8 @@ export default function SuccessScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <Animated.View style={[styles.checkCircle, { transform: [{ scale: scaleAnim }], backgroundColor: colors.success }]}>
-          <Ionicons name="checkmark" size={48} color={colors.white} />
+        <Animated.View style={[styles.checkCircle, { transform: [{ scale: scaleAnim }], backgroundColor: isPending ? colors.warning || '#F59E0B' : colors.success }]}>
+          <Ionicons name={isPending ? 'time-outline' : 'checkmark'} size={48} color={colors.white} />
         </Animated.View>
 
         <Animated.View style={[styles.details, { opacity: fadeAnim }]}>

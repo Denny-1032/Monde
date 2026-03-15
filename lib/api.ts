@@ -662,7 +662,7 @@ export async function processTopUp(params: {
   provider: string;
   note?: string;
   linkedAccountId?: string;
-}): Promise<{ success: boolean; data?: any; error?: string }> {
+}): Promise<{ success: boolean; data?: any; error?: string; status?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
   // Ensure fresh JWT before any API calls — prevents "Invalid JWT" after lock/unlock
@@ -670,8 +670,7 @@ export async function processTopUp(params: {
   if (!token) return { success: false, error: 'Session expired. Please sign in again.' };
 
   // Collect amount + 3% fee from MoMo via Lipila.
-  // User wallet gets credited the full p_amount by the DB RPC.
-  // Lipila takes ~2.5% from Monde's Lipila wallet; Monde keeps ~0.5%.
+  // Wallet is NOT credited here — only after Lipila callback confirms payment.
   const totalFee = calcTopUpFee(params.amount);
   const lipilaCollectAmount = Math.round((params.amount + totalFee) * 100) / 100;
 
@@ -687,27 +686,30 @@ export async function processTopUp(params: {
     return { success: false, error: lipilaResult.error || 'Top-up provider request failed' };
   }
 
-  let rpcResult = await supabase.rpc('process_topup', {
+  // Create a PENDING transaction — balance is credited later by the callback handler
+  let rpcResult = await supabase.rpc('create_pending_topup', {
     p_user_id: params.userId,
     p_amount: params.amount,
     p_provider: params.provider,
     p_note: params.linkedAccountId
       ? `Top up from linked account ${params.linkedAccountId}`
       : (params.note || null),
+    p_lipila_reference: lipilaResult.referenceId || null,
   });
 
-  // Retry once on JWT/auth errors — force a fresh refresh before retrying
+  // Retry once on JWT/auth errors
   if (rpcResult.error && /jwt|token|auth/i.test(rpcResult.error.message)) {
     console.warn('[processTopUp] RPC auth error, retrying after refresh:', rpcResult.error.message);
     const { data: refreshed } = await supabase.auth.refreshSession();
     if (refreshed?.session) {
-      rpcResult = await supabase.rpc('process_topup', {
+      rpcResult = await supabase.rpc('create_pending_topup', {
         p_user_id: params.userId,
         p_amount: params.amount,
         p_provider: params.provider,
         p_note: params.linkedAccountId
           ? `Top up from linked account ${params.linkedAccountId}`
           : (params.note || null),
+        p_lipila_reference: lipilaResult.referenceId || null,
       });
     }
   }
@@ -715,18 +717,7 @@ export async function processTopUp(params: {
   const { data, error } = rpcResult;
   if (error) return { success: false, error: error.message };
 
-  // Store Lipila referenceId so the callback handler can match it
-  if (lipilaResult.referenceId && data?.transaction_id) {
-    await supabase
-      .from('transactions')
-      .update({ lipila_reference_id: lipilaResult.referenceId })
-      .eq('id', data.transaction_id)
-      .then(({ error: refErr }) => {
-        if (refErr) console.warn('Failed to store Lipila referenceId:', refErr.message);
-      });
-  }
-
-  return data;
+  return { ...data, status: 'pending' };
 }
 
 export async function processWithdraw(params: {
