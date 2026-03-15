@@ -76,8 +76,31 @@ try {
   supabaseVerify = null as any;
 }
 
-// Listen for auth errors (e.g. invalid refresh token) and sign out cleanly
+// Prevent "Invalid Refresh Token" crashes during auto-refresh.
+// The GoTrueClient may throw unhandled rejections when the stored
+// refresh token is stale. Catch them early and clear the session.
 if (supabase) {
+  // 1. Catch internal initialization errors (stale tokens in SecureStore)
+  const authAny = supabase.auth as any;
+  if (authAny.initializePromise) {
+    authAny.initializePromise.catch?.((err: any) => {
+      console.warn('[supabase] Auth init error (stale token cleared):', err?.message);
+      supabase.auth.signOut().catch(() => {});
+    });
+  }
+
+  // 2. Eagerly validate stored session — clear if refresh token is dead
+  supabase.auth.getSession().then(({ error }) => {
+    if (error) {
+      console.warn('[supabase] Stale session detected, clearing:', error.message);
+      supabase.auth.signOut().catch(() => {});
+    }
+  }).catch((err: any) => {
+    console.warn('[supabase] getSession exception, clearing:', err?.message);
+    supabase.auth.signOut().catch(() => {});
+  });
+
+  // 3. Listen for auth state changes
   supabase.auth.onAuthStateChange((event) => {
     if (event === 'TOKEN_REFRESHED') {
       // Session refreshed successfully — no action needed

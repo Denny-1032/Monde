@@ -121,43 +121,57 @@ async function callLipila(params: {
     params.note ||
     (params.action === 'collect' ? `Monde top-up via ${params.provider}` : `Monde withdrawal via ${params.provider}`);
 
-  // Ensure session is fresh before invoking — updates the client's internal state
-  const preToken = await ensureFreshSession();
-  if (!preToken) {
+  // Use raw fetch() — supabase.functions.invoke() wraps non-2xx into a
+  // generic "Edge Function returned a non-2xx status code" losing details.
+  // Get the token from the client's session (same auth the client uses for REST).
+  const accessToken = await ensureFreshSession();
+  if (!accessToken) {
     return { success: false, error: 'Not authenticated. Please sign in again.' };
   }
 
-  const requestBody = {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+  const fnUrl = `${supabaseUrl}/functions/v1/lipila-payments`;
+  const requestBody = JSON.stringify({
     action: params.action,
     amount: params.amount,
     accountNumber,
     currency: 'ZMW',
     narration,
-  };
+  });
 
-  // Helper: invoke the edge function and parse the result
-  const doInvoke = async (): Promise<{ success: boolean; referenceId?: string; error?: string; isAuthError?: boolean }> => {
+  // Inner fetch — called up to 2× (retry on 401)
+  const doFetch = async (token: string): Promise<{ success: boolean; referenceId?: string; error?: string; is401?: boolean }> => {
     try {
-      // supabase.functions.invoke() uses the client's internal auth handling —
-      // same mechanism that works for REST calls (profile, transactions, etc.)
-      const { data, error } = await supabase.functions.invoke('lipila-payments', {
+      console.log(`[callLipila] POST ${fnUrl} (token …${token.slice(-8)})`);
+      const response = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': anonKey,
+        },
         body: requestBody,
       });
 
-      // invoke() returns error for non-2xx HTTP responses (gateway 401, relay 500, etc.)
-      if (error) {
-        const ctx = (error as any)?.context;
-        // ctx may be parsed JSON body or a string
-        const detail = typeof ctx === 'object'
-          ? (ctx?.msg || ctx?.message || ctx?.error || '')
-          : (typeof ctx === 'string' ? ctx : '');
-        const errMsg = detail || error.message || 'Edge function error';
-        console.warn('[callLipila] invoke error:', error.name, errMsg);
-        const isAuth = /jwt|unauthorized|expired|token/i.test(errMsg);
-        return { success: false, error: errMsg, isAuthError: isAuth };
+      const rawText = await response.text().catch(() => '');
+      let data: any = null;
+      try { data = rawText ? JSON.parse(rawText) : null; } catch {}
+
+      console.log(`[callLipila] HTTP ${response.status}:`, rawText.substring(0, 500));
+
+      // Gateway 401 — flag for retry
+      if (response.status === 401) {
+        const msg401 = data?.msg || data?.message || 'Session expired';
+        return { success: false, error: msg401, is401: true };
       }
 
-      // 2xx response — check the function's own success flag
+      // Non-JSON or unexpected status
+      if (!data && !response.ok) {
+        return { success: false, error: `Payment service error (HTTP ${response.status}). ${rawText.substring(0, 200)}` };
+      }
+
+      // Edge function returned JSON (should be HTTP 200 with success flag)
       if (!data?.success) {
         const errorMsg = data?.error || data?.message || data?.msg || '';
         const lipilaMsg = data?.lipilaResponse?.message || data?.lipilaResponse?.error || '';
@@ -170,31 +184,29 @@ async function callLipila(params: {
         } else if (lipilaMsg) {
           detail = `${lipilaMsg}${httpInfo}`;
         }
-        console.warn('[callLipila] Function error:', errorMsg || '(no error field)');
         if (data?.lipilaResponse) {
           console.warn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
         }
-        return { success: false, error: detail || 'Payment service returned an error' };
+        return { success: false, error: detail || `Unexpected response (HTTP ${response.status}): ${rawText.substring(0, 200)}` };
       }
-
       return { success: true, referenceId: data?.referenceId };
     } catch (err: any) {
-      console.error('[callLipila] Exception:', err?.message);
+      console.error('[callLipila] Fetch error:', err?.message);
       return { success: false, error: err?.message || 'Failed to connect to payment service' };
     }
   };
 
   // Attempt 1
-  console.log(`[callLipila] Invoking lipila-payments (token …${preToken.slice(-8)})`);
-  const first = await doInvoke();
+  const first = await doFetch(accessToken);
   if (first.success) return first;
 
-  // Attempt 2 — on auth errors, force a full session refresh and retry once
-  if (first.isAuthError) {
-    console.warn('[callLipila] Auth error — forcing session refresh and retrying…');
+  // Attempt 2 — on 401, force a full session refresh and retry once
+  if (first.is401) {
+    console.warn('[callLipila] Got 401 — forcing session refresh and retrying…');
     const { data: refreshed } = await supabase.auth.refreshSession();
-    if (refreshed?.session) {
-      const second = await doInvoke();
+    const retryToken = refreshed?.session?.access_token;
+    if (retryToken) {
+      const second = await doFetch(retryToken);
       if (second.success) return second;
       return { success: false, error: second.error || 'Payment service rejected session after retry' };
     }
