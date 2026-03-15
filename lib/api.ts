@@ -15,12 +15,38 @@ const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
 export async function ensureFreshSession(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   try {
+    // 1. Check current session — if token is still fresh, skip the refresh round-trip
+    const { data: current } = await supabase.auth.getSession();
+    if (current?.session) {
+      const expiresAt = current.session.expires_at ?? 0;
+      const now = Math.round(Date.now() / 1000);
+      if (expiresAt > now + 60) {
+        // Token valid for > 60 s — no need to refresh
+        return current.session.access_token;
+      }
+    }
+
+    // 2. Token missing or expiring soon — refresh it
     const { data, error } = await supabase.auth.refreshSession();
-    if (data?.session?.access_token) return data.session.access_token;
+    if (data?.session?.access_token) {
+      console.log('[ensureFreshSession] Refreshed OK, expires_at:', data.session.expires_at);
+      return data.session.access_token;
+    }
     if (error) console.warn('[ensureFreshSession] refresh failed:', error.message);
-    // Fallback: try cached session (may still be valid)
+
+    // 3. Refresh failed — validate the cached token with a real API call
+    //    Do NOT blindly return a cached token that the gateway will reject.
     const { data: cached } = await supabase.auth.getSession();
-    return cached?.session?.access_token || null;
+    if (cached?.session?.access_token) {
+      const { error: userErr } = await supabase.auth.getUser(cached.session.access_token);
+      if (!userErr) {
+        console.log('[ensureFreshSession] Cached token validated via getUser');
+        return cached.session.access_token;
+      }
+      console.warn('[ensureFreshSession] Cached token rejected by server:', userErr.message);
+    }
+
+    return null;
   } catch (e: any) {
     console.error('[ensureFreshSession] error:', e?.message);
     return null;
@@ -97,74 +123,97 @@ async function callLipila(params: {
 
   // Use raw fetch() instead of supabase.functions.invoke() to avoid
   // the generic "non-2xx status code" wrapping that hides actual errors.
-  try {
-    // Refresh session to ensure a valid JWT — prevents "Invalid JWT" after lock/unlock
-    const accessToken = await ensureFreshSession();
-    if (!accessToken) {
-      return { success: false, error: 'Not authenticated. Please sign in again.' };
-    }
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+  const fnUrl = `${supabaseUrl}/functions/v1/lipila-payments`;
+  const requestBody = JSON.stringify({
+    action: params.action,
+    amount: params.amount,
+    accountNumber,
+    currency: 'ZMW',
+    narration,
+  });
 
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-    const fnUrl = `${supabaseUrl}/functions/v1/lipila-payments`;
-
-    console.log(`[callLipila] POST ${fnUrl}`);
-    const response = await fetch(fnUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-        'apikey': anonKey,
-      },
-      body: JSON.stringify({
-        action: params.action,
-        amount: params.amount,
-        accountNumber,
-        currency: 'ZMW',
-        narration,
-      }),
-    });
-
-    let data: any = null;
-    const rawText = await response.text().catch(() => '');
+  // Inner function that performs the actual fetch — called up to 2x (retry on 401)
+  const doFetch = async (token: string): Promise<{ success: boolean; referenceId?: string; error?: string; is401?: boolean }> => {
     try {
-      data = rawText ? JSON.parse(rawText) : null;
-    } catch {
-      console.error('[callLipila] Non-JSON response:', response.status, rawText.substring(0, 500));
-      return { success: false, error: `Payment service error (HTTP ${response.status}). Please try again.` };
-    }
+      console.log(`[callLipila] POST ${fnUrl} (token …${token.slice(-8)})`);
+      const response = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': anonKey,
+        },
+        body: requestBody,
+      });
 
-    console.log(`[callLipila] Response HTTP ${response.status}:`, rawText.substring(0, 500));
+      let data: any = null;
+      const rawText = await response.text().catch(() => '');
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        console.error('[callLipila] Non-JSON response:', response.status, rawText.substring(0, 500));
+        return { success: false, error: `Payment service error (HTTP ${response.status}). Please try again.` };
+      }
 
-    if (!data?.success) {
-      // Build the most descriptive error possible
-      const errorMsg = data?.error || data?.message || data?.msg || '';
-      const lipilaMsg = data?.lipilaResponse?.message || data?.lipilaResponse?.error || '';
-      const httpInfo = data?.lipilaStatusCode ? ` (HTTP ${data.lipilaStatusCode})` : '';
-      let detail = '';
-      if (errorMsg && lipilaMsg && lipilaMsg !== errorMsg) {
-        detail = `${errorMsg} — ${lipilaMsg}${httpInfo}`;
-      } else if (errorMsg) {
-        detail = `${errorMsg}${httpInfo}`;
-      } else if (lipilaMsg) {
-        detail = `${lipilaMsg}${httpInfo}`;
+      console.log(`[callLipila] Response HTTP ${response.status}:`, rawText.substring(0, 500));
+
+      // Detect gateway 401 — surface it so the caller can retry
+      if (response.status === 401) {
+        return { success: false, error: data?.msg || data?.message || 'Session expired', is401: true };
       }
-      console.warn('[callLipila] Lipila error:', errorMsg || '(no error field)');
-      console.warn('[callLipila] Full response:', rawText.substring(0, 1000));
-      if (data?.lipilaResponse) {
-        console.warn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
+
+      if (!data?.success) {
+        const errorMsg = data?.error || data?.message || data?.msg || '';
+        const lipilaMsg = data?.lipilaResponse?.message || data?.lipilaResponse?.error || '';
+        const httpInfo = data?.lipilaStatusCode ? ` (HTTP ${data.lipilaStatusCode})` : '';
+        let detail = '';
+        if (errorMsg && lipilaMsg && lipilaMsg !== errorMsg) {
+          detail = `${errorMsg} — ${lipilaMsg}${httpInfo}`;
+        } else if (errorMsg) {
+          detail = `${errorMsg}${httpInfo}`;
+        } else if (lipilaMsg) {
+          detail = `${lipilaMsg}${httpInfo}`;
+        }
+        console.warn('[callLipila] Error:', errorMsg || '(no error field)');
+        if (data?.lipilaResponse) {
+          console.warn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
+        }
+        if (!detail) {
+          detail = `Unexpected response from payment service (HTTP ${response.status}): ${rawText.substring(0, 200)}`;
+        }
+        return { success: false, error: detail };
       }
-      // If we still have no detail, dump what we got so the user can report the issue
-      if (!detail) {
-        detail = `Unexpected response from payment service (HTTP ${response.status}): ${rawText.substring(0, 200)}`;
-      }
-      return { success: false, error: detail };
+      return { success: true, referenceId: data?.referenceId };
+    } catch (err: any) {
+      console.error('[callLipila] Fetch error:', err?.message);
+      return { success: false, error: err?.message || 'Failed to connect to payment service' };
     }
-    return { success: true, referenceId: data?.referenceId };
-  } catch (err: any) {
-    console.error('[callLipila] Fetch error:', err?.message);
-    return { success: false, error: err?.message || 'Failed to connect to payment service' };
+  };
+
+  // Attempt 1
+  const accessToken = await ensureFreshSession();
+  if (!accessToken) {
+    return { success: false, error: 'Not authenticated. Please sign in again.' };
   }
+  const first = await doFetch(accessToken);
+  if (first.success) return first;
+
+  // Attempt 2 — if gateway returned 401, force a full refresh and retry once
+  if (first.is401) {
+    console.warn('[callLipila] Got 401 — forcing session refresh and retrying…');
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    const retryToken = refreshed?.session?.access_token;
+    if (retryToken) {
+      const second = await doFetch(retryToken);
+      if (second.success) return second;
+      return { success: false, error: second.error || 'Payment service rejected session after retry' };
+    }
+    return { success: false, error: 'Session expired. Please log out and log back in.' };
+  }
+
+  return { success: false, error: first.error || 'Payment service error' };
 }
 
 // ============================================
@@ -544,7 +593,7 @@ export async function processPayment(params: {
   const token = await ensureFreshSession();
   if (!token) return { success: false, error: 'Session expired. Please sign in again.' };
 
-  const { data, error } = await supabase.rpc('process_payment', {
+  let rpcResult = await supabase.rpc('process_payment', {
     p_sender_id: params.senderId,
     p_recipient_phone: params.recipientPhone,
     p_amount: params.amount,
@@ -552,6 +601,22 @@ export async function processPayment(params: {
     p_note: params.note || null,
   });
 
+  // Retry once on JWT/auth errors — force a fresh refresh before retrying
+  if (rpcResult.error && /jwt|token|auth/i.test(rpcResult.error.message)) {
+    console.warn('[processPayment] RPC auth error, retrying after refresh:', rpcResult.error.message);
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    if (refreshed?.session) {
+      rpcResult = await supabase.rpc('process_payment', {
+        p_sender_id: params.senderId,
+        p_recipient_phone: params.recipientPhone,
+        p_amount: params.amount,
+        p_method: params.method,
+        p_note: params.note || null,
+      });
+    }
+  }
+
+  const { data, error } = rpcResult;
   if (error) return { success: false, error: error.message };
   return data;
 }
@@ -591,7 +656,7 @@ export async function processTopUp(params: {
     return { success: false, error: lipilaResult.error || 'Top-up provider request failed' };
   }
 
-  const { data, error } = await supabase.rpc('process_topup', {
+  let rpcResult = await supabase.rpc('process_topup', {
     p_user_id: params.userId,
     p_amount: params.amount,
     p_provider: params.provider,
@@ -600,6 +665,23 @@ export async function processTopUp(params: {
       : (params.note || null),
   });
 
+  // Retry once on JWT/auth errors — force a fresh refresh before retrying
+  if (rpcResult.error && /jwt|token|auth/i.test(rpcResult.error.message)) {
+    console.warn('[processTopUp] RPC auth error, retrying after refresh:', rpcResult.error.message);
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    if (refreshed?.session) {
+      rpcResult = await supabase.rpc('process_topup', {
+        p_user_id: params.userId,
+        p_amount: params.amount,
+        p_provider: params.provider,
+        p_note: params.linkedAccountId
+          ? `Top up from linked account ${params.linkedAccountId}`
+          : (params.note || null),
+      });
+    }
+  }
+
+  const { data, error } = rpcResult;
   if (error) return { success: false, error: error.message };
 
   // Store Lipila referenceId so the callback handler can match it
@@ -646,7 +728,7 @@ export async function processWithdraw(params: {
     return { success: false, error: lipilaResult.error || 'Withdrawal provider request failed' };
   }
 
-  const { data, error } = await supabase.rpc('process_withdraw', {
+  let rpcResult = await supabase.rpc('process_withdraw', {
     p_user_id: params.userId,
     p_amount: params.amount,
     p_provider: params.provider,
@@ -656,6 +738,24 @@ export async function processWithdraw(params: {
       : (params.note || null),
   });
 
+  // Retry once on JWT/auth errors — force a fresh refresh before retrying
+  if (rpcResult.error && /jwt|token|auth/i.test(rpcResult.error.message)) {
+    console.warn('[processWithdraw] RPC auth error, retrying after refresh:', rpcResult.error.message);
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    if (refreshed?.session) {
+      rpcResult = await supabase.rpc('process_withdraw', {
+        p_user_id: params.userId,
+        p_amount: params.amount,
+        p_provider: params.provider,
+        p_destination_phone: params.destinationPhone || null,
+        p_note: params.linkedAccountId
+          ? `Withdraw to linked account ${params.linkedAccountId}`
+          : (params.note || null),
+      });
+    }
+  }
+
+  const { data, error } = rpcResult;
   if (error) return { success: false, error: error.message };
 
   // Store Lipila referenceId so the callback handler can match it
