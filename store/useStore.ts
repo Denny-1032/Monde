@@ -38,9 +38,10 @@ type AppState = {
   topUp: (amount: number, provider: string, note?: string, linkedAccountId?: string) => Promise<{ success: boolean; error?: string }>;
   withdraw: (amount: number, provider: string, destinationPhone?: string, note?: string, linkedAccountId?: string) => Promise<{ success: boolean; error?: string }>;
   fetchLinkedAccounts: () => Promise<void>;
-  addLinkedAccount: (provider: string, accountName: string, accountPhone: string, isDefault?: boolean) => Promise<{ success: boolean; error?: string }>;
+  addLinkedAccount: (provider: string, accountName: string, accountPhone: string, isDefault?: boolean, swiftCode?: string) => Promise<{ success: boolean; error?: string }>;
   removeLinkedAccount: (accountId: string) => Promise<{ success: boolean; error?: string }>;
   setDefaultLinkedAccount: (accountId: string) => Promise<{ success: boolean; error?: string }>;
+  cancelPendingTopUp: (transactionId: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 };
 
@@ -506,7 +507,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  addLinkedAccount: async (provider, accountName, accountPhone, isDefault) => {
+  addLinkedAccount: async (provider, accountName, accountPhone, isDefault, swiftCode) => {
     const { sessionId } = get();
     if (!sessionId) return { success: false, error: 'Not authenticated' };
 
@@ -534,6 +535,7 @@ export const useStore = create<AppState>((set, get) => ({
         accountName,
         accountPhone,
         isDefault,
+        swiftCode,
       });
       if (!result.success) return { success: false, error: result.error };
       await get().fetchLinkedAccounts();
@@ -572,6 +574,22 @@ export const useStore = create<AppState>((set, get) => ({
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Failed to set default' };
+    }
+  },
+
+  cancelPendingTopUp: async (transactionId) => {
+    try {
+      const result = await api.cancelPendingTopUp(transactionId);
+      if (!result.success) return { success: false, error: result.error };
+      // Update local transaction status
+      set((state) => ({
+        transactions: state.transactions.map((t) =>
+          t.id === transactionId ? { ...t, status: 'failed', note: 'Cancelled by user' } : t
+        ),
+      }));
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Failed to cancel' };
     }
   },
 

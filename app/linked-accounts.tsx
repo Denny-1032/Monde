@@ -13,6 +13,11 @@ import { formatPhone } from '../lib/helpers';
 import Button from '../components/Button';
 
 const BANK_PROVIDERS = new Set(['fnb', 'zanaco', 'absa']);
+const BANK_SWIFT_CODES: Record<string, string> = {
+  fnb: 'FIRNZMLX',
+  zanaco: 'ZNCOZMLU',
+  absa: 'BARCZMLU',
+};
 
 export default function LinkedAccountsScreen() {
   const colors = useColors();
@@ -63,6 +68,7 @@ export default function LinkedAccountsScreen() {
       addName.trim(),
       addPhone.trim(),
       linkedAccounts.length === 0, // First account is default
+      isBank ? BANK_SWIFT_CODES[addProvider] : undefined,
     );
     setAddLoading(false);
 
@@ -226,6 +232,16 @@ export default function LinkedAccountsScreen() {
                   placeholderTextColor={colors.textLight}
                   keyboardType={isBank ? 'number-pad' : 'phone-pad'}
                 />
+
+                {/* Bank info hint */}
+                {isBank ? (
+                  <View style={[styles.bankHint, { backgroundColor: colors.primary + '10' }]}>
+                    <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
+                    <Text style={[styles.bankHintText, { color: colors.primary }]}>
+                      SWIFT: {BANK_SWIFT_CODES[addProvider]} — Your phone number and name from your Monde profile will be used for bank transfers.
+                    </Text>
+                  </View>
+                ) : null}
 
                 <View style={styles.modalFooter}>
                   <Button
@@ -410,6 +426,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     fontSize: FontSize.md,
+  },
+  bankHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  bankHintText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    lineHeight: 16,
   },
   modalFooter: {
     marginTop: Spacing.xl,

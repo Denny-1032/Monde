@@ -57,11 +57,12 @@ async function getLinkedAccountDetails(userId: string, linkedAccountId?: string)
   account_phone?: string;
   account_name?: string;
   provider?: string;
+  swift_code?: string;
 } | undefined> {
   if (!linkedAccountId || !isSupabaseConfigured) return undefined;
   const { data } = await supabase
     .from('linked_accounts')
-    .select('account_phone, account_name, provider')
+    .select('account_phone, account_name, provider, swift_code')
     .eq('id', linkedAccountId)
     .eq('user_id', userId)
     .maybeSingle();
@@ -164,7 +165,7 @@ async function callLipila(params: {
   };
 
   if (isBank) {
-    bodyObj.swiftCode = BANK_SWIFT_CODES[params.provider] || '';
+    bodyObj.swiftCode = linkedAccount?.swift_code || BANK_SWIFT_CODES[params.provider] || '';
     bodyObj.accountHolderName = linkedAccount?.account_name || '';
     bodyObj.phoneNumber = userPhone || '';
   }
@@ -812,25 +813,42 @@ export async function getLinkedAccounts(userId: string): Promise<{ data: LinkedA
   return { data: (data || []) as LinkedAccount[] };
 }
 
+export async function cancelPendingTopUp(transactionId: string): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
+
+  const { data, error } = await supabase.rpc('cancel_pending_topup', {
+    p_transaction_id: transactionId,
+  });
+
+  if (error) return { success: false, error: error.message };
+  return data;
+}
+
 export async function addLinkedAccount(params: {
   userId: string;
   provider: string;
   accountName: string;
   accountPhone: string;
   isDefault?: boolean;
+  swiftCode?: string;
 }): Promise<{ success: boolean; data?: LinkedAccount; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
+  const insertObj: Record<string, unknown> = {
+    user_id: params.userId,
+    provider: params.provider,
+    account_name: params.accountName,
+    account_phone: params.accountPhone,
+    is_default: params.isDefault || false,
+    is_verified: true, // Auto-verify for now (real verification would involve OTP)
+  };
+  if (params.swiftCode) {
+    insertObj.swift_code = params.swiftCode;
+  }
+
   const { data, error } = await supabase
     .from('linked_accounts')
-    .insert({
-      user_id: params.userId,
-      provider: params.provider,
-      account_name: params.accountName,
-      account_phone: params.accountPhone,
-      is_default: params.isDefault || false,
-      is_verified: true, // Auto-verify for now (real verification would involve OTP)
-    })
+    .insert(insertObj)
     .select()
     .single();
 

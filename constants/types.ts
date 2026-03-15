@@ -41,6 +41,7 @@ export type LinkedAccount = {
   provider: string;
   account_name: string;
   account_phone: string;
+  swift_code?: string;
   is_default: boolean;
   is_verified: boolean;
   created_at: string;

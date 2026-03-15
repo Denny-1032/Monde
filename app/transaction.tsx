@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Share } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Share, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,9 @@ export default function TransactionDetailScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id: string }>();
   const transactions = useStore((s) => s.transactions);
+  const cancelPendingTopUp = useStore((s) => s.cancelPendingTopUp);
   const txn = transactions.find((t) => t.id === params.id);
+  const [cancelling, setCancelling] = useState(false);
 
   if (!txn) {
     return (
@@ -126,6 +128,39 @@ export default function TransactionDetailScreen() {
               {txn.status.charAt(0).toUpperCase() + txn.status.slice(1)}
             </Text>
           </View>
+
+          {/* Cancel button for pending top-ups */}
+          {isTopUp && txn.status === 'pending' ? (
+            <TouchableOpacity
+              style={[styles.cancelBtn, { borderColor: colors.error }]}
+              onPress={() => {
+                Alert.alert('Cancel Top-Up', 'Are you sure you want to cancel this pending top-up?', [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: async () => {
+                      setCancelling(true);
+                      const result = await cancelPendingTopUp(txn.id);
+                      setCancelling(false);
+                      if (result.success) {
+                        Alert.alert('Cancelled', 'The pending top-up has been cancelled.');
+                      } else {
+                        Alert.alert('Error', result.error || 'Failed to cancel.');
+                      }
+                    },
+                  },
+                ]);
+              }}
+              disabled={cancelling}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+              <Text style={[styles.cancelBtnText, { color: colors.error }]}>
+                {cancelling ? 'Cancelling...' : 'Cancel Top-Up'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         {/* Details */}
@@ -258,6 +293,21 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+  },
+  cancelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+  },
+  cancelBtnText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
   },
