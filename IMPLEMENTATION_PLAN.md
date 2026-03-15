@@ -99,6 +99,8 @@
 | 23 | Add webhook handlers for async provider confirmations | ✅ DONE | `lipila-callback` Edge Function + `lipila_callbacks` table (migration 024) |
 | 24 | Add transaction status polling for pending transactions | ✅ DONE | Status check action in `lipila-payments` Edge Function (`GET /check-status`) |
 | 25 | Handle provider-side failures and reversals | ⬜ TODO | Callback updates transaction status; manual reconciliation via admin dashboard |
+| 25b | **Fix Invalid JWT on edge functions** — Deployed with `--no-verify-jwt`; function validates auth internally | ✅ DONE | Gateway was rejecting valid JWTs before reaching function code |
+| 25c | **Bank top-ups & withdrawals** — Card collections (POST /collections/card) + bank disbursements (POST /disbursements/bank) via Lipila | ✅ DONE | Edge function routes by paymentMethod; client maps bank providers to swift codes; linked-accounts UI adapted for bank account numbers |
 
 ## Phase 4: Polish & Production Readiness
 

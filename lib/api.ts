@@ -53,16 +53,30 @@ export async function ensureFreshSession(): Promise<string | null> {
   }
 }
 
-async function getLinkedAccountPhone(userId: string, linkedAccountId?: string): Promise<string | undefined> {
+async function getLinkedAccountDetails(userId: string, linkedAccountId?: string): Promise<{
+  account_phone?: string;
+  account_name?: string;
+  provider?: string;
+} | undefined> {
   if (!linkedAccountId || !isSupabaseConfigured) return undefined;
   const { data } = await supabase
     .from('linked_accounts')
-    .select('account_phone')
+    .select('account_phone, account_name, provider')
     .eq('id', linkedAccountId)
     .eq('user_id', userId)
     .maybeSingle();
-  return data?.account_phone || undefined;
+  return data || undefined;
 }
+
+// SWIFT codes for supported Zambian banks (must match edge function)
+const BANK_SWIFT_CODES: Record<string, string> = {
+  fnb: 'FIRNZMLX',
+  zanaco: 'ZNCOZMLU',
+  absa: 'BARCZMLU',
+};
+
+// Bank providers supported by Lipila
+const LIPILA_BANK_PROVIDERS = new Set(['fnb', 'zanaco', 'absa']);
 
 async function getUserPhone(userId: string): Promise<string | undefined> {
   if (!isSupabaseConfigured) return undefined;
@@ -85,7 +99,7 @@ async function callLipila(params: {
   linkedAccountId?: string;
   destinationPhone?: string;
   note?: string;
-}): Promise<{ success: boolean; referenceId?: string; error?: string }> {
+}): Promise<{ success: boolean; referenceId?: string; cardRedirectionUrl?: string; error?: string }> {
   console.log(`[callLipila] provider=${params.provider}, LIPILA_ENABLED=${LIPILA_ENABLED}, supabaseConfigured=${isSupabaseConfigured}`);
 
   // Skip Lipila for test providers or when Supabase isn't configured
@@ -95,24 +109,32 @@ async function callLipila(params: {
   }
 
   // Skip Lipila when not enabled (development/testing mode)
-  // In this mode, wallet operations proceed without real money movement
   if (!LIPILA_ENABLED) {
     console.log('[callLipila] Skipping: EXPO_PUBLIC_LIPILA_ENABLED is not "true"');
     return { success: true };
   }
 
-  // Only call Lipila for supported MoMo providers (bank providers not yet supported via API)
-  if (!LIPILA_MOMO_PROVIDERS.has(params.provider)) {
-    console.log(`[callLipila] Skipping: provider "${params.provider}" not a supported MoMo provider`);
+  // Determine payment method from provider
+  const isMoMo = LIPILA_MOMO_PROVIDERS.has(params.provider);
+  const isBank = LIPILA_BANK_PROVIDERS.has(params.provider);
+  if (!isMoMo && !isBank) {
+    console.log(`[callLipila] Skipping: provider "${params.provider}" not supported by Lipila`);
     return { success: true };
   }
 
-  console.log(`[callLipila] Calling Edge Function for ${params.action} ${params.amount} via ${params.provider}`);
+  // For bank providers: collect = card collection, disburse = bank disbursement
+  // For MoMo providers: collect = momo collection, disburse = momo disbursement
+  let paymentMethod: 'momo' | 'card' | 'bank' = 'momo';
+  if (isBank) {
+    paymentMethod = params.action === 'collect' ? 'card' : 'bank';
+  }
 
-  // Resolve the account number: destination phone > linked account phone > user's own phone
-  const linkedPhone = await getLinkedAccountPhone(params.userId, params.linkedAccountId);
+  console.log(`[callLipila] Calling Edge Function: ${params.action} ${params.amount} via ${params.provider} (${paymentMethod})`);
+
+  // Resolve account details from linked account or user profile
+  const linkedAccount = await getLinkedAccountDetails(params.userId, params.linkedAccountId);
   const userPhone = await getUserPhone(params.userId);
-  const accountNumber = params.destinationPhone || linkedPhone || userPhone;
+  const accountNumber = params.destinationPhone || linkedAccount?.account_phone || userPhone;
   if (!accountNumber) {
     return { success: false, error: 'No phone/account number available for provider transaction.' };
   }
@@ -121,9 +143,7 @@ async function callLipila(params: {
     params.note ||
     (params.action === 'collect' ? `Monde top-up via ${params.provider}` : `Monde withdrawal via ${params.provider}`);
 
-  // Use raw fetch() — supabase.functions.invoke() wraps non-2xx into a
-  // generic "Edge Function returned a non-2xx status code" losing details.
-  // Get the token from the client's session (same auth the client uses for REST).
+  // Ensure fresh session
   const accessToken = await ensureFreshSession();
   if (!accessToken) {
     return { success: false, error: 'Not authenticated. Please sign in again.' };
@@ -132,16 +152,27 @@ async function callLipila(params: {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
   const fnUrl = `${supabaseUrl}/functions/v1/lipila-payments`;
-  const requestBody = JSON.stringify({
+
+  // Build request body — add bank-specific fields when needed
+  const bodyObj: Record<string, unknown> = {
     action: params.action,
+    paymentMethod,
     amount: params.amount,
     accountNumber,
     currency: 'ZMW',
     narration,
-  });
+  };
+
+  if (isBank) {
+    bodyObj.swiftCode = BANK_SWIFT_CODES[params.provider] || '';
+    bodyObj.accountHolderName = linkedAccount?.account_name || '';
+    bodyObj.phoneNumber = userPhone || '';
+  }
+
+  const requestBody = JSON.stringify(bodyObj);
 
   // Inner fetch — called up to 2× (retry on 401)
-  const doFetch = async (token: string): Promise<{ success: boolean; referenceId?: string; error?: string; is401?: boolean }> => {
+  const doFetch = async (token: string): Promise<{ success: boolean; referenceId?: string; cardRedirectionUrl?: string; error?: string; is401?: boolean }> => {
     try {
       console.log(`[callLipila] POST ${fnUrl} (token …${token.slice(-8)})`);
       const response = await fetch(fnUrl, {
@@ -189,7 +220,7 @@ async function callLipila(params: {
         }
         return { success: false, error: detail || `Unexpected response (HTTP ${response.status}): ${rawText.substring(0, 200)}` };
       }
-      return { success: true, referenceId: data?.referenceId };
+      return { success: true, referenceId: data?.referenceId, cardRedirectionUrl: data?.cardRedirectionUrl || undefined };
     } catch (err: any) {
       console.error('[callLipila] Fetch error:', err?.message);
       return { success: false, error: err?.message || 'Failed to connect to payment service' };

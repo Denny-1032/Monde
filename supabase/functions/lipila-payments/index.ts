@@ -6,22 +6,46 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Docs: https://docs.lipila.dev
 // ============================================
 // Supported actions:
-//   collect  → POST /api/v1/collections/mobile-money   (top-up: MNO → Lipila wallet)
-//   disburse → POST /api/v1/disbursements/mobile-money  (withdraw: Lipila wallet → MNO)
+//   collect  → MoMo: POST /api/v1/collections/mobile-money
+//              Card: POST /api/v1/collections/card
+//   disburse → MoMo: POST /api/v1/disbursements/mobile-money
+//              Bank: POST /api/v1/disbursements/bank
 //   status   → GET  /api/v1/{collections|disbursements}/check-status?referenceId=xxx
 // ============================================
 
 type LipilaAction = "collect" | "disburse" | "status";
+type PaymentMethod = "momo" | "card" | "bank";
 
 interface LipilaRequestBody {
   action: LipilaAction;
+  paymentMethod?: PaymentMethod; // defaults to "momo"
   amount?: number;
   accountNumber: string;
   currency?: string;
   narration?: string;
   referenceId?: string;
   email?: string;
+  // Bank disbursement fields
+  swiftCode?: string;
+  firstName?: string;
+  lastName?: string;
+  accountHolderName?: string;
+  phoneNumber?: string;
+  // Card collection fields
+  city?: string;
+  country?: string;
+  address?: string;
+  zip?: string;
+  backUrl?: string;
+  redirectUrl?: string;
 }
+
+// SWIFT codes for supported Zambian banks
+const BANK_SWIFT_CODES: Record<string, string> = {
+  fnb: "FIRNZMLX",
+  zanaco: "ZNCOZMLU",
+  absa: "BARCZMLU",
+};
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -60,12 +84,23 @@ function getLipilaConfig() {
   };
 }
 
-function getEndpoint(action: LipilaAction, baseUrl: string, referenceId?: string): { url: string; method: string } {
+function getEndpoint(
+  action: LipilaAction,
+  baseUrl: string,
+  paymentMethod: PaymentMethod = "momo",
+  referenceId?: string,
+): { url: string; method: string } {
   const base = baseUrl.replace(/\/$/, "");
   if (action === "collect") {
+    if (paymentMethod === "card") {
+      return { url: `${base}/api/v1/collections/card`, method: "POST" };
+    }
     return { url: `${base}/api/v1/collections/mobile-money`, method: "POST" };
   }
   if (action === "disburse") {
+    if (paymentMethod === "bank") {
+      return { url: `${base}/api/v1/disbursements/bank`, method: "POST" };
+    }
     return { url: `${base}/api/v1/disbursements/mobile-money`, method: "POST" };
   }
   // status — determine type from referenceId prefix or default to collections
@@ -107,7 +142,8 @@ Deno.serve(async (req: Request) => {
     if (!body.action || !["collect", "disburse", "status"].includes(body.action)) {
       return json({ success: false, error: "Invalid action. Use collect, disburse, or status." });
     }
-    console.log(`[lipila] Action: ${body.action}, amount: ${body.amount}, account: ${body.accountNumber}`);
+    const paymentMethod: PaymentMethod = body.paymentMethod || "momo";
+    console.log(`[lipila] Action: ${body.action}, method: ${paymentMethod}, amount: ${body.amount}, account: ${body.accountNumber}`);
 
     // 3. Resolve Lipila config
     const config = getLipilaConfig();
@@ -145,29 +181,76 @@ Deno.serve(async (req: Request) => {
       return json({ success: false, error: "accountNumber is required" });
     }
 
-    const accountNumber = toAccountNumber(body.accountNumber);
-    if (!accountNumber || accountNumber.length < 12) {
-      return json({ success: false, error: `Invalid account number: ${accountNumber}` });
-    }
-
     const referenceId = body.referenceId || `monde-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const ep = getEndpoint(body.action, config.baseUrl);
+    const ep = getEndpoint(body.action, config.baseUrl, paymentMethod);
 
-    // Build Lipila request body per docs
-    const lipilaBody: Record<string, unknown> = {
-      referenceId,
-      amount: body.amount,
-      accountNumber,
-      currency: body.currency || "ZMW",
-    };
+    // Build Lipila request body based on payment method
+    let lipilaBody: Record<string, unknown>;
 
-    if (body.action === "collect") {
-      // narration is required for collections
-      lipilaBody.narration = body.narration || "Monde top-up";
-      if (body.email) lipilaBody.email = body.email;
+    if (body.action === "collect" && paymentMethod === "card") {
+      // Card collection — nested customerInfo + collectionRequest structure
+      const accountNumber = body.accountNumber || "";
+      lipilaBody = {
+        customerInfo: {
+          firstName: body.firstName || body.accountHolderName?.split(" ")[0] || "Customer",
+          lastName: body.lastName || body.accountHolderName?.split(" ").slice(1).join(" ") || "User",
+          phoneNumber: toAccountNumber(body.phoneNumber || accountNumber),
+          city: body.city || "Lusaka",
+          country: body.country || "ZM",
+          address: body.address || "Zambia",
+          zip: body.zip || "10101",
+          email: body.email || "",
+        },
+        collectionRequest: {
+          referenceId,
+          amount: body.amount,
+          narration: body.narration || "Monde top-up via card",
+          accountNumber: toAccountNumber(accountNumber),
+          currency: body.currency || "ZMW",
+          backUrl: body.backUrl || config.callbackUrl || "",
+          redirectUrl: body.redirectUrl || config.callbackUrl || "",
+        },
+      };
+    } else if (body.action === "disburse" && paymentMethod === "bank") {
+      // Bank disbursement — flat body with swiftCode and name fields
+      const accountNumber = body.accountNumber || "";
+      if (!accountNumber) {
+        return json({ success: false, error: "Bank account number is required for bank disbursements" });
+      }
+      lipilaBody = {
+        referenceId,
+        amount: body.amount,
+        currency: body.currency || "ZMW",
+        narration: body.narration || "Monde withdrawal to bank",
+        accountNumber,
+        swiftCode: body.swiftCode || "",
+        firstName: body.firstName || body.accountHolderName?.split(" ")[0] || "",
+        lastName: body.lastName || body.accountHolderName?.split(" ").slice(1).join(" ") || "",
+        accountHolderName: body.accountHolderName || `${body.firstName || ""} ${body.lastName || ""}`.trim(),
+        phoneNumber: toAccountNumber(body.phoneNumber || ""),
+        email: body.email || "",
+      };
+      if (!lipilaBody.swiftCode) {
+        return json({ success: false, error: "Swift code is required for bank disbursements. Supported banks: FNB, Zanaco, Absa." });
+      }
     } else {
-      // narration is optional for disbursements
-      if (body.narration) lipilaBody.narration = body.narration;
+      // MoMo collection or MoMo disbursement — standard flat body
+      const accountNumber = toAccountNumber(body.accountNumber);
+      if (!accountNumber || accountNumber.length < 12) {
+        return json({ success: false, error: `Invalid account number: ${accountNumber}` });
+      }
+      lipilaBody = {
+        referenceId,
+        amount: body.amount,
+        accountNumber,
+        currency: body.currency || "ZMW",
+      };
+      if (body.action === "collect") {
+        lipilaBody.narration = body.narration || "Monde top-up";
+        if (body.email) lipilaBody.email = body.email;
+      } else {
+        if (body.narration) lipilaBody.narration = body.narration;
+      }
     }
 
     // Build headers — x-api-key for auth, callbackUrl in header (per Lipila docs)
@@ -225,11 +308,14 @@ Deno.serve(async (req: Request) => {
       success: true,
       mode: config.mode,
       action: body.action,
+      paymentMethod,
       referenceId: lipilaData?.referenceId || referenceId,
       identifier: lipilaData?.identifier || null,
       status: lipilaData?.status || "Pending",
       paymentType: lipilaData?.paymentType || null,
       message: lipilaData?.message || "Transaction sent for processing",
+      // Card collections return a redirect URL for 3D Secure
+      cardRedirectionUrl: lipilaData?.cardRedirectionUrl || null,
     });
   } catch (err: any) {
     console.error("[lipila] Unhandled error:", err);

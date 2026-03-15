@@ -12,6 +12,8 @@ import { useStore } from '../store/useStore';
 import { formatPhone } from '../lib/helpers';
 import Button from '../components/Button';
 
+const BANK_PROVIDERS = new Set(['fnb', 'zanaco', 'absa']);
+
 export default function LinkedAccountsScreen() {
   const colors = useColors();
   const router = useRouter();
@@ -32,6 +34,8 @@ export default function LinkedAccountsScreen() {
     fetchLinkedAccounts();
   }, []);
 
+  const isBank = BANK_PROVIDERS.has(addProvider);
+
   const handleAdd = async () => {
     if (!addProvider) {
       Alert.alert('Error', 'Please select a provider.');
@@ -41,9 +45,16 @@ export default function LinkedAccountsScreen() {
       Alert.alert('Error', 'Please enter the account holder name.');
       return;
     }
-    if (!addPhone.trim() || addPhone.trim().length < 10) {
-      Alert.alert('Error', 'Please enter a valid phone number.');
-      return;
+    if (isBank) {
+      if (!addPhone.trim() || addPhone.trim().length < 5) {
+        Alert.alert('Error', 'Please enter a valid bank account number.');
+        return;
+      }
+    } else {
+      if (!addPhone.trim() || addPhone.trim().length < 10) {
+        Alert.alert('Error', 'Please enter a valid phone number.');
+        return;
+      }
     }
 
     setAddLoading(true);
@@ -203,13 +214,17 @@ export default function LinkedAccountsScreen() {
                   autoCapitalize="words"
                 />
 
-                {/* Phone Number */}
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Phone / Account Number</Text>
+                {/* Phone / Account Number */}
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                  {isBank ? 'Bank Account Number' : 'Phone Number'}
+                </Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.text }]}
                   value={addPhone}
                   onChangeText={setAddPhone}
-                  keyboardType="phone-pad"
+                  placeholder={isBank ? 'e.g. 1234567890' : 'e.g. 0971234567'}
+                  placeholderTextColor={colors.textLight}
+                  keyboardType={isBank ? 'number-pad' : 'phone-pad'}
                 />
 
                 <View style={styles.modalFooter}>
