@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -195,17 +196,41 @@ export default function AdminDashboardScreen() {
     try {
       const period = `${MONTH_NAMES[dateMonth]} ${dateYear}`;
 
+      // Filter out failed/cancelled transactions — only completed (and pending) in statement
+      const statementTxns = userTxns.filter((t) => t.status !== 'failed');
+
       // Summary calculations
       let totalIn = 0, totalOut = 0, totalFees = 0;
-      userTxns.forEach((t) => {
+      statementTxns.forEach((t) => {
         const isIn = t.type === 'receive' || t.type === 'topup';
         if (isIn) totalIn += t.amount;
         else totalOut += t.amount;
         totalFees += t.fee ?? 0;
       });
 
+      // Compute running balance working backwards from current balance
+      // Transactions are sorted newest-first; reverse to build running balance oldest-first
+      const reversed = [...statementTxns].reverse();
+      let runningBal = selectedUser.balance;
+      // Walk backwards from current balance to compute what balance was BEFORE each txn
+      // Then assign balance_after for each txn
+      const balAfterMap = new Map<string, number>();
+      // First, undo all txns to get starting balance
+      for (const t of reversed) {
+        const isIn = t.type === 'receive' || t.type === 'topup';
+        const totalDeducted = isIn ? t.amount : -(t.amount + (t.fee ?? 0));
+        runningBal -= totalDeducted;
+      }
+      // Now walk forward, applying each txn to compute balance after
+      for (const t of reversed) {
+        const isIn = t.type === 'receive' || t.type === 'topup';
+        const totalDeducted = isIn ? t.amount : -(t.amount + (t.fee ?? 0));
+        runningBal += totalDeducted;
+        balAfterMap.set(t.id, Math.round(runningBal * 100) / 100);
+      }
+
       // Build transaction rows HTML
-      const txnRows = userTxns.map((t, i) => {
+      const txnRows = statementTxns.map((t, i) => {
         const date = new Date(t.created_at);
         const dateStr = `${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
         const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
@@ -214,15 +239,20 @@ export default function AdminDashboardScreen() {
         const amtColor = isIn ? '#16a34a' : '#dc2626';
         const feeStr = t.fee ? formatCurrency(t.fee) : '-';
         const bgColor = i % 2 === 0 ? '#f9fafb' : '#ffffff';
+        const bal = balAfterMap.get(t.id);
+        const balStr = bal != null ? formatCurrency(bal) : '-';
         return `<tr style="background:${bgColor}">
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;">${dateStr}<br/><span style="color:#6b7280;font-size:11px;">${timeStr}</span></td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-transform:capitalize;">${t.type}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;">${t.recipient_name || t.note || '-'}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;color:${amtColor};font-weight:600;text-align:right;">${sign}${formatCurrency(t.amount)}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;color:#6b7280;">${feeStr}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right;font-weight:600;color:#0A6E3C;">${balStr}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:center;">${t.reference ? t.reference.slice(0, 12) + '...' : '-'}</td>
         </tr>`;
       }).join('');
+
+      const statementCount = statementTxns.length;
 
       const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
@@ -241,7 +271,7 @@ export default function AdminDashboardScreen() {
   .summary-card .value { font-size: 16px; font-weight: 700; }
   table { width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; }
   th { background: #f3f4f6; padding: 10px; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.5px; text-align: left; border-bottom: 2px solid #e5e7eb; }
-  th:nth-child(4), th:nth-child(5) { text-align: right; }
+  th:nth-child(4), th:nth-child(5), th:nth-child(6) { text-align: right; }
   th:last-child { text-align: center; }
   .footer { margin-top: 24px; text-align: center; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 16px; }
 </style></head><body>
@@ -259,10 +289,10 @@ export default function AdminDashboardScreen() {
     <div class="summary-card" style="background:#f0fdf4;"><div class="label">Money In</div><div class="value" style="color:#16a34a;">+${formatCurrency(totalIn)}</div></div>
     <div class="summary-card" style="background:#fef2f2;"><div class="label">Money Out</div><div class="value" style="color:#dc2626;">-${formatCurrency(totalOut)}</div></div>
     <div class="summary-card" style="background:#fffbeb;"><div class="label">Fees Paid</div><div class="value" style="color:#d97706;">${formatCurrency(totalFees)}</div></div>
-    <div class="summary-card" style="background:#f3f4f6;"><div class="label">Transactions</div><div class="value">${userTxnTotal}</div></div>
+    <div class="summary-card" style="background:#f3f4f6;"><div class="label">Transactions</div><div class="value">${statementCount}</div></div>
   </div>
   <table>
-    <thead><tr><th>Date</th><th>Type</th><th>Details</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Fee</th><th style="text-align:center;">Reference</th></tr></thead>
+    <thead><tr><th>Date</th><th>Type</th><th>Details</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Fee</th><th style="text-align:right;">Balance</th><th style="text-align:center;">Reference</th></tr></thead>
     <tbody>${txnRows}</tbody>
   </table>
   <div class="footer">
@@ -271,19 +301,24 @@ export default function AdminDashboardScreen() {
   </div>
 </body></html>`;
 
-      // Generate PDF and share
+      // Generate PDF with user's name in the filename
+      const safeName = selectedUser.full_name.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
       const { uri } = await Print.printToFileAsync({ html, base64: false });
+      // Rename the file to include user name
+      const newFileName = `${safeName}_Statement_${MONTH_NAMES[dateMonth]}_${dateYear}.pdf`;
+      const newUri = `${FileSystem.documentDirectory}${newFileName}`;
+      await FileSystem.moveAsync({ from: uri, to: newUri });
+
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
+        await Sharing.shareAsync(newUri, {
           mimeType: 'application/pdf',
           dialogTitle: `Monde Statement - ${selectedUser.full_name} - ${period}`,
           UTI: 'com.adobe.pdf',
         });
       } else {
-        // Fallback to text share on platforms without sharing
         await Share.share({
           title: `Statement generated`,
-          message: `PDF saved at: ${uri}`,
+          message: `PDF saved at: ${newUri}`,
         });
       }
     } catch (e: any) {
@@ -807,7 +842,7 @@ export default function AdminDashboardScreen() {
 
                       {userTxns.map((txn) => {
                         const isIn = txn.type === 'receive' || txn.type === 'topup';
-                        const txnColor = isIn ? colors.success : colors.error;
+                        const txnColor = txn.status === 'pending' ? colors.warning : isIn ? colors.success : colors.error;
                         const txnDate = new Date(txn.created_at);
                         return (
                           <View key={txn.id} style={[styles.txnRow, { backgroundColor: colors.surface }]}>

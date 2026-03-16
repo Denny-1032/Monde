@@ -12,6 +12,7 @@ import Button from '../components/Button';
 
 const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
 const QUICK_AMOUNTS = [50, 100, 200, 500, 1000, 5000];
+const BANK_PROVIDERS = new Set(['fnb', 'zanaco', 'absa']);
 
 export default function TopUpScreen() {
   const router = useRouter();
@@ -23,15 +24,17 @@ export default function TopUpScreen() {
 
   const [step, setStep] = useState<'provider' | 'amount' | 'confirm'>('amount');
   const [amount, setAmount] = useState('');
-  const defaultAccount = linkedAccounts.find((a) => a.is_default);
+  // Filter out bank accounts for top-up (Lipila doesn't support bank top-ups)
+  const momoAccounts = linkedAccounts.filter((a) => !BANK_PROVIDERS.has(a.provider));
+  const defaultAccount = momoAccounts.find((a) => a.is_default) || momoAccounts[0];
   const [selectedProvider, setSelectedProvider] = useState(defaultAccount?.provider || user?.provider || 'airtel');
   const [loading, setLoading] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(defaultAccount?.id);
 
   // Auto-select default linked account if loaded after initial render
   useEffect(() => {
-    if (!selectedAccountId && linkedAccounts.length > 0) {
-      const def = linkedAccounts.find((a) => a.is_default) || linkedAccounts[0];
+    if (!selectedAccountId && momoAccounts.length > 0) {
+      const def = momoAccounts.find((a) => a.is_default) || momoAccounts[0];
       setSelectedProvider(def.provider);
       setSelectedAccountId(def.id);
     }
@@ -190,11 +193,11 @@ export default function TopUpScreen() {
 
       {step === 'provider' && (
         <ScrollView style={styles.providerList} showsVerticalScrollIndicator={false}>
-          {/* Linked Accounts only */}
-          {linkedAccounts.length > 0 && (
+          {/* Mobile Money Accounts only (banks excluded — Lipila doesn't support bank top-ups) */}
+          {momoAccounts.length > 0 && (
             <>
               <Text style={[styles.providerListTitle, { color: colors.text }]}>Your Accounts</Text>
-              {[...linkedAccounts].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)).map((acc) => {
+              {[...momoAccounts].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0)).map((acc) => {
                 const ap = Providers.find((p) => p.id === acc.provider);
                 return (
                   <TouchableOpacity
@@ -223,14 +226,14 @@ export default function TopUpScreen() {
             </>
           )}
 
-          {linkedAccounts.length === 0 && (
+          {momoAccounts.length === 0 && (
             <View style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
               <Ionicons name="wallet-outline" size={48} color={colors.textLight} />
               <Text style={{ color: colors.text, fontSize: FontSize.md, fontWeight: '600', marginTop: Spacing.md, textAlign: 'center' }}>
-                No linked accounts
+                No mobile money accounts
               </Text>
               <Text style={{ color: colors.textSecondary, fontSize: FontSize.sm, marginTop: Spacing.xs, textAlign: 'center', paddingHorizontal: Spacing.xl }}>
-                Link your Airtel Money, MTN MoMo, or bank account to top up.
+                Link your Airtel Money, MTN MoMo, or Zamtel account to top up.
               </Text>
               <TouchableOpacity
                 style={{ marginTop: Spacing.lg, backgroundColor: colors.primary, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg }}

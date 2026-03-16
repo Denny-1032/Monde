@@ -581,11 +581,9 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const result = await api.cancelPendingTopUp(transactionId);
       if (!result.success) return { success: false, error: result.error };
-      // Update local transaction status
+      // Remove the cancelled transaction from local state
       set((state) => ({
-        transactions: state.transactions.map((t) =>
-          t.id === transactionId ? { ...t, status: 'failed', note: 'Cancelled by user' } : t
-        ),
+        transactions: state.transactions.filter((t) => t.id !== transactionId),
       }));
       return { success: true };
     } catch (e: any) {

@@ -19,8 +19,9 @@ function TransactionItem({ transaction, onPress }: Props) {
   const isTopUp = transaction.type === 'topup';
   const isWithdraw = transaction.type === 'withdraw';
 
+  const isPending = transaction.status === 'pending';
   const iconName = isTopUp ? 'wallet' : isWithdraw ? 'arrow-up-circle' : isReceive ? 'arrow-down-circle' : isPayment ? 'cart' : 'arrow-up-circle';
-  const amountColor = (isReceive || isTopUp) ? colors.success : colors.text;
+  const amountColor = isPending ? colors.warning : (isReceive || isTopUp) ? colors.success : colors.text;
   const amountPrefix = (isReceive || isTopUp) ? '+' : '-';
 
   return (
@@ -47,6 +48,12 @@ function TransactionItem({ transaction, onPress }: Props) {
             color={colors.textLight}
           />
           <Text style={[styles.metaText, { color: colors.textLight }]}>{formatDate(transaction.created_at)}</Text>
+          {isPending && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 4 }}>
+              <Ionicons name="time-outline" size={11} color={colors.warning} />
+              <Text style={{ fontSize: 10, fontWeight: '600', color: colors.warning }}>Pending</Text>
+            </View>
+          )}
         </View>
       </View>
       <View style={styles.amountCol}>

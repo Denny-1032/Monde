@@ -49,7 +49,7 @@ export default function TransactionDetailScreen() {
 
   const typeLabel = isTopUp ? 'Top Up' : isWithdraw ? 'Withdrawal' : isReceive ? 'Received' : isPayment ? 'Payment' : 'Sent';
   const amountPrefix = (isReceive || isTopUp) ? '+' : '-';
-  const amountColor = (isReceive || isTopUp) ? colors.success : colors.text;
+  const amountColor = txn.status === 'pending' ? colors.warning : (isReceive || isTopUp) ? colors.success : colors.text;
 
   const date = new Date(txn.created_at);
   const formattedDate = date.toLocaleDateString('en-ZM', {
@@ -144,7 +144,9 @@ export default function TransactionDetailScreen() {
                       const result = await cancelPendingTopUp(txn.id);
                       setCancelling(false);
                       if (result.success) {
-                        Alert.alert('Cancelled', 'The pending top-up has been cancelled.');
+                        Alert.alert('Cancelled', 'The pending top-up has been removed.', [
+                          { text: 'OK', onPress: () => router.back() },
+                        ]);
                       } else {
                         Alert.alert('Error', result.error || 'Failed to cancel.');
                       }

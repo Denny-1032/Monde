@@ -26,11 +26,8 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Pending top-up not found');
   END IF;
 
-  -- Mark as cancelled — no balance was ever credited, so no reversal needed
-  UPDATE public.transactions
-  SET status = 'failed',
-      note = 'Cancelled by user'
-  WHERE id = p_transaction_id;
+  -- Delete the pending transaction — no balance was ever credited, so no reversal needed
+  DELETE FROM public.transactions WHERE id = p_transaction_id;
 
   RETURN json_build_object('success', true, 'transaction_id', p_transaction_id);
 END;
