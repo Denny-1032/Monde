@@ -562,6 +562,43 @@ export async function searchProfilesByPhone(phone: string): Promise<{ data: { id
 }
 
 // ============================================
+// Payment Request Functions (Tap to Pay)
+// ============================================
+
+export async function createPaymentRequest(
+  amount: number,
+): Promise<{ success: boolean; code?: string; request_id?: string; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('create_payment_request', { p_amount: amount });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function lookupPaymentRequest(
+  code: string,
+): Promise<{ success: boolean; request_id?: string; amount?: number; phone?: string; name?: string; handle?: string; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('lookup_payment_request', { p_code: code });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function completePaymentRequest(
+  requestId: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const { data, error } = await supabase.rpc('complete_payment_request', { p_request_id: requestId });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+// ============================================
 // Transaction Functions
 // ============================================
 
@@ -576,6 +613,7 @@ export async function getTransactions(
     .from('transactions')
     .select('*')
     .eq('sender_id', userId)
+    .neq('status', 'failed')
     .order('created_at', { ascending: false })
     .limit(limit + 1); // fetch one extra to detect if there's a next page
 

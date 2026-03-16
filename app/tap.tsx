@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Alert, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Alert, Platform, ActivityIndicator, TextInput, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,19 +11,11 @@ import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import { formatCurrency, calcPaymentFee } from '../lib/helpers';
 import * as Haptics from 'expo-haptics';
-import {
-  isNfcSupported,
-  isNfcEnabled,
-  initNfc,
-  cleanupNfc,
-  writeNfcTag,
-  readNfcTag,
-  openNfcSettings,
-  NfcPayload,
-} from '../lib/nfc';
+import { createPaymentRequest, lookupPaymentRequest, completePaymentRequest } from '../lib/api';
 
-type TapMode = 'setup' | 'waiting' | 'processing' | 'success';
-type NfcStatus = 'checking' | 'supported' | 'disabled' | 'unsupported';
+type Role = 'choose' | 'receive' | 'send';
+type ReceiveStep = 'amount' | 'waiting';
+type SendStep = 'code' | 'confirm' | 'processing';
 
 export default function TapScreen() {
   const colors = useColors();
@@ -31,44 +23,30 @@ export default function TapScreen() {
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
   const sendPayment = useStore((s) => s.sendPayment);
-  const [mode, setMode] = useState<TapMode>('setup');
-  const [amount, setAmount] = useState('');
-  const [isSending, setIsSending] = useState(true);
-  const [nfcStatus, setNfcStatus] = useState<NfcStatus>('checking');
-  const [statusMsg, setStatusMsg] = useState('');
-  const nfcActive = useRef(false);
 
+  // Role selection
+  const [role, setRole] = useState<Role>('choose');
+
+  // ── Receiver state ──
+  const [amount, setAmount] = useState('');
+  const [receiveStep, setReceiveStep] = useState<ReceiveStep>('amount');
+  const [payCode, setPayCode] = useState('');
+  const [requestId, setRequestId] = useState('');
+  const [creatingRequest, setCreatingRequest] = useState(false);
+
+  // ── Sender state ──
+  const [sendStep, setSendStep] = useState<SendStep>('code');
+  const [codeInput, setCodeInput] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState<{ request_id: string; amount: number; phone: string; name: string; handle?: string } | null>(null);
+  const [payLoading, setPayLoading] = useState(false);
+
+  // Animations
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const ringAnim = useRef(new Animated.Value(0)).current;
 
-  // Check NFC on mount
   useEffect(() => {
-    checkNfc();
-    return () => { cleanupNfc(); };
-  }, []);
-
-  const checkNfc = async () => {
-    if (Platform.OS === 'web') {
-      setNfcStatus('unsupported');
-      return;
-    }
-    const supported = await isNfcSupported();
-    if (!supported) {
-      setNfcStatus('unsupported');
-      return;
-    }
-    const enabled = await isNfcEnabled();
-    if (!enabled) {
-      setNfcStatus('disabled');
-      return;
-    }
-    const started = await initNfc();
-    setNfcStatus(started ? 'supported' : 'unsupported');
-  };
-
-  // Animations for waiting mode
-  useEffect(() => {
-    if (mode === 'waiting') {
+    if (receiveStep === 'waiting') {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.15, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
@@ -83,305 +61,313 @@ export default function TapScreen() {
       );
       pulse.start();
       ring.start();
+      return () => { pulse.stop(); ring.stop(); };
+    }
+  }, [receiveStep]);
 
-      // Start NFC operation
-      if (nfcStatus === 'supported') {
-        nfcActive.current = true;
-        if (isSending) {
-          startNfcSend();
-        } else {
-          startNfcReceive();
-        }
-      } else {
-        // Fallback: simulate for web/unsupported (demo)
-        const timeout = setTimeout(() => simulateFallback(), 4000);
-        return () => { pulse.stop(); ring.stop(); clearTimeout(timeout); };
+  // ── Receiver: create payment request ──
+  const handleCreateRequest = async () => {
+    const parsedAmount = parseFloat(amount);
+    if (!parsedAmount || parsedAmount <= 0) {
+      Alert.alert('Enter Amount', 'Please enter an amount to request.');
+      return;
+    }
+    if (parsedAmount < 1) {
+      Alert.alert('Too Small', 'Minimum request is K1.');
+      return;
+    }
+    setCreatingRequest(true);
+    const result = await createPaymentRequest(parsedAmount);
+    setCreatingRequest(false);
+    if (result.success && result.code) {
+      setPayCode(result.code);
+      setRequestId(result.request_id || '');
+      setReceiveStep('waiting');
+    } else {
+      Alert.alert('Error', result.error || 'Could not create payment request.');
+    }
+  };
+
+  // ── Sender: lookup code ──
+  const handleLookupCode = async () => {
+    const code = codeInput.trim();
+    if (code.length !== 6) {
+      Alert.alert('Invalid Code', 'Please enter the 6-digit code from the receiver.');
+      return;
+    }
+    setLookupLoading(true);
+    const result = await lookupPaymentRequest(code);
+    setLookupLoading(false);
+    if (result.success && result.amount && result.phone && result.name) {
+      setPaymentDetails({
+        request_id: result.request_id || '',
+        amount: result.amount,
+        phone: result.phone,
+        name: result.name,
+        handle: result.handle,
+      });
+      setSendStep('confirm');
+    } else {
+      Alert.alert('Not Found', result.error || 'Invalid or expired code.');
+    }
+  };
+
+  // ── Sender: confirm and pay ──
+  const handleConfirmPay = async () => {
+    if (!paymentDetails) return;
+    const fee = calcPaymentFee(paymentDetails.amount);
+    if ((paymentDetails.amount + fee) > (user?.balance || 0)) {
+      Alert.alert('Insufficient Balance', `You need ${formatCurrency(paymentDetails.amount + fee)} (${formatCurrency(paymentDetails.amount)} + ${formatCurrency(fee)} fee) but your balance is ${formatCurrency(user?.balance || 0)}.`);
+      return;
+    }
+    setPayLoading(true);
+    setSendStep('processing');
+    const result = await sendPayment(paymentDetails.phone, paymentDetails.name, paymentDetails.amount, 'nfc');
+    if (result.success) {
+      // Mark request as completed
+      if (paymentDetails.request_id) {
+        await completePaymentRequest(paymentDetails.request_id).catch(() => {});
       }
-
-      return () => {
-        pulse.stop();
-        ring.stop();
-        nfcActive.current = false;
-        cleanupNfc();
-      };
-    }
-  }, [mode]);
-
-  // NFC Send: write payment data as NDEF so receiver can read it
-  const startNfcSend = async () => {
-    const parsedAmount = parseFloat(amount) || 0;
-    setStatusMsg('Writing payment data...\nHold near receiver\'s phone');
-
-    const payload: NfcPayload = {
-      phone: user?.phone || '',
-      name: user?.full_name || 'Unknown',
-      amount: parsedAmount,
-    };
-
-    const result = await writeNfcTag(payload);
-    if (!nfcActive.current) return;
-
-    if (result.success) {
-      setStatusMsg('Payment data sent! Waiting for confirmation...');
-      // After writing, the sender's job is done. Process the payment.
-      await processNfcPaymentAsSender(parsedAmount);
-    } else {
-      setStatusMsg('');
-      Alert.alert('NFC Error', result.error || 'Could not write to NFC. Try again.');
-      setMode('setup');
-    }
-  };
-
-  // NFC Receive: read NDEF from sender's device
-  const startNfcReceive = async () => {
-    setStatusMsg('Scanning for sender...\nHold near sender\'s phone');
-
-    const result = await readNfcTag();
-    if (!nfcActive.current) return;
-
-    if (result.payload) {
-      setStatusMsg('Payment received! Processing...');
-      setMode('processing');
-      await processNfcPaymentAsReceiver(result.payload);
-    } else {
-      setStatusMsg('');
-      Alert.alert('NFC Error', result.error || 'Could not read payment data. Try again.');
-      setMode('setup');
-    }
-  };
-
-  // Process payment as the sender (debit from sender's wallet)
-  const processNfcPaymentAsSender = async (parsedAmount: number) => {
-    setMode('processing');
-    // The sender initiates the payment via the normal payment RPC
-    // In NFC flow, we send to a placeholder — the server deducts from sender
-    const result = await sendPayment('', 'NFC Recipient', parsedAmount, 'nfc');
-
-    if (result.success) {
-      setMode('success');
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace({
         pathname: '/success',
         params: {
-          amount: parsedAmount.toString(),
-          recipientName: 'NFC Recipient',
+          amount: paymentDetails.amount.toString(),
+          recipientName: paymentDetails.name,
           type: 'send',
           method: 'nfc',
         },
       });
     } else {
       Alert.alert('Payment Failed', result.error || 'Transfer failed.');
-      setMode('setup');
+      setSendStep('confirm');
+      setPayLoading(false);
     }
   };
 
-  // Process payment as receiver — sender's data was read via NFC
-  const processNfcPaymentAsReceiver = async (payload: NfcPayload) => {
-    const receivedAmount = payload.amount || parseFloat(amount) || 0;
-    if (receivedAmount <= 0) {
-      Alert.alert('Invalid Amount', 'No valid amount in the NFC tag.');
-      setMode('setup');
-      return;
-    }
-
-    // Navigate to payment confirmation with pre-filled data from NFC
-    // The sender's phone initiated the RPC, so receiver sees the credit in real-time
-    setMode('success');
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace({
-      pathname: '/success',
-      params: {
-        amount: receivedAmount.toString(),
-        recipientName: payload.name || 'NFC Sender',
-        type: 'receive',
-        method: 'nfc',
-      },
-    });
-  };
-
-  // Fallback simulation for web / unsupported devices
-  const simulateFallback = async () => {
-    const parsedAmount = parseFloat(amount) || 0;
-    if (isSending) {
-      const result = await sendPayment('', 'Nearby Device', parsedAmount, 'nfc');
-      if (!result.success) {
-        Alert.alert('Payment Failed', result.error || 'Transfer failed.');
-        setMode('setup');
-        return;
-      }
-    }
-    setMode('success');
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace({
-      pathname: '/success',
-      params: {
-        amount: parsedAmount.toString(),
-        recipientName: 'Nearby Device',
-        type: isSending ? 'send' : 'receive',
-        method: 'nfc',
-      },
-    });
-  };
-
+  // ── Numpad handlers ──
   const handleKeyPress = (key: string) => {
     if (key === '.' && amount.includes('.')) return;
     if (amount.includes('.') && amount.split('.')[1]?.length >= 2) return;
     if (amount.length >= 10) return;
     setAmount((prev) => prev + key);
   };
-
   const handleDelete = () => setAmount((prev) => prev.slice(0, -1));
 
-  const cancelNfc = () => {
-    nfcActive.current = false;
-    cleanupNfc();
-    setMode('setup');
-    setStatusMsg('');
-  };
-
-  const startTap = () => {
-    const parsedAmount = parseFloat(amount);
-    if (isSending) {
-      const check = validateAmount(parsedAmount, user?.balance || 0);
-      if (!check.valid) {
-        Alert.alert('Invalid Amount', check.error);
-        return;
-      }
-      const fee = calcPaymentFee(parsedAmount);
-      if ((parsedAmount + fee) > (user?.balance || 0)) {
-        Alert.alert('Insufficient Balance', `You need ${formatCurrency(parsedAmount + fee)} (${formatCurrency(parsedAmount)} + ${formatCurrency(fee)} fee) but your balance is ${formatCurrency(user?.balance || 0)}.`);
-        return;
-      }
-      setMode('waiting');
+  const goBack = () => {
+    if (role === 'choose') {
+      router.back();
+    } else if (role === 'receive' && receiveStep === 'waiting') {
+      setReceiveStep('amount');
+      setPayCode('');
+    } else if (role === 'send' && sendStep === 'confirm') {
+      setSendStep('code');
+      setPaymentDetails(null);
     } else {
-      if (!parsedAmount || parsedAmount <= 0) {
-        Alert.alert('Enter Amount', 'Please enter an amount first.');
-        return;
-      }
-      setMode('waiting');
+      setRole('choose');
+      setAmount('');
+      setCodeInput('');
+      setReceiveStep('amount');
+      setSendStep('code');
+      setPayCode('');
+      setPaymentDetails(null);
     }
   };
-
-  const isWeb = Platform.OS === 'web';
-  const nfcReady = nfcStatus === 'supported';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => { cancelNfc(); router.back(); }}>
+        <TouchableOpacity style={styles.backBtn} onPress={goBack}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>
-          Tap to Pay{' '}
-          {!nfcReady && <Text style={[styles.demoBadge, { backgroundColor: isWeb ? colors.textLight : colors.warning }]}>{nfcStatus === 'checking' ? '...' : 'DEMO'}</Text>}
+          {role === 'choose' ? 'Tap to Pay' : role === 'receive' ? 'Request Payment' : 'Send Payment'}
         </Text>
         <View style={{ width: 32 }} />
       </View>
 
-      {/* NFC status banner */}
-      {nfcStatus === 'disabled' && (
-        <TouchableOpacity
-          style={[styles.nfcBanner, { backgroundColor: colors.warning + '18' }]}
-          onPress={openNfcSettings}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="warning" size={18} color={colors.warning} />
-          <Text style={[styles.nfcBannerText, { color: colors.warning }]}>
-            NFC is disabled. Tap here to enable it in Settings.
+      {/* ══════════ ROLE CHOOSER ══════════ */}
+      {role === 'choose' && (
+        <View style={styles.chooseContainer}>
+          <View style={[styles.chooseIcon, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name="swap-vertical" size={56} color={colors.primary} />
+          </View>
+          <Text style={[styles.chooseTitle, { color: colors.text }]}>What would you like to do?</Text>
+          <Text style={[styles.chooseHint, { color: colors.textSecondary }]}>
+            The receiver enters the amount and shares a code with the sender.
           </Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.warning} />
-        </TouchableOpacity>
-      )}
-      {nfcStatus === 'unsupported' && !isWeb && (
-        <View style={[styles.nfcBanner, { backgroundColor: colors.error + '12' }]}>
-          <Ionicons name="close-circle" size={18} color={colors.error} />
-          <Text style={[styles.nfcBannerText, { color: colors.error }]}>
-            NFC not available on this device. Using demo mode.
-          </Text>
+
+          <TouchableOpacity
+            style={[styles.roleCard, { backgroundColor: colors.success + '12', borderColor: colors.success + '30' }]}
+            onPress={() => setRole('receive')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.roleIconCircle, { backgroundColor: colors.success }]}>
+              <Ionicons name="arrow-down-circle" size={28} color={colors.white} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.roleTitle, { color: colors.text }]}>Receive Money</Text>
+              <Text style={[styles.roleDesc, { color: colors.textSecondary }]}>Set an amount and get a pay code</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.roleCard, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}
+            onPress={() => setRole('send')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.roleIconCircle, { backgroundColor: colors.primary }]}>
+              <Ionicons name="arrow-up-circle" size={28} color={colors.white} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.roleTitle, { color: colors.text }]}>Send Money</Text>
+              <Text style={[styles.roleDesc, { color: colors.textSecondary }]}>Enter the receiver's pay code</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+          </TouchableOpacity>
         </View>
       )}
-      {/* NFC ready: no banner needed — only show errors/warnings */}
 
-      {mode === 'setup' ? (
-        <View style={styles.setupContainer}>
-          {/* Send/Receive Toggle */}
-          <View style={[styles.toggleRow, { backgroundColor: colors.surfaceAlt }]}>
-            <TouchableOpacity
-              style={[styles.toggleBtn, isSending && { backgroundColor: colors.primary }]}
-              onPress={() => setIsSending(true)}
-            >
-              <Ionicons name="arrow-up-circle" size={20} color={isSending ? colors.white : colors.textSecondary} />
-              <Text style={[styles.toggleText, { color: isSending ? colors.white : colors.textSecondary }]}>Send</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleBtn, !isSending && { backgroundColor: colors.success }]}
-              onPress={() => setIsSending(false)}
-            >
-              <Ionicons name="arrow-down-circle" size={20} color={!isSending ? colors.white : colors.textSecondary} />
-              <Text style={[styles.toggleText, { color: !isSending ? colors.white : colors.textSecondary }]}>Receive</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Amount Display */}
+      {/* ══════════ RECEIVER: ENTER AMOUNT ══════════ */}
+      {role === 'receive' && receiveStep === 'amount' && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Text style={[styles.amountDisplay, { color: colors.text }]}>K{amount || '0'}</Text>
-
-          {/* Fee hint for sending */}
-          {isSending && parseFloat(amount) > 0 && (
-            <Text style={[styles.feeHint, { color: colors.textSecondary }]}>
-              Fee: {formatCurrency(calcPaymentFee(parseFloat(amount)))} · Total: {formatCurrency(parseFloat(amount) + calcPaymentFee(parseFloat(amount)))}
-            </Text>
-          )}
-
-          {/* NumPad */}
-          <NumPad onPress={handleKeyPress} onDelete={handleDelete} />
-
-          {/* Start Button */}
+          <Text style={[styles.receiveHint, { color: colors.textSecondary }]}>
+            Enter the amount you want to receive
+          </Text>
+          <NumPad onPress={handleKeyPress} onDelete={handleDelete} showDecimal={true} />
           <View style={styles.startBtnContainer}>
             <Button
-              title={isSending ? 'Ready to Send' : 'Ready to Receive'}
-              onPress={startTap}
+              title={creatingRequest ? 'Creating...' : 'Get Pay Code'}
+              onPress={handleCreateRequest}
               size="lg"
-              variant={isSending ? 'primary' : 'secondary'}
+              variant="secondary"
+              disabled={creatingRequest || !(parseFloat(amount) > 0)}
             />
           </View>
-        </View>
-      ) : mode === 'processing' ? (
-        <View style={styles.waitingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.waitingTitle, { color: colors.text, marginTop: Spacing.lg }]}>
-            Processing payment...
-          </Text>
-        </View>
-      ) : (
+        </ScrollView>
+      )}
+
+      {/* ══════════ RECEIVER: WAITING WITH CODE ══════════ */}
+      {role === 'receive' && receiveStep === 'waiting' && (
         <View style={styles.waitingContainer}>
           <Animated.View style={[styles.tapCircle, { transform: [{ scale: pulseAnim }] }]}>
             <Animated.View
               style={[
                 styles.ring,
-                { borderColor: colors.primary },
+                { borderColor: colors.success },
                 {
                   opacity: ringAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.2, 0] }),
                   transform: [{ scale: ringAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }],
                 },
               ]}
             />
-            <View style={[styles.tapInner, { backgroundColor: colors.primary }]}>
-              <Ionicons name="wifi" size={48} color={colors.white} />
+            <View style={[styles.tapInner, { backgroundColor: colors.success }]}>
+              <Ionicons name="arrow-down-circle" size={48} color={colors.white} />
             </View>
           </Animated.View>
-          <Text style={[styles.waitingTitle, { color: colors.text }]}>
-            {isSending ? 'Hold near receiver\'s phone' : 'Waiting for sender...'}
+
+          <Text style={[styles.waitingTitle, { color: colors.text }]}>Share this code</Text>
+          <Text style={[styles.waitingAmount, { color: colors.success }]}>K{amount}</Text>
+
+          {/* Big code display */}
+          <View style={[styles.codeDisplay, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.codeText, { color: colors.primary }]}>
+              {payCode.split('').join(' ')}
+            </Text>
+          </View>
+          <Text style={[styles.codeHint, { color: colors.textSecondary }]}>
+            Tell the sender to enter this code in their Monde app
           </Text>
-          <Text style={[styles.waitingAmount, { color: colors.primary }]}>K{amount}</Text>
-          {statusMsg ? (
-            <Text style={[styles.statusMsg, { color: colors.textSecondary }]}>{statusMsg}</Text>
-          ) : (
-            <Text style={[styles.waitingHint, { color: colors.textSecondary }]}>Keep devices close until transfer completes</Text>
-          )}
-          <TouchableOpacity style={styles.cancelBtn} onPress={cancelNfc}>
+
+          <TouchableOpacity style={styles.cancelBtn} onPress={goBack}>
             <Text style={[styles.cancelText, { color: colors.error }]}>Cancel</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ══════════ SENDER: ENTER CODE ══════════ */}
+      {role === 'send' && sendStep === 'code' && (
+        <View style={styles.sendCodeContainer}>
+          <View style={[styles.sendIcon, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name="keypad" size={40} color={colors.primary} />
+          </View>
+          <Text style={[styles.sendTitle, { color: colors.text }]}>Enter Pay Code</Text>
+          <Text style={[styles.sendHint, { color: colors.textSecondary }]}>
+            Ask the receiver for their 6-digit pay code
+          </Text>
+
+          <TextInput
+            style={[styles.codeInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
+            value={codeInput}
+            onChangeText={(t) => setCodeInput(t.replace(/[^0-9]/g, '').slice(0, 6))}
+            placeholder="000000"
+            placeholderTextColor={colors.textLight}
+            keyboardType="number-pad"
+            maxLength={6}
+            textAlign="center"
+            autoFocus
+          />
+
+          <View style={styles.startBtnContainer}>
+            <Button
+              title={lookupLoading ? 'Looking up...' : 'Continue'}
+              onPress={handleLookupCode}
+              size="lg"
+              disabled={codeInput.length !== 6 || lookupLoading}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* ══════════ SENDER: CONFIRM PAYMENT ══════════ */}
+      {role === 'send' && sendStep === 'confirm' && paymentDetails && (
+        <View style={styles.confirmContainer}>
+          <View style={[styles.confirmCard, { backgroundColor: colors.surface }]}>
+            <View style={[styles.confirmIconCircle, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="person" size={32} color={colors.primary} />
+            </View>
+            <Text style={[styles.confirmName, { color: colors.text }]}>{paymentDetails.name}</Text>
+            {paymentDetails.handle && (
+              <Text style={[styles.confirmHandle, { color: colors.textSecondary }]}>@{paymentDetails.handle}</Text>
+            )}
+            <View style={[styles.confirmDivider, { backgroundColor: colors.border }]} />
+            <Text style={[styles.confirmAmountLabel, { color: colors.textSecondary }]}>Amount</Text>
+            <Text style={[styles.confirmAmount, { color: colors.primary }]}>{formatCurrency(paymentDetails.amount)}</Text>
+            <View style={styles.confirmFeeRow}>
+              <Text style={[styles.confirmFeeLabel, { color: colors.textSecondary }]}>Fee (3%)</Text>
+              <Text style={[styles.confirmFeeValue, { color: colors.textSecondary }]}>{formatCurrency(calcPaymentFee(paymentDetails.amount))}</Text>
+            </View>
+            <View style={styles.confirmFeeRow}>
+              <Text style={[styles.confirmFeeLabel, { color: colors.text, fontWeight: '600' }]}>Total</Text>
+              <Text style={[styles.confirmFeeValue, { color: colors.text, fontWeight: '700' }]}>{formatCurrency(paymentDetails.amount + calcPaymentFee(paymentDetails.amount))}</Text>
+            </View>
+          </View>
+
+          <View style={styles.startBtnContainer}>
+            <Button
+              title={payLoading ? 'Sending...' : `Pay ${formatCurrency(paymentDetails.amount)}`}
+              onPress={handleConfirmPay}
+              size="lg"
+              disabled={payLoading}
+            />
+          </View>
+
+          <TouchableOpacity style={styles.cancelBtn} onPress={goBack}>
+            <Text style={[styles.cancelText, { color: colors.error }]}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ══════════ SENDER: PROCESSING ══════════ */}
+      {role === 'send' && sendStep === 'processing' && (
+        <View style={styles.waitingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.waitingTitle, { color: colors.text, marginTop: Spacing.lg }]}>
+            Processing payment...
+          </Text>
         </View>
       )}
     </View>
@@ -404,52 +390,68 @@ const styles = StyleSheet.create({
     fontSize: FontSize.lg,
     fontWeight: '700',
   },
-  nfcBanner: {
-    flexDirection: 'row',
+
+  // ── Role chooser ──
+  chooseContainer: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginHorizontal: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
   },
-  nfcBannerText: {
-    flex: 1,
-    fontSize: FontSize.sm,
-    fontWeight: '500',
-  },
-  setupContainer: {
-    flex: 1,
+  chooseIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
     justifyContent: 'center',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    marginHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.full,
-    padding: 4,
     marginBottom: Spacing.lg,
   },
-  toggleBtn: {
-    flex: 1,
+  chooseTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  chooseHint: {
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+    lineHeight: 20,
+  },
+  roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.md,
+    width: '100%',
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+  },
+  roleIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md - 4,
-    borderRadius: BorderRadius.full,
-    gap: Spacing.sm,
   },
-  toggleText: {
+  roleTitle: {
     fontSize: FontSize.md,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: 2,
   },
+  roleDesc: {
+    fontSize: FontSize.sm,
+  },
+
+  // ── Receiver ──
   amountDisplay: {
     fontSize: 48,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: Spacing.xs,
   },
-  feeHint: {
+  receiveHint: {
     textAlign: 'center',
     fontSize: FontSize.sm,
     marginBottom: Spacing.md,
@@ -458,6 +460,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginTop: Spacing.md,
   },
+
+  // ── Waiting / Code display ──
   waitingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -495,16 +499,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: Spacing.sm,
   },
-  waitingHint: {
-    fontSize: FontSize.sm,
-    marginTop: Spacing.md,
+  codeDisplay: {
+    marginTop: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 2,
+  },
+  codeText: {
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: 8,
     textAlign: 'center',
   },
-  statusMsg: {
+  codeHint: {
     fontSize: FontSize.sm,
     marginTop: Spacing.md,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   cancelBtn: {
     marginTop: Spacing.xxl,
@@ -515,13 +527,97 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     fontWeight: '600',
   },
-  demoBadge: {
-    fontSize: FontSize.xs,
+
+  // ── Sender: code entry ──
+  sendCodeContainer: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    alignItems: 'center',
+  },
+  sendIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  sendTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: '800',
+    marginBottom: Spacing.sm,
+  },
+  sendHint: {
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+  },
+  codeInput: {
+    width: '80%',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: 10,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 2,
+    marginBottom: Spacing.lg,
+  },
+
+  // ── Sender: confirm card ──
+  confirmContainer: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    alignItems: 'center',
+  },
+  confirmCard: {
+    width: '100%',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  confirmIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  confirmName: {
+    fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.white,
-    borderRadius: 4,
-    overflow: 'hidden',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  },
+  confirmHandle: {
+    fontSize: FontSize.sm,
+    marginTop: 2,
+  },
+  confirmDivider: {
+    width: '100%',
+    height: 1,
+    marginVertical: Spacing.lg,
+  },
+  confirmAmountLabel: {
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.xs,
+  },
+  confirmAmount: {
+    fontSize: 36,
+    fontWeight: '800',
+    marginBottom: Spacing.md,
+  },
+  confirmFeeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: Spacing.xs,
+  },
+  confirmFeeLabel: {
+    fontSize: FontSize.sm,
+  },
+  confirmFeeValue: {
+    fontSize: FontSize.sm,
   },
 });
