@@ -75,6 +75,11 @@
 | 11be | **PDF statement export** — Replaced text-based account statement with professional HTML→PDF via `expo-print` + `expo-sharing`; styled header, summary cards, transaction table | ✅ DONE | `admin.tsx`, `expo-print`, `expo-sharing` |
 | 11bf | **Lipila go-live script** — Created `scripts/go-live-lipila.mjs` that updates `.env`, pushes secrets to Supabase, validates config; edge function already supports live mode | ✅ DONE | `scripts/go-live-lipila.mjs` |
 | 11bg | **app.json cleanup** — Fixed duplicate CAMERA permission, removed unnecessary RECORD_AUDIO; EAS project linked to acecode10 | ✅ DONE | `app.json` |
+| 11bh | **Admin dashboard loading fix** — Added timeout + Promise.allSettled for resilient data loading; no more infinite "Loading admin data" | ✅ DONE | `admin.tsx` loadData rewritten |
+| 11bi | **Admin/agent color restriction** — All admin + agent screens restricted to green/orange palette; eliminated hardcoded #3b82f6, #8b5cf6, #22c55e | ✅ DONE | `admin.tsx`, `agent-cashin.tsx`, `agent-cashout.tsx`, `agent-transfer.tsx`, `transaction.tsx`, `index.tsx` |
+| 11bj | **Agent home screen fix** — Removed duplicate Deposit action; Cash-Out now primary quick action; balance card shows "Agent Float" + agent code | ✅ DONE | `(tabs)/index.tsx` |
+| 11bk | **6-digit Monde agent code** — Unique MND-XXXXXX code assigned on agent toggle; stored in `agent_code` column; displayed on home screen + admin | ✅ DONE | `036_agent_code.sql`, `types.ts`, `api.ts`, `index.tsx` |
+| 11bl | **Agent screen text simplification** — Removed verbose descriptions from agent-cashin, agent-transfer, agent-cashout | ✅ DONE | Simplified labels and removed unnecessary hint text |
 
 ## Phase 2: Core Feature Completion
 
