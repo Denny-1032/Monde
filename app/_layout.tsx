@@ -151,6 +151,7 @@ function RootLayoutInner() {
         <Stack.Screen name="get-cash" />
         <Stack.Screen name="agent-cashout" />
         <Stack.Screen name="agent-cashin" />
+        <Stack.Screen name="agent-transfer" />
         <Stack.Screen name="success" options={{ animation: 'fade', gestureEnabled: false }} />
       </Stack>
       <OfflineBanner />

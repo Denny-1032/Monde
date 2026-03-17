@@ -13,14 +13,21 @@ import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { FeeSummary, FloatSummary, FeeDetail } from '../constants/types';
-import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetUserTransactions, adminToggleAgent } from '../lib/api';
+import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetUserTransactions, adminToggleAgent, adminFreezeAccount, adminListAgents } from '../lib/api';
 import { Transaction } from '../constants/types';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
 import PinConfirm from '../components/PinConfirm';
 
-type TabId = 'overview' | 'fees' | 'float' | 'accounts';
+type TabId = 'overview' | 'fees' | 'float' | 'agents' | 'accounts';
 
-type AdminUser = { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean };
+type AdminUser = { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean; is_frozen?: boolean };
+
+type AgentInfo = {
+  id: string; phone: string; full_name: string; handle?: string; balance: number;
+  is_frozen: boolean; created_at: string;
+  cashouts_today: number; cashin_today: number;
+  total_cashout_commission: number; transfer_volume_today: number;
+};
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -60,6 +67,11 @@ export default function AdminDashboardScreen() {
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
+
+  // Agents tab state
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [freezingId, setFreezingId] = useState<string | null>(null);
 
   // Guard: only admin can view (uses is_admin flag from profile)
   const isAdmin = user?.is_admin === true;
@@ -394,11 +406,57 @@ export default function AdminDashboardScreen() {
     );
   }
 
+  const loadAgents = useCallback(async () => {
+    setAgentsLoading(true);
+    const res = await adminListAgents();
+    if (res.success && res.data) {
+      // data is JSON with { success, agents: [...] }
+      const raw = Array.isArray(res.data) ? res.data : (res.data as any)?.agents || [];
+      setAgents(Array.isArray(raw) ? raw : []);
+    }
+    setAgentsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (pinVerified && activeTab === 'agents') loadAgents();
+  }, [pinVerified, activeTab, loadAgents]);
+
+  const handleFreeze = useCallback(async (userId: string, fullName: string, freeze: boolean) => {
+    Alert.alert(
+      freeze ? 'Freeze Account?' : 'Unfreeze Account?',
+      freeze
+        ? `Freeze ${fullName}'s account? They will be unable to transact until unfrozen.`
+        : `Unfreeze ${fullName}'s account? They will be able to transact again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: freeze ? 'Freeze' : 'Unfreeze',
+          style: freeze ? 'destructive' : 'default',
+          onPress: async () => {
+            setFreezingId(userId);
+            const res = await adminFreezeAccount(userId, freeze);
+            setFreezingId(null);
+            if (res.success) {
+              Alert.alert('Done', freeze ? `${fullName}'s account is now frozen.` : `${fullName}'s account has been unfrozen.`);
+              // Update local state
+              if (selectedUser?.id === userId) setSelectedUser({ ...selectedUser, is_frozen: freeze });
+              setAgents((prev) => prev.map((a) => a.id === userId ? { ...a, is_frozen: freeze } : a));
+            } else {
+              Alert.alert('Error', res.error || 'Failed to update');
+            }
+          },
+        },
+      ],
+    );
+  }, [selectedUser]);
+
   const feeTypeLabel = (type: string) => {
     switch (type) {
       case 'topup_fee': return 'Top-up';
       case 'withdraw_fee': return 'Withdrawal';
       case 'payment_fee': return 'Payment';
+      case 'cashout_fee': return 'Cash-Out';
+      case 'cashin_fee': return 'Cash-In';
       default: return type;
     }
   };
@@ -408,6 +466,8 @@ export default function AdminDashboardScreen() {
       case 'topup_fee': return colors.success;
       case 'withdraw_fee': return colors.secondary;
       case 'payment_fee': return colors.primary;
+      case 'cashout_fee': return '#22c55e';
+      case 'cashin_fee': return '#3b82f6';
       default: return colors.textSecondary;
     }
   };
@@ -427,14 +487,14 @@ export default function AdminDashboardScreen() {
 
       {/* Tabs */}
       <View style={styles.tabRow}>
-        {(['overview', 'fees', 'float', 'accounts'] as TabId[]).map((tab) => (
+        {(['overview', 'fees', 'float', 'agents', 'accounts'] as TabId[]).map((tab) => (
           <TouchableOpacity
             key={tab}
             style={[styles.tab, activeTab === tab && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
             onPress={() => setActiveTab(tab)}
           >
             <Text style={[styles.tabText, { color: activeTab === tab ? colors.primary : colors.textSecondary }]}>
-              {tab === 'overview' ? 'Overview' : tab === 'fees' ? 'Fees' : tab === 'float' ? 'Float' : 'Accounts'}
+              {tab === 'overview' ? 'Overview' : tab === 'fees' ? 'Fees' : tab === 'float' ? 'Float' : tab === 'agents' ? 'Agents' : 'Accounts'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -498,6 +558,22 @@ export default function AdminDashboardScreen() {
                   <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Payment Fees</Text>
                   <Text style={[styles.statValue, { color: colors.text }]}>
                     {formatCurrency(feeSummary.payment_fees)}
+                  </Text>
+                </View>
+                <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+                  <View style={[styles.statDot, { backgroundColor: '#22c55e' }]} />
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cash-Out Fees</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>
+                    {formatCurrency(feeSummary.cashout_fees || 0)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.cardRow}>
+                <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+                  <View style={[styles.statDot, { backgroundColor: '#3b82f6' }]} />
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cash-In Cost</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>
+                    {formatCurrency(Math.abs(feeSummary.cashin_fees || 0))}
                   </Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
@@ -751,6 +827,90 @@ export default function AdminDashboardScreen() {
             </>
           )}
 
+          {/* ====== AGENTS TAB ====== */}
+          {activeTab === 'agents' && (
+            <>
+              {agentsLoading ? (
+                <View style={styles.loadingState}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading agents...</Text>
+                </View>
+              ) : agents.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="storefront-outline" size={48} color={colors.textLight} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No agents registered yet</Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+                    {agents.length} Active Agent{agents.length !== 1 ? 's' : ''}
+                  </Text>
+                  {agents.map((agent) => (
+                    <View key={agent.id} style={[styles.agentCard, { backgroundColor: colors.surface }]}>
+                      <View style={styles.agentCardHeader}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[styles.userName, { color: colors.text }]}>{agent.full_name}</Text>
+                            {agent.is_frozen && (
+                              <View style={{ backgroundColor: colors.error + '18', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                                <Text style={{ fontSize: FontSize.xs, fontWeight: '700', color: colors.error }}>FROZEN</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={[styles.userPhone, { color: colors.textSecondary }]}>
+                            {formatPhone(agent.phone)}{agent.handle ? ` · @${agent.handle}` : ''}
+                          </Text>
+                        </View>
+                        <Text style={[styles.userBalance, { color: colors.primary }]}>{formatCurrency(agent.balance)}</Text>
+                      </View>
+
+                      {/* Agent stats */}
+                      <View style={styles.agentStatsRow}>
+                        <View style={styles.agentStatItem}>
+                          <Text style={[styles.agentStatValue, { color: colors.text }]}>{agent.cashouts_today}</Text>
+                          <Text style={[styles.agentStatLabel, { color: colors.textSecondary }]}>Cash-outs</Text>
+                        </View>
+                        <View style={[styles.agentStatDivider, { backgroundColor: colors.border }]} />
+                        <View style={styles.agentStatItem}>
+                          <Text style={[styles.agentStatValue, { color: colors.text }]}>{agent.cashin_today}</Text>
+                          <Text style={[styles.agentStatLabel, { color: colors.textSecondary }]}>Deposits</Text>
+                        </View>
+                        <View style={[styles.agentStatDivider, { backgroundColor: colors.border }]} />
+                        <View style={styles.agentStatItem}>
+                          <Text style={[styles.agentStatValue, { color: colors.text }]}>{formatCurrency(agent.total_cashout_commission)}</Text>
+                          <Text style={[styles.agentStatLabel, { color: colors.textSecondary }]}>Earned</Text>
+                        </View>
+                        <View style={[styles.agentStatDivider, { backgroundColor: colors.border }]} />
+                        <View style={styles.agentStatItem}>
+                          <Text style={[styles.agentStatValue, { color: colors.text }]}>{formatCurrency(agent.transfer_volume_today)}</Text>
+                          <Text style={[styles.agentStatLabel, { color: colors.textSecondary }]}>Transfers</Text>
+                        </View>
+                      </View>
+
+                      {/* Freeze / Unfreeze */}
+                      <TouchableOpacity
+                        style={[styles.freezeBtn, { backgroundColor: agent.is_frozen ? colors.success + '15' : colors.error + '10', borderColor: agent.is_frozen ? colors.success : colors.error }]}
+                        onPress={() => handleFreeze(agent.id, agent.full_name, !agent.is_frozen)}
+                        disabled={freezingId === agent.id}
+                      >
+                        {freezingId === agent.id ? (
+                          <ActivityIndicator size="small" color={agent.is_frozen ? colors.success : colors.error} />
+                        ) : (
+                          <>
+                            <Ionicons name={agent.is_frozen ? 'lock-open' : 'snow'} size={16} color={agent.is_frozen ? colors.success : colors.error} />
+                            <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: agent.is_frozen ? colors.success : colors.error }}>
+                              {agent.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+
           {/* ====== ACCOUNTS TAB ====== */}
           {activeTab === 'accounts' && (
             <>
@@ -811,40 +971,59 @@ export default function AdminDashboardScreen() {
                     </View>
                   </View>
 
-                  {/* Agent toggle */}
-                  <TouchableOpacity
-                    style={[styles.agentToggle, { backgroundColor: selectedUser.is_agent ? '#22c55e15' : colors.surface, borderColor: selectedUser.is_agent ? '#22c55e' : colors.border }]}
-                    onPress={() => {
-                      const newVal = !selectedUser.is_agent;
-                      Alert.alert(
-                        newVal ? 'Make Agent?' : 'Remove Agent?',
-                        newVal
-                          ? `Grant Monde Agent status to ${selectedUser.full_name}? They will be able to process cash-outs.`
-                          : `Remove Agent status from ${selectedUser.full_name}?`,
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: newVal ? 'Make Agent' : 'Remove',
-                            style: newVal ? 'default' : 'destructive',
-                            onPress: async () => {
-                              const res = await adminToggleAgent(selectedUser.id, newVal);
-                              if (res.success) {
-                                setSelectedUser({ ...selectedUser, is_agent: newVal });
-                                Alert.alert('Done', newVal ? `${selectedUser.full_name} is now a Monde Agent.` : 'Agent status removed.');
-                              } else {
-                                Alert.alert('Error', res.error || 'Failed to update');
-                              }
+                  {/* Agent toggle + Freeze */}
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md }}>
+                    <TouchableOpacity
+                      style={[styles.agentToggle, { backgroundColor: selectedUser.is_agent ? '#22c55e15' : colors.surface, borderColor: selectedUser.is_agent ? '#22c55e' : colors.border, marginBottom: 0 }]}
+                      onPress={() => {
+                        const newVal = !selectedUser.is_agent;
+                        Alert.alert(
+                          newVal ? 'Make Agent?' : 'Remove Agent?',
+                          newVal
+                            ? `Grant Monde Agent status to ${selectedUser.full_name}? They will be able to process cash-outs.`
+                            : `Remove Agent status from ${selectedUser.full_name}?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: newVal ? 'Make Agent' : 'Remove',
+                              style: newVal ? 'default' : 'destructive',
+                              onPress: async () => {
+                                const res = await adminToggleAgent(selectedUser.id, newVal);
+                                if (res.success) {
+                                  setSelectedUser({ ...selectedUser, is_agent: newVal });
+                                  Alert.alert('Done', newVal ? `${selectedUser.full_name} is now a Monde Agent.` : 'Agent status removed.');
+                                } else {
+                                  Alert.alert('Error', res.error || 'Failed to update');
+                                }
+                              },
                             },
-                          },
-                        ],
-                      );
-                    }}
-                  >
-                    <Ionicons name="storefront" size={18} color={selectedUser.is_agent ? '#22c55e' : colors.textSecondary} />
-                    <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: selectedUser.is_agent ? '#22c55e' : colors.textSecondary }}>
-                      {selectedUser.is_agent ? 'Monde Agent ✓' : 'Make Agent'}
-                    </Text>
-                  </TouchableOpacity>
+                          ],
+                        );
+                      }}
+                    >
+                      <Ionicons name="storefront" size={18} color={selectedUser.is_agent ? '#22c55e' : colors.textSecondary} />
+                      <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: selectedUser.is_agent ? '#22c55e' : colors.textSecondary }}>
+                        {selectedUser.is_agent ? 'Agent ✓' : 'Make Agent'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.agentToggle, { backgroundColor: selectedUser.is_frozen ? colors.error + '15' : colors.surface, borderColor: selectedUser.is_frozen ? colors.error : colors.border, marginBottom: 0 }]}
+                      onPress={() => handleFreeze(selectedUser.id, selectedUser.full_name, !selectedUser.is_frozen)}
+                      disabled={freezingId === selectedUser.id}
+                    >
+                      {freezingId === selectedUser.id ? (
+                        <ActivityIndicator size="small" color={colors.error} />
+                      ) : (
+                        <>
+                          <Ionicons name={selectedUser.is_frozen ? 'lock-open' : 'snow'} size={18} color={selectedUser.is_frozen ? colors.error : colors.textSecondary} />
+                          <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: selectedUser.is_frozen ? colors.error : colors.textSecondary }}>
+                            {selectedUser.is_frozen ? 'Frozen' : 'Freeze'}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
 
                   {/* Month picker */}
                   <View style={styles.monthPicker}>
@@ -1442,5 +1621,48 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: FontSize.md,
     fontWeight: '700',
+  },
+
+  // Agents tab
+  agentCard: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  agentCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  agentStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  agentStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  agentStatValue: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+  },
+  agentStatLabel: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  agentStatDivider: {
+    width: 1,
+    height: 28,
+  },
+  freezeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
   },
 });

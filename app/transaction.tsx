@@ -43,15 +43,16 @@ export default function TransactionDetailScreen() {
   const isWithdraw = txn.type === 'withdraw';
   const isCashOut = txn.type === 'cash_out';
   const isCashIn = txn.type === 'cash_in';
+  const isAgentTransfer = txn.type === 'agent_transfer';
   const provider = Providers.find((p) => p.id === txn.provider);
 
   const statusColor =
     txn.status === 'completed' ? colors.success :
     txn.status === 'failed' ? colors.error : colors.warning;
 
-  const typeLabel = isCashIn ? 'Cash Deposit' : isCashOut ? 'Get Cash' : isTopUp ? 'Top Up' : isWithdraw ? 'Withdrawal' : isReceive ? 'Received' : isPayment ? 'Payment' : 'Sent';
+  const typeLabel = isAgentTransfer ? 'Agent Transfer' : isCashIn ? 'Cash Deposit' : isCashOut ? 'Get Cash' : isTopUp ? 'Top Up' : isWithdraw ? 'Withdrawal' : isReceive ? 'Received' : isPayment ? 'Payment' : 'Sent';
   const amountPrefix = (isReceive || isTopUp || isCashIn) ? '+' : '-';
-  const amountColor = txn.status === 'pending' ? colors.warning : (isReceive || isTopUp || isCashIn) ? colors.success : colors.text;
+  const amountColor = txn.status === 'pending' ? colors.warning : (isReceive || isTopUp || isCashIn) ? colors.success : isAgentTransfer ? '#8b5cf6' : colors.text;
 
   const date = new Date(txn.created_at);
   const formattedDate = date.toLocaleDateString('en-ZM', {
@@ -111,7 +112,7 @@ export default function TransactionDetailScreen() {
           <Avatar
             name={txn.recipient_name}
             size={64}
-            color={isCashIn ? '#3b82f6' : isCashOut ? '#22c55e' : isTopUp ? colors.success : isWithdraw ? colors.secondary : isReceive ? colors.success : isPayment ? colors.secondary : colors.primaryLight}
+            color={isAgentTransfer ? '#8b5cf6' : isCashIn ? '#3b82f6' : isCashOut ? '#22c55e' : isTopUp ? colors.success : isWithdraw ? colors.secondary : isReceive ? colors.success : isPayment ? colors.secondary : colors.primaryLight}
           />
           <Text style={[styles.recipientName, { color: colors.text }]}>{txn.recipient_name}</Text>
           {txn.recipient_phone ? (

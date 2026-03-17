@@ -11,7 +11,10 @@ import NumPad from '../components/NumPad';
 import Button from '../components/Button';
 import { formatCurrency, calcPaymentFee } from '../lib/helpers';
 import * as Haptics from 'expo-haptics';
-import { createPaymentRequest, lookupPaymentRequest, completePaymentRequest } from '../lib/api';
+// TODO: NFC tap-to-pay API functions (WIP feature)
+const createPaymentRequest = async (_a: any): Promise<any> => ({ success: false, error: 'Not implemented' });
+const lookupPaymentRequest = async (_a: any): Promise<any> => ({ success: false, error: 'Not implemented' });
+const completePaymentRequest = async (_a: any, _b?: any): Promise<{ success: boolean; error?: string }> => ({ success: false, error: 'Not implemented' });
 
 type Role = 'choose' | 'receive' | 'send';
 type ReceiveStep = 'amount' | 'waiting';

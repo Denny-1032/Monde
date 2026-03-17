@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,16 +6,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
-import { formatCurrency, formatPhone, calcCashInCommission } from '../lib/helpers';
-import { processAgentCashIn } from '../lib/api';
+import { formatCurrency, formatPhone } from '../lib/helpers';
+import { agentToAgentTransfer } from '../lib/api';
 import NumPad from '../components/NumPad';
 
 type Step = 'phone' | 'amount' | 'success';
 
-export default function AgentCashInScreen() {
+export default function AgentTransferScreen() {
   const colors = useColors();
   const router = useRouter();
-  const params = useLocalSearchParams<{ phone?: string; name?: string }>();
+  const params = useLocalSearchParams<{ phone?: string }>();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
   const fetchProfile = useStore((s) => s.fetchProfile);
@@ -24,22 +24,18 @@ export default function AgentCashInScreen() {
   const [step, setStep] = useState<Step>(params.phone ? 'amount' : 'phone');
   const [phone, setPhone] = useState(params.phone || '');
   const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Result state
   const [reference, setReference] = useState('');
-  const [commission, setCommission] = useState(0);
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [recipientName, setRecipientName] = useState('');
 
   const parsedAmount = parseFloat(amount) || 0;
   const agentBalance = user?.balance || 0;
   const canAfford = parsedAmount > 0 && parsedAmount <= agentBalance;
-  const validAmount = parsedAmount >= 1 && parsedAmount <= 5000;
-  const estimatedCommission = calcCashInCommission(parsedAmount);
+  const validAmount = parsedAmount >= 1 && parsedAmount <= 50000;
 
-  // Normalize phone to +260 format
   const normalizePhone = (raw: string): string => {
     const digits = raw.replace(/[^0-9]/g, '');
     if (digits.startsWith('260') && digits.length >= 12) return '+' + digits;
@@ -75,25 +71,23 @@ export default function AgentCashInScreen() {
     if (!validAmount || !canAfford) return;
     const normalized = normalizePhone(phone);
     Alert.alert(
-      'Confirm Cash-In',
-      `Deposit ${formatCurrency(parsedAmount)} to customer's Monde wallet?\n\nYour wallet will be debited ${formatCurrency(parsedAmount)}.\nYou earn ${formatCurrency(estimatedCommission)} commission.\n\nMake sure you have collected the cash!`,
+      'Confirm Agent Transfer',
+      `Transfer ${formatCurrency(parsedAmount)} to another agent?\n\nNo fee charged.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Confirm Deposit',
+          text: 'Transfer',
           onPress: async () => {
             setIsLoading(true);
             setError(null);
-            const result = await processAgentCashIn(normalized, parsedAmount);
+            const result = await agentToAgentTransfer(normalized, parsedAmount, note || undefined);
             if (!result.success) {
-              setError(result.error || 'Failed to process');
+              setError(result.error || 'Transfer failed');
               setIsLoading(false);
               return;
             }
             setReference(result.reference || '');
-            setCommission(result.commission || 0);
-            setCustomerName(result.customer_name || 'Customer');
-            setCustomerPhone(result.customer_phone || normalized);
+            setRecipientName(result.recipient_name || 'Agent');
             setStep('success');
             setIsLoading(false);
             fetchProfile();
@@ -113,18 +107,18 @@ export default function AgentCashInScreen() {
         }}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Agent Cash-In</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Agent Transfer</Text>
         <View style={{ width: 28 }} />
       </View>
 
       {step === 'phone' && (
         <View style={styles.section}>
-          <View style={[styles.agentBadge, { backgroundColor: '#3b82f615' }]}>
-            <Ionicons name="arrow-down-circle" size={32} color="#3b82f6" />
-            <Text style={[styles.agentBadgeText, { color: '#3b82f6' }]}>Cash Deposit</Text>
+          <View style={[styles.badge, { backgroundColor: '#8b5cf615' }]}>
+            <Ionicons name="swap-horizontal" size={32} color="#8b5cf6" />
+            <Text style={[styles.badgeText, { color: '#8b5cf6' }]}>Float Transfer</Text>
           </View>
           <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Enter the customer's phone number
+            Enter the other agent's phone number
           </Text>
           <TextInput
             style={[styles.phoneInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
@@ -138,41 +132,30 @@ export default function AgentCashInScreen() {
           />
           {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: phone.replace(/[^0-9]/g, '').length >= 9 ? colors.primary : colors.border }]}
+            style={[styles.actionBtn, { backgroundColor: phone.replace(/[^0-9]/g, '').length >= 9 ? '#8b5cf6' : colors.border }]}
             onPress={handlePhoneNext}
             disabled={phone.replace(/[^0-9]/g, '').length < 9}
           >
             <Text style={[styles.actionBtnText, { color: colors.white }]}>Next</Text>
           </TouchableOpacity>
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            The customer must have a Monde account
+            Both parties must be Monde agents. No fee charged.
           </Text>
         </View>
       )}
 
       {step === 'amount' && (
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            How much cash is the customer depositing?
-          </Text>
-          <Text style={[styles.amountDisplay, { color: colors.text }]}>
-            K{amount || '0'}
-          </Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>How much to transfer?</Text>
+          <Text style={[styles.amountDisplay, { color: colors.text }]}>K{amount || '0'}</Text>
 
-          {parsedAmount > 0 && (
-            <View style={[styles.infoRow, { backgroundColor: colors.surface }]}>
-              <View style={styles.infoItem}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Your Commission (0.5%)</Text>
-                <Text style={[styles.infoValue, { color: '#22c55e' }]}>+{formatCurrency(estimatedCommission)}</Text>
-              </View>
-            </View>
-          )}
+          <View style={styles.freeRow}>
+            <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+            <Text style={[styles.freeText, { color: '#22c55e' }]}>No fee — free agent transfer</Text>
+          </View>
 
           <Text style={[styles.balanceText, { color: parsedAmount > 0 && !canAfford ? colors.error : colors.textSecondary }]}>
             Your balance: {formatCurrency(agentBalance)}
-          </Text>
-          <Text style={[styles.freeNote, { color: colors.textSecondary }]}>
-            Customer pays nothing for deposits
           </Text>
 
           {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
@@ -181,7 +164,7 @@ export default function AgentCashInScreen() {
 
           <View style={styles.bottomActions}>
             <TouchableOpacity
-              style={[styles.confirmBtn, { backgroundColor: validAmount && canAfford ? colors.primary : colors.border }]}
+              style={[styles.confirmBtn, { backgroundColor: validAmount && canAfford ? '#8b5cf6' : colors.border }]}
               onPress={handleProcess}
               disabled={!validAmount || !canAfford || isLoading}
             >
@@ -189,8 +172,8 @@ export default function AgentCashInScreen() {
                 <ActivityIndicator color={colors.white} />
               ) : (
                 <>
-                  <Ionicons name="arrow-down-circle" size={20} color={colors.white} />
-                  <Text style={[styles.actionBtnText, { color: colors.white }]}>Confirm Deposit</Text>
+                  <Ionicons name="swap-horizontal" size={20} color={colors.white} />
+                  <Text style={[styles.actionBtnText, { color: colors.white }]}>Transfer</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -203,25 +186,25 @@ export default function AgentCashInScreen() {
           <View style={[styles.successIcon, { backgroundColor: '#22c55e15' }]}>
             <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
           </View>
-          <Text style={[styles.successTitle, { color: colors.text }]}>Deposit Complete!</Text>
+          <Text style={[styles.successTitle, { color: colors.text }]}>Transfer Complete!</Text>
           <Text style={[styles.successRef, { color: colors.textSecondary }]}>Ref: {reference}</Text>
 
           <View style={[styles.detailsCard, { backgroundColor: colors.surface }]}>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Customer</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>{customerName}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>To</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{recipientName}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Deposited</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Amount</Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>{formatCurrency(parsedAmount)}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Your Commission</Text>
-              <Text style={[styles.detailValue, { color: '#22c55e', fontWeight: '700' }]}>+{formatCurrency(commission)}</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Fee</Text>
+              <Text style={[styles.detailValue, { color: '#22c55e' }]}>FREE</Text>
             </View>
           </View>
 
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary, marginTop: Spacing.xl }]} onPress={() => router.back()}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#8b5cf6', marginTop: Spacing.xl }]} onPress={() => router.back()}>
             <Text style={[styles.actionBtnText, { color: colors.white }]}>Done</Text>
           </TouchableOpacity>
         </View>
@@ -242,14 +225,14 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   title: { fontSize: FontSize.lg, fontWeight: '700' },
   section: { flex: 1, alignItems: 'center', paddingHorizontal: Spacing.lg },
-  agentBadge: {
+  badge: {
     alignItems: 'center',
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
     borderRadius: BorderRadius.xl,
     marginBottom: Spacing.xl,
   },
-  agentBadgeText: { fontSize: FontSize.md, fontWeight: '700', marginTop: Spacing.sm },
+  badgeText: { fontSize: FontSize.md, fontWeight: '700', marginTop: Spacing.sm },
   label: { fontSize: FontSize.md, marginBottom: Spacing.lg, textAlign: 'center' },
   phoneInput: {
     width: '100%',
@@ -263,18 +246,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   amountDisplay: { fontSize: 48, fontWeight: '800', marginBottom: Spacing.md },
-  infoRow: {
-    flexDirection: 'row',
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
-  },
-  infoItem: { alignItems: 'center', paddingHorizontal: Spacing.md },
-  infoLabel: { fontSize: FontSize.xs },
-  infoValue: { fontSize: FontSize.md, fontWeight: '700' },
-  balanceText: { fontSize: FontSize.sm, marginBottom: 4 },
-  freeNote: { fontSize: FontSize.xs, fontStyle: 'italic', marginBottom: Spacing.md },
+  freeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
+  freeText: { fontSize: FontSize.sm, fontWeight: '700' },
+  balanceText: { fontSize: FontSize.sm, marginBottom: Spacing.md },
   errorText: { fontSize: FontSize.sm, marginBottom: Spacing.md, textAlign: 'center' },
   actionBtn: {
     borderRadius: BorderRadius.lg,
@@ -291,17 +265,6 @@ const styles = StyleSheet.create({
   detailValue: { fontSize: FontSize.sm, fontWeight: '600' },
   detailAmount: { fontSize: FontSize.lg, fontWeight: '700' },
   divider: { height: 1, marginVertical: 6 },
-  reminderBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    marginTop: Spacing.md,
-    width: '100%',
-  },
-  reminderText: { flex: 1, fontSize: FontSize.xs, fontWeight: '600' },
   confirmBtn: {
     flexDirection: 'row',
     alignItems: 'center',

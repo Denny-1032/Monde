@@ -492,6 +492,7 @@ export async function getProfile(userId: string): Promise<{ data: UserProfile | 
       avatar_url: data.avatar_url,
       is_admin: data.is_admin || false,
       is_agent: data.is_agent || false,
+      is_frozen: data.is_frozen || false,
       created_at: data.created_at,
     },
   };
@@ -614,6 +615,20 @@ export async function cancelCashOutRequest(
   return data as any;
 }
 
+export async function agentToAgentTransfer(
+  recipientPhone: string,
+  amount: number,
+  note?: string,
+): Promise<{ success: boolean; transaction_id?: string; reference?: string; amount?: number; recipient_name?: string; new_balance?: number; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('agent_to_agent_transfer', { p_recipient_phone: recipientPhone, p_amount: amount, p_note: note || null });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
 export async function processAgentCashIn(
   customerPhone: string,
   amount: number,
@@ -638,6 +653,29 @@ export async function adminToggleAgent(
   const { data, error } = await supabase.rpc('admin_toggle_agent', { p_user_id: userId, p_is_agent: isAgent });
   if (error) return { success: false, error: error.message };
   return data as any;
+}
+
+export async function adminFreezeAccount(
+  userId: string,
+  freeze: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('admin_freeze_account', { p_user_id: userId, p_freeze: freeze });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function adminListAgents(): Promise<{ success: boolean; data: any[]; error?: string }> {
+  if (!isSupabaseConfigured) return { success: true, data: [] };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, data: [], error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('admin_list_agents');
+  if (error) return { success: false, data: [], error: error.message };
+  return { success: true, data: (data as any) || [] };
 }
 
 // ============================================
@@ -1041,6 +1079,8 @@ export async function getFeeSummary(): Promise<FeeSummary> {
       topup_fees: 0,
       withdraw_fees: 0,
       payment_fees: 0,
+      cashout_fees: 0,
+      cashin_fees: 0,
       admin_balance: 0,
       total_fee_transactions: 0,
     };
@@ -1089,7 +1129,7 @@ export async function adminWithdrawRevenue(
 
 export async function adminSearchUsers(
   query: string,
-): Promise<{ data: { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean }[]; error?: string }> {
+): Promise<{ data: { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean; is_frozen?: boolean }[]; error?: string }> {
   if (!isSupabaseConfigured) return { data: [] };
 
   const trimmed = query.trim();
@@ -1098,7 +1138,7 @@ export async function adminSearchUsers(
   // Search by phone, name, or handle
   let dbQuery = supabase
     .from('profiles')
-    .select('id, phone, full_name, balance, handle, is_admin, is_agent')
+    .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen')
     .limit(20);
 
   if (trimmed.startsWith('@')) {

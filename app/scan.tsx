@@ -5,6 +5,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
+import { useStore } from '../store/useStore';
 import { parseQRData, isCashOutQR } from '../lib/helpers';
 import Button from '../components/Button';
 
@@ -37,6 +38,8 @@ function WebScanFallback({ onScan, onBack, onMyQR }: { onScan: (e: { data: strin
 export default function ScanScreen() {
   const colors = useColors();
   const router = useRouter();
+  const user = useStore((s) => s.user);
+  const isAgent = user?.is_agent === true;
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
 
@@ -51,6 +54,12 @@ export default function ScanScreen() {
         router.push({
           pathname: '/agent-cashout',
           params: { token: payload.token },
+        });
+      } else if (isAgent) {
+        // Agents scanning a customer QR → route to deposit (cash-in) with phone pre-filled
+        router.push({
+          pathname: '/agent-cashin' as any,
+          params: { phone: payload.phone, name: payload.name },
         });
       } else {
         router.push({

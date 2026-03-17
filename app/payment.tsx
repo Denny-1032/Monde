@@ -162,6 +162,11 @@ export default function PaymentScreen() {
   };
 
   const handleReview = () => {
+    // Block agents from using Send Money
+    if (user?.is_agent) {
+      Alert.alert('Agent Account', 'Agent accounts cannot send money directly. Use "Deposit" to credit a customer or "Agent Transfer" to send to another agent.');
+      return;
+    }
     // Prevent send-to-self
     const cleanedPhone = recipientPhone.replace(/[^0-9+]/g, '');
     const userPhone = user?.phone || '';

@@ -135,68 +135,105 @@ export default function HomeScreen() {
             <Text style={styles.actionDesc}>Scan to pay</Text>
           </TouchableOpacity>
 
-          {/* Receive */}
-          <TouchableOpacity
-            style={[styles.actionCard, { backgroundColor: colors.secondary }]}
-            onPress={() => router.push('/receive')}
-            activeOpacity={0.8}
-            accessibilityLabel="Show your QR code to receive money"
-            accessibilityRole="button"
-          >
-            <View style={styles.actionIconCircle}>
-              <Ionicons name="arrow-down-circle" size={28} color={colors.secondary} />
-            </View>
-            <Text style={styles.actionTitle}>Receive</Text>
-            <Text style={styles.actionDesc}>Show your QR code</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Secondary Actions */}
-        <View style={styles.secondaryRow}>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/top-up')} activeOpacity={0.7} accessibilityLabel="Top up wallet" accessibilityRole="button">
-            <View style={[styles.secondaryIcon, { backgroundColor: colors.success + '15' }]}>
-              <Ionicons name="wallet" size={20} color={colors.success} />
-            </View>
-            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Top Up</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/payment')} activeOpacity={0.7} accessibilityLabel="Send money" accessibilityRole="button">
-            <View style={[styles.secondaryIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="send" size={20} color={colors.primary} />
-            </View>
-            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Send</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/get-cash')} activeOpacity={0.7} accessibilityLabel="Get cash from agent" accessibilityRole="button">
-            <View style={[styles.secondaryIcon, { backgroundColor: '#22c55e15' }]}>
-              <Ionicons name="cash-outline" size={20} color="#22c55e" />
-            </View>
-            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Get Cash</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/withdraw')} activeOpacity={0.7} accessibilityLabel="Withdraw money" accessibilityRole="button">
-            <View style={[styles.secondaryIcon, { backgroundColor: colors.secondary + '15' }]}>
-              <Ionicons name="arrow-up-circle" size={22} color={colors.secondary} />
-            </View>
-            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Withdraw</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Agent actions (only for agents) */}
-        {user?.is_agent && (
-          <View style={styles.agentRow}>
+          {/* Second quick action — agents get Deposit, customers get Receive */}
+          {user?.is_agent ? (
             <TouchableOpacity
-              style={[styles.agentBar, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30', flex: 1 }]}
-              onPress={() => router.push('/agent-cashout')}
-              activeOpacity={0.7}
+              style={[styles.actionCard, { backgroundColor: '#3b82f6' }]}
+              onPress={() => router.push('/agent-cashin' as any)}
+              activeOpacity={0.8}
+              accessibilityLabel="Deposit cash for customer"
+              accessibilityRole="button"
             >
-              <Ionicons name="arrow-up-circle" size={18} color={colors.primary} />
-              <Text style={[styles.agentBarText, { color: colors.primary }]}>Cash-Out</Text>
+              <View style={styles.actionIconCircle}>
+                <Ionicons name="arrow-down-circle" size={28} color="#3b82f6" />
+              </View>
+              <Text style={styles.actionTitle}>Deposit</Text>
+              <Text style={styles.actionDesc}>Cash-in for customer</Text>
             </TouchableOpacity>
+          ) : (
             <TouchableOpacity
-              style={[styles.agentBar, { backgroundColor: '#3b82f610', borderColor: '#3b82f630', flex: 1 }]}
-              onPress={() => router.push('/agent-cashin')}
-              activeOpacity={0.7}
+              style={[styles.actionCard, { backgroundColor: colors.secondary }]}
+              onPress={() => router.push('/receive')}
+              activeOpacity={0.8}
+              accessibilityLabel="Show your QR code to receive money"
+              accessibilityRole="button"
             >
-              <Ionicons name="arrow-down-circle" size={18} color="#3b82f6" />
-              <Text style={[styles.agentBarText, { color: '#3b82f6' }]}>Cash-In</Text>
+              <View style={styles.actionIconCircle}>
+                <Ionicons name="arrow-down-circle" size={28} color={colors.secondary} />
+              </View>
+              <Text style={styles.actionTitle}>Receive</Text>
+              <Text style={styles.actionDesc}>Show your QR code</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Secondary Actions — different for agents vs customers */}
+        {user?.is_agent ? (
+          <>
+            {/* Agent primary actions */}
+            <View style={styles.secondaryRow}>
+              <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/agent-cashout')} activeOpacity={0.7} accessibilityLabel="Process customer cash-out" accessibilityRole="button">
+                <View style={[styles.secondaryIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="arrow-up-circle" size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Cash-Out</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/agent-cashin' as any)} activeOpacity={0.7} accessibilityLabel="Deposit cash for customer" accessibilityRole="button">
+                <View style={[styles.secondaryIcon, { backgroundColor: '#3b82f615' }]}>
+                  <Ionicons name="arrow-down-circle" size={20} color="#3b82f6" />
+                </View>
+                <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Deposit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/agent-transfer' as any)} activeOpacity={0.7} accessibilityLabel="Transfer to another agent" accessibilityRole="button">
+                <View style={[styles.secondaryIcon, { backgroundColor: '#8b5cf615' }]}>
+                  <Ionicons name="swap-horizontal" size={20} color="#8b5cf6" />
+                </View>
+                <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Transfer</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/withdraw')} activeOpacity={0.7} accessibilityLabel="Withdraw earnings" accessibilityRole="button">
+                <View style={[styles.secondaryIcon, { backgroundColor: colors.secondary + '15' }]}>
+                  <Ionicons name="arrow-up-circle" size={22} color={colors.secondary} />
+                </View>
+                <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Withdraw</Text>
+              </TouchableOpacity>
+            </View>
+            {/* Agent float top-up */}
+            <View style={styles.agentRow}>
+              <TouchableOpacity
+                style={[styles.agentBar, { backgroundColor: colors.success + '10', borderColor: colors.success + '30', flex: 1 }]}
+                onPress={() => router.push('/top-up')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="wallet" size={18} color={colors.success} />
+                <Text style={[styles.agentBarText, { color: colors.success }]}>Add Float</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <View style={styles.secondaryRow}>
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/top-up')} activeOpacity={0.7} accessibilityLabel="Top up wallet" accessibilityRole="button">
+              <View style={[styles.secondaryIcon, { backgroundColor: colors.success + '15' }]}>
+                <Ionicons name="wallet" size={20} color={colors.success} />
+              </View>
+              <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Top Up</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/payment')} activeOpacity={0.7} accessibilityLabel="Send money" accessibilityRole="button">
+              <View style={[styles.secondaryIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="send" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Send</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/get-cash')} activeOpacity={0.7} accessibilityLabel="Get cash from agent" accessibilityRole="button">
+              <View style={[styles.secondaryIcon, { backgroundColor: '#22c55e15' }]}>
+                <Ionicons name="cash-outline" size={20} color="#22c55e" />
+              </View>
+              <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Get Cash</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/withdraw')} activeOpacity={0.7} accessibilityLabel="Withdraw money" accessibilityRole="button">
+              <View style={[styles.secondaryIcon, { backgroundColor: colors.secondary + '15' }]}>
+                <Ionicons name="arrow-up-circle" size={22} color={colors.secondary} />
+              </View>
+              <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Withdraw</Text>
             </TouchableOpacity>
           </View>
         )}

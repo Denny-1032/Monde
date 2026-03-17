@@ -169,17 +169,12 @@ export function calcGetCashFee(amount: number, volumeBonus: boolean = false): {
 
 // ============================================
 // Cash-In Commission (agent deposit)
-// Customer pays NOTHING. Monde pays agent.
+// Flat 0.5% of amount. Customer pays NOTHING. Monde pays agent.
 // ============================================
 
 export function calcCashInCommission(amount: number): number {
   if (amount <= 0) return 0;
-  if (amount <= 150) return 0.5;
-  if (amount <= 300) return 1;
-  if (amount <= 500) return 2;
-  if (amount <= 1000) return 3;
-  if (amount <= 3000) return 5;
-  return 8; // 3001-5000 (capped)
+  return Math.round(amount * 0.005 * 100) / 100;
 }
 
 export function isCashOutQR(payload: QRPayload | CashOutQRPayload): payload is CashOutQRPayload {

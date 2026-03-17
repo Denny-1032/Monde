@@ -21,6 +21,15 @@ export default function GetCashScreen() {
   const user = useStore((s) => s.user);
   const fetchProfile = useStore((s) => s.fetchProfile);
 
+  // Agents cannot use Get Cash — they ARE the cash point
+  useEffect(() => {
+    if (user?.is_agent) {
+      Alert.alert('Agent Account', 'Agents cannot use Get Cash. You are the cash point — customers come to you.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    }
+  }, [user?.is_agent]);
+
   const [step, setStep] = useState<Step>('amount');
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);

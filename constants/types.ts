@@ -7,7 +7,7 @@ export type Provider = {
 
 export type Transaction = {
   id: string;
-  type: 'send' | 'receive' | 'payment' | 'topup' | 'withdraw' | 'cash_out' | 'cash_in';
+  type: 'send' | 'receive' | 'payment' | 'topup' | 'withdraw' | 'cash_out' | 'cash_in' | 'agent_transfer';
   amount: number;
   currency: string;
   recipient_name: string;
@@ -33,6 +33,7 @@ export type UserProfile = {
   avatar_url?: string;
   is_admin?: boolean;
   is_agent?: boolean;
+  is_frozen?: boolean;
   created_at: string;
 };
 
@@ -106,6 +107,8 @@ export type FeeSummary = {
   topup_fees: number;
   withdraw_fees: number;
   payment_fees: number;
+  cashout_fees: number;
+  cashin_fees: number;
   admin_balance: number;
   total_fee_transactions: number;
   error?: string;

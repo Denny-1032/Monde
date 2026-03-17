@@ -323,6 +323,16 @@ export const useStore = create<AppState>((set, get) => ({
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
 
+    // Block frozen accounts
+    if (user.is_frozen) {
+      return { success: false, error: 'Your account has been frozen. Contact support.' };
+    }
+
+    // Block agents from using regular send
+    if (user.is_agent) {
+      return { success: false, error: 'Agent accounts cannot send money directly. Use "Deposit" or "Agent Transfer".' };
+    }
+
     const pFee = calcPaymentFee(amount);
     if ((amount + pFee) > user.balance) {
       return { success: false, error: 'Insufficient balance' };
@@ -381,6 +391,7 @@ export const useStore = create<AppState>((set, get) => ({
   topUp: async (amount, provider, note, linkedAccountId) => {
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
+    if (user.is_frozen) return { success: false, error: 'Your account has been frozen. Contact support.' };
 
     // Test deposits go through Supabase when configured (so fees are recorded)
     if (!isSupabaseConfigured || !sessionId) {
@@ -439,6 +450,7 @@ export const useStore = create<AppState>((set, get) => ({
   withdraw: async (amount, provider, destinationPhone, note, linkedAccountId) => {
     const { user, sessionId } = get();
     if (!user) return { success: false, error: 'Not authenticated' };
+    if (user.is_frozen) return { success: false, error: 'Your account has been frozen. Contact support.' };
 
     const isTest = provider === 'test_withdraw';
     const wFee = calcWithdrawFee(amount);

@@ -20,10 +20,11 @@ function TransactionItem({ transaction, onPress }: Props) {
   const isWithdraw = transaction.type === 'withdraw';
   const isCashOut = transaction.type === 'cash_out';
   const isCashIn = transaction.type === 'cash_in';
+  const isAgentTransfer = transaction.type === 'agent_transfer';
 
   const isPending = transaction.status === 'pending';
-  const iconName = isCashIn ? 'arrow-down-circle' : isCashOut ? 'cash-outline' : isTopUp ? 'wallet' : isWithdraw ? 'arrow-up-circle' : isReceive ? 'arrow-down-circle' : isPayment ? 'cart' : 'arrow-up-circle';
-  const amountColor = isPending ? colors.warning : (isReceive || isTopUp || isCashIn) ? colors.success : colors.text;
+  const iconName = isAgentTransfer ? 'swap-horizontal' : isCashIn ? 'arrow-down-circle' : isCashOut ? 'cash-outline' : isTopUp ? 'wallet' : isWithdraw ? 'arrow-up-circle' : isReceive ? 'arrow-down-circle' : isPayment ? 'cart' : 'arrow-up-circle';
+  const amountColor = isPending ? colors.warning : (isReceive || isTopUp || isCashIn) ? colors.success : isAgentTransfer ? '#8b5cf6' : colors.text;
   const amountPrefix = (isReceive || isTopUp || isCashIn) ? '+' : '-';
 
   return (
@@ -37,7 +38,7 @@ function TransactionItem({ transaction, onPress }: Props) {
       <Avatar
         name={transaction.recipient_name}
         size={42}
-        color={isCashIn ? '#3b82f6' : isCashOut ? '#22c55e' : isTopUp ? colors.success : isWithdraw ? colors.secondary : isReceive ? colors.success : isPayment ? colors.secondary : colors.primaryLight}
+        color={isAgentTransfer ? '#8b5cf6' : isCashIn ? '#3b82f6' : isCashOut ? '#22c55e' : isTopUp ? colors.success : isWithdraw ? colors.secondary : isReceive ? colors.success : isPayment ? colors.secondary : colors.primaryLight}
       />
       <View style={styles.details}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
