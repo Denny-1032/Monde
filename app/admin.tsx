@@ -342,6 +342,49 @@ export default function AdminDashboardScreen() {
     }
   }, [selectedUser, userTxns, dateMonth, dateYear, userTxnTotal]);
 
+  // --- Agents tab handlers (must be before conditional returns to respect hooks rules) ---
+  const loadAgents = useCallback(async () => {
+    setAgentsLoading(true);
+    const res = await adminListAgents();
+    if (res.success && res.data) {
+      const raw = Array.isArray(res.data) ? res.data : (res.data as any)?.agents || [];
+      setAgents(Array.isArray(raw) ? raw : []);
+    }
+    setAgentsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (pinVerified && activeTab === 'agents') loadAgents();
+  }, [pinVerified, activeTab, loadAgents]);
+
+  const handleFreeze = useCallback(async (userId: string, fullName: string, freeze: boolean) => {
+    Alert.alert(
+      freeze ? 'Freeze Account?' : 'Unfreeze Account?',
+      freeze
+        ? `Freeze ${fullName}'s account? They will be unable to transact until unfrozen.`
+        : `Unfreeze ${fullName}'s account? They will be able to transact again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: freeze ? 'Freeze' : 'Unfreeze',
+          style: freeze ? 'destructive' : 'default',
+          onPress: async () => {
+            setFreezingId(userId);
+            const res = await adminFreezeAccount(userId, freeze);
+            setFreezingId(null);
+            if (res.success) {
+              Alert.alert('Done', freeze ? `${fullName}'s account is now frozen.` : `${fullName}'s account has been unfrozen.`);
+              if (selectedUser?.id === userId) setSelectedUser({ ...selectedUser, is_frozen: freeze });
+              setAgents((prev) => prev.map((a) => a.id === userId ? { ...a, is_frozen: freeze } : a));
+            } else {
+              Alert.alert('Error', res.error || 'Failed to update');
+            }
+          },
+        },
+      ],
+    );
+  }, [selectedUser]);
+
   const handleAdminPinConfirm = async (pin: string) => {
     setPinLoading(true);
     const { success } = await verifyPin(user?.phone || '', pin);
@@ -405,50 +448,6 @@ export default function AdminDashboardScreen() {
       </View>
     );
   }
-
-  const loadAgents = useCallback(async () => {
-    setAgentsLoading(true);
-    const res = await adminListAgents();
-    if (res.success && res.data) {
-      // data is JSON with { success, agents: [...] }
-      const raw = Array.isArray(res.data) ? res.data : (res.data as any)?.agents || [];
-      setAgents(Array.isArray(raw) ? raw : []);
-    }
-    setAgentsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (pinVerified && activeTab === 'agents') loadAgents();
-  }, [pinVerified, activeTab, loadAgents]);
-
-  const handleFreeze = useCallback(async (userId: string, fullName: string, freeze: boolean) => {
-    Alert.alert(
-      freeze ? 'Freeze Account?' : 'Unfreeze Account?',
-      freeze
-        ? `Freeze ${fullName}'s account? They will be unable to transact until unfrozen.`
-        : `Unfreeze ${fullName}'s account? They will be able to transact again.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: freeze ? 'Freeze' : 'Unfreeze',
-          style: freeze ? 'destructive' : 'default',
-          onPress: async () => {
-            setFreezingId(userId);
-            const res = await adminFreezeAccount(userId, freeze);
-            setFreezingId(null);
-            if (res.success) {
-              Alert.alert('Done', freeze ? `${fullName}'s account is now frozen.` : `${fullName}'s account has been unfrozen.`);
-              // Update local state
-              if (selectedUser?.id === userId) setSelectedUser({ ...selectedUser, is_frozen: freeze });
-              setAgents((prev) => prev.map((a) => a.id === userId ? { ...a, is_frozen: freeze } : a));
-            } else {
-              Alert.alert('Error', res.error || 'Failed to update');
-            }
-          },
-        },
-      ],
-    );
-  }, [selectedUser]);
 
   const feeTypeLabel = (type: string) => {
     switch (type) {

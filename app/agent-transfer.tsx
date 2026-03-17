@@ -117,9 +117,23 @@ export default function AgentTransferScreen() {
             <Ionicons name="swap-horizontal" size={32} color="#8b5cf6" />
             <Text style={[styles.badgeText, { color: '#8b5cf6' }]}>Float Transfer</Text>
           </View>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Enter the other agent's phone number
-          </Text>
+
+          {/* QR-first: primary action */}
+          <TouchableOpacity
+            style={[styles.scanBtn, { backgroundColor: '#8b5cf6' }]}
+            onPress={() => router.push('/scan')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="qr-code-outline" size={22} color="#fff" />
+            <Text style={styles.scanBtnText}>Scan Agent QR</Text>
+          </TouchableOpacity>
+
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.textLight }]}>or enter manually</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          </View>
+
           <TextInput
             style={[styles.phoneInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
             value={phone}
@@ -128,7 +142,6 @@ export default function AgentTransferScreen() {
             placeholderTextColor={colors.textLight}
             keyboardType="phone-pad"
             maxLength={15}
-            autoFocus
           />
           {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
           <TouchableOpacity
@@ -257,6 +270,26 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   actionBtnText: { fontSize: FontSize.md, fontWeight: '700' },
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    width: '100%',
+    marginBottom: Spacing.lg,
+  },
+  scanBtnText: { fontSize: FontSize.md, fontWeight: '700', color: '#fff' },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { fontSize: FontSize.xs },
   hint: { fontSize: FontSize.xs, marginTop: Spacing.lg, textAlign: 'center' },
   bottomActions: { width: '100%', paddingHorizontal: Spacing.md, marginTop: Spacing.md },
   detailsCard: { borderRadius: BorderRadius.lg, padding: Spacing.md, width: '100%' },

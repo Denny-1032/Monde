@@ -30,6 +30,15 @@ export default function GetCashScreen() {
     }
   }, [user?.is_agent]);
 
+  // Frozen accounts cannot transact
+  useEffect(() => {
+    if (user?.is_frozen) {
+      Alert.alert('Account Frozen', 'Your account has been frozen. Contact support.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    }
+  }, [user?.is_frozen]);
+
   const [step, setStep] = useState<Step>('amount');
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
