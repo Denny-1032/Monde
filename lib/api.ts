@@ -491,6 +491,7 @@ export async function getProfile(userId: string): Promise<{ data: UserProfile | 
       currency: data.currency,
       avatar_url: data.avatar_url,
       is_admin: data.is_admin || false,
+      is_agent: data.is_agent || false,
       created_at: data.created_at,
     },
   };
@@ -559,6 +560,84 @@ export async function searchProfilesByPhone(phone: string): Promise<{ data: { id
 
   if (error) return { data: [] };
   return { data: data || [] };
+}
+
+// ============================================
+// Get Cash (Agent Cash-Out) Functions
+// ============================================
+
+export async function createCashOutRequest(
+  amount: number,
+): Promise<{ success: boolean; request_id?: string; token?: string; amount?: number; fee?: number; total?: number; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('create_cash_out_request', { p_amount: amount });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function lookupCashOutRequest(
+  cashOutToken: string,
+): Promise<{ success: boolean; request_id?: string; amount?: number; fee?: number; agent_commission?: number; monde_fee?: number; customer_name?: string; customer_phone?: string; volume_bonus?: boolean; daily_count?: number; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('lookup_cash_out_request', { p_token: cashOutToken });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function processCashOut(
+  requestId: string,
+): Promise<{ success: boolean; reference?: string; amount?: number; fee?: number; agent_commission?: number; monde_fee?: number; customer_name?: string; volume_bonus?: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('process_cash_out', { p_request_id: requestId });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function cancelCashOutRequest(
+  requestId: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('cancel_cash_out_request', { p_request_id: requestId });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function processAgentCashIn(
+  customerPhone: string,
+  amount: number,
+): Promise<{ success: boolean; reference?: string; amount?: number; commission?: number; customer_name?: string; customer_phone?: string; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('process_agent_cash_in', { p_customer_phone: customerPhone, p_amount: amount });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function adminToggleAgent(
+  userId: string,
+  isAgent: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('admin_toggle_agent', { p_user_id: userId, p_is_agent: isAgent });
+  if (error) return { success: false, error: error.message };
+  return data as any;
 }
 
 // ============================================
@@ -1010,7 +1089,7 @@ export async function adminWithdrawRevenue(
 
 export async function adminSearchUsers(
   query: string,
-): Promise<{ data: { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean }[]; error?: string }> {
+): Promise<{ data: { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean }[]; error?: string }> {
   if (!isSupabaseConfigured) return { data: [] };
 
   const trimmed = query.trim();
@@ -1019,7 +1098,7 @@ export async function adminSearchUsers(
   // Search by phone, name, or handle
   let dbQuery = supabase
     .from('profiles')
-    .select('id, phone, full_name, balance, handle, is_admin')
+    .select('id, phone, full_name, balance, handle, is_admin, is_agent')
     .limit(20);
 
   if (trimmed.startsWith('@')) {

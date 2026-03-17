@@ -1,4 +1,4 @@
-import { QRPayload } from '../constants/types';
+import { QRPayload, CashOutQRPayload } from '../constants/types';
 
 export function formatCurrency(amount: number, currency: string = 'ZMW'): string {
   return `K${amount.toLocaleString('en-ZM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -28,17 +28,33 @@ export function formatDate(dateStr: string): string {
   return date.toLocaleDateString('en-ZM', { day: 'numeric', month: 'short' });
 }
 
-export function generateQRData(payload: QRPayload): string {
+export function generateQRData(payload: QRPayload | CashOutQRPayload): string {
   return JSON.stringify(payload);
 }
 
-export function parseQRData(data: string): QRPayload | null {
+export function parseQRData(data: string): (QRPayload | CashOutQRPayload) | null {
   try {
     if (data.length > 1024) return null;
     const parsed = JSON.parse(data);
     if (parsed.app !== 'monde' || typeof parsed.phone !== 'string') return null;
     const phone = parsed.phone.replace(/[^0-9+]/g, '');
     if (phone.length < 9 || phone.length > 15) return null;
+
+    // Cash-out QR
+    if (parsed.type === 'cashout') {
+      if (typeof parsed.token !== 'string' || parsed.token.length !== 6) return null;
+      return {
+        app: 'monde',
+        v: parsed.v || 1,
+        type: 'cashout' as const,
+        token: parsed.token,
+        phone,
+        name: typeof parsed.name === 'string' ? parsed.name.replace(/[<>{}]/g, '').slice(0, 100) : '',
+        amount: typeof parsed.amount === 'number' && parsed.amount > 0 && parsed.amount <= 5000 ? parsed.amount : undefined,
+      };
+    }
+
+    // Standard payment QR
     return {
       app: 'monde',
       v: parsed.v || 1,
@@ -122,4 +138,50 @@ export function calcMondeFeeWithdraw(amount: number): number {
 export function calcPaymentFee(amount: number): number {
   if (amount <= 0 || amount <= 500) return 0;
   return Math.round((amount * 0.005) * 100) / 100;
+}
+
+// ============================================
+// Get Cash Fee (tiered flat fee, 70/30 agent/Monde split)
+// Volume bonus: 75/25 if agent has 50+ daily transactions
+// ============================================
+
+export function calcGetCashFee(amount: number, volumeBonus: boolean = false): {
+  totalFee: number;
+  agentCommission: number;
+  mondeFee: number;
+} {
+  if (amount <= 0) return { totalFee: 0, agentCommission: 0, mondeFee: 0 };
+
+  let totalFee: number;
+  if (amount <= 150) totalFee = 2.5;
+  else if (amount <= 300) totalFee = 5;
+  else if (amount <= 500) totalFee = 10;
+  else if (amount <= 1000) totalFee = 20;
+  else if (amount <= 3000) totalFee = 30;
+  else totalFee = 50; // 3001-5000 (capped)
+
+  const agentPct = volumeBonus ? 0.75 : 0.70;
+  const agentCommission = Math.round(totalFee * agentPct * 100) / 100;
+  const mondeFee = Math.round((totalFee - agentCommission) * 100) / 100;
+
+  return { totalFee, agentCommission, mondeFee };
+}
+
+// ============================================
+// Cash-In Commission (agent deposit)
+// Customer pays NOTHING. Monde pays agent.
+// ============================================
+
+export function calcCashInCommission(amount: number): number {
+  if (amount <= 0) return 0;
+  if (amount <= 150) return 0.5;
+  if (amount <= 300) return 1;
+  if (amount <= 500) return 2;
+  if (amount <= 1000) return 3;
+  if (amount <= 3000) return 5;
+  return 8; // 3001-5000 (capped)
+}
+
+export function isCashOutQR(payload: QRPayload | CashOutQRPayload): payload is CashOutQRPayload {
+  return 'type' in payload && (payload as any).type === 'cashout';
 }

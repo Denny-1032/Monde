@@ -5,7 +5,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
-import { parseQRData } from '../lib/helpers';
+import { parseQRData, isCashOutQR } from '../lib/helpers';
 import Button from '../components/Button';
 
 const { width } = Dimensions.get('window');
@@ -46,16 +46,24 @@ export default function ScanScreen() {
 
     const payload = parseQRData(data);
     if (payload) {
-      router.push({
-        pathname: '/payment',
-        params: {
-          recipientName: payload.name,
-          recipientPhone: payload.phone,
-          provider: payload.provider,
-          amount: payload.amount?.toString() || '',
-          method: 'qr',
-        },
-      });
+      // Route cashout QRs to agent cash-out screen
+      if (isCashOutQR(payload)) {
+        router.push({
+          pathname: '/agent-cashout',
+          params: { token: payload.token },
+        });
+      } else {
+        router.push({
+          pathname: '/payment',
+          params: {
+            recipientName: payload.name,
+            recipientPhone: payload.phone,
+            provider: payload.provider,
+            amount: payload.amount?.toString() || '',
+            method: 'qr',
+          },
+        });
+      }
     } else {
       Alert.alert('Invalid QR Code', 'This QR code is not a valid Monde payment code.', [
         { text: 'Scan Again', onPress: () => setScanned(false) },

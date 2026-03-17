@@ -13,14 +13,14 @@ import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { FeeSummary, FloatSummary, FeeDetail } from '../constants/types';
-import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetUserTransactions } from '../lib/api';
+import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetUserTransactions, adminToggleAgent } from '../lib/api';
 import { Transaction } from '../constants/types';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
 import PinConfirm from '../components/PinConfirm';
 
 type TabId = 'overview' | 'fees' | 'float' | 'accounts';
 
-type AdminUser = { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean };
+type AdminUser = { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean };
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -811,6 +811,41 @@ export default function AdminDashboardScreen() {
                     </View>
                   </View>
 
+                  {/* Agent toggle */}
+                  <TouchableOpacity
+                    style={[styles.agentToggle, { backgroundColor: selectedUser.is_agent ? '#22c55e15' : colors.surface, borderColor: selectedUser.is_agent ? '#22c55e' : colors.border }]}
+                    onPress={() => {
+                      const newVal = !selectedUser.is_agent;
+                      Alert.alert(
+                        newVal ? 'Make Agent?' : 'Remove Agent?',
+                        newVal
+                          ? `Grant Monde Agent status to ${selectedUser.full_name}? They will be able to process cash-outs.`
+                          : `Remove Agent status from ${selectedUser.full_name}?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: newVal ? 'Make Agent' : 'Remove',
+                            style: newVal ? 'default' : 'destructive',
+                            onPress: async () => {
+                              const res = await adminToggleAgent(selectedUser.id, newVal);
+                              if (res.success) {
+                                setSelectedUser({ ...selectedUser, is_agent: newVal });
+                                Alert.alert('Done', newVal ? `${selectedUser.full_name} is now a Monde Agent.` : 'Agent status removed.');
+                              } else {
+                                Alert.alert('Error', res.error || 'Failed to update');
+                              }
+                            },
+                          },
+                        ],
+                      );
+                    }}
+                  >
+                    <Ionicons name="storefront" size={18} color={selectedUser.is_agent ? '#22c55e' : colors.textSecondary} />
+                    <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: selectedUser.is_agent ? '#22c55e' : colors.textSecondary }}>
+                      {selectedUser.is_agent ? 'Monde Agent ✓' : 'Make Agent'}
+                    </Text>
+                  </TouchableOpacity>
+
                   {/* Month picker */}
                   <View style={styles.monthPicker}>
                     <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthArrow}>
@@ -1298,6 +1333,17 @@ const styles = StyleSheet.create({
   userBalance: {
     fontSize: FontSize.md,
     fontWeight: '700',
+  },
+  agentToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+    alignSelf: 'flex-start',
   },
   selectedUserCard: {
     flexDirection: 'row',

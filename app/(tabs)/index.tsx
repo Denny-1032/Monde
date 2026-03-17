@@ -132,7 +132,7 @@ export default function HomeScreen() {
               <Ionicons name="qr-code" size={28} color={colors.primary} />
             </View>
             <Text style={styles.actionTitle}>Scan QR</Text>
-            <Text style={styles.actionDesc}>Scan to pay or receive</Text>
+            <Text style={styles.actionDesc}>Scan to pay</Text>
           </TouchableOpacity>
 
           {/* Receive */}
@@ -165,19 +165,41 @@ export default function HomeScreen() {
             </View>
             <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Send</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/get-cash')} activeOpacity={0.7} accessibilityLabel="Get cash from agent" accessibilityRole="button">
+            <View style={[styles.secondaryIcon, { backgroundColor: '#22c55e15' }]}>
+              <Ionicons name="cash-outline" size={20} color="#22c55e" />
+            </View>
+            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Get Cash</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/withdraw')} activeOpacity={0.7} accessibilityLabel="Withdraw money" accessibilityRole="button">
             <View style={[styles.secondaryIcon, { backgroundColor: colors.secondary + '15' }]}>
               <Ionicons name="arrow-up-circle" size={22} color={colors.secondary} />
             </View>
             <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Withdraw</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/linked-accounts')} activeOpacity={0.7} accessibilityLabel="Manage linked accounts" accessibilityRole="button">
-            <View style={[styles.secondaryIcon, { backgroundColor: colors.accent + '15' }]}>
-              <Ionicons name="link" size={20} color={colors.accent} />
-            </View>
-            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Accounts</Text>
-          </TouchableOpacity>
         </View>
+
+        {/* Agent actions (only for agents) */}
+        {user?.is_agent && (
+          <View style={styles.agentRow}>
+            <TouchableOpacity
+              style={[styles.agentBar, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30', flex: 1 }]}
+              onPress={() => router.push('/agent-cashout')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-up-circle" size={18} color={colors.primary} />
+              <Text style={[styles.agentBarText, { color: colors.primary }]}>Cash-Out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.agentBar, { backgroundColor: '#3b82f610', borderColor: '#3b82f630', flex: 1 }]}
+              onPress={() => router.push('/agent-cashin')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="arrow-down-circle" size={18} color="#3b82f6" />
+              <Text style={[styles.agentBarText, { color: '#3b82f6' }]}>Cash-In</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Recent Transactions */}
@@ -320,6 +342,25 @@ const styles = StyleSheet.create({
   secondaryLabel: {
     fontSize: FontSize.xs,
     fontWeight: '600',
+  },
+  agentRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  agentBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  agentBarText: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
   },
   recentSection: {
     paddingHorizontal: Spacing.lg,

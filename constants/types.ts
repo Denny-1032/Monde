@@ -7,14 +7,14 @@ export type Provider = {
 
 export type Transaction = {
   id: string;
-  type: 'send' | 'receive' | 'payment' | 'topup' | 'withdraw';
+  type: 'send' | 'receive' | 'payment' | 'topup' | 'withdraw' | 'cash_out' | 'cash_in';
   amount: number;
   currency: string;
   recipient_name: string;
   recipient_phone: string;
   provider: string;
   status: 'pending' | 'completed' | 'failed';
-  method: 'qr' | 'nfc' | 'manual' | 'wallet';
+  method: 'qr' | 'nfc' | 'manual' | 'wallet' | 'agent';
   note?: string;
   fee?: number;
   reference?: string;
@@ -32,6 +32,7 @@ export type UserProfile = {
   currency: string;
   avatar_url?: string;
   is_admin?: boolean;
+  is_agent?: boolean;
   created_at: string;
 };
 
@@ -66,6 +67,31 @@ export type QRPayload = {
   provider: string;
   amount?: number;
   note?: string;
+};
+
+export type CashOutQRPayload = {
+  app: 'monde';
+  v: number;
+  type: 'cashout';
+  token: string;
+  phone: string;
+  name: string;
+  amount?: number;
+};
+
+export type CashOutRequest = {
+  id: string;
+  customer_id: string;
+  amount: number;
+  fee: number;
+  agent_commission: number;
+  monde_fee: number;
+  token: string;
+  status: 'pending' | 'completed' | 'expired' | 'cancelled';
+  agent_id?: string;
+  created_at: string;
+  expires_at: string;
+  completed_at?: string;
 };
 
 // Admin types
