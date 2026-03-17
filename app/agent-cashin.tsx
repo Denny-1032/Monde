@@ -119,9 +119,9 @@ export default function AgentCashInScreen() {
 
       {step === 'phone' && (
         <View style={styles.section}>
-          <View style={[styles.agentBadge, { backgroundColor: '#3b82f615' }]}>
-            <Ionicons name="arrow-down-circle" size={32} color="#3b82f6" />
-            <Text style={[styles.agentBadgeText, { color: '#3b82f6' }]}>Cash Deposit</Text>
+          <View style={[styles.agentBadge, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name="arrow-down-circle" size={32} color={colors.primary} />
+            <Text style={[styles.agentBadgeText, { color: colors.primary }]}>Cash Deposit</Text>
           </View>
 
           {/* QR-first: primary action */}
@@ -157,17 +157,12 @@ export default function AgentCashInScreen() {
           >
             <Text style={[styles.actionBtnText, { color: colors.white }]}>Next</Text>
           </TouchableOpacity>
-          <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            The customer must have a Monde account
-          </Text>
         </View>
       )}
 
       {step === 'amount' && (
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            How much cash is the customer depositing?
-          </Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Amount</Text>
           <Text style={[styles.amountDisplay, { color: colors.text }]}>
             K{amount || '0'}
           </Text>
@@ -176,16 +171,13 @@ export default function AgentCashInScreen() {
             <View style={[styles.infoRow, { backgroundColor: colors.surface }]}>
               <View style={styles.infoItem}>
                 <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Your Commission (0.5%)</Text>
-                <Text style={[styles.infoValue, { color: '#22c55e' }]}>+{formatCurrency(estimatedCommission)}</Text>
+                <Text style={[styles.infoValue, { color: colors.success }]}>+{formatCurrency(estimatedCommission)}</Text>
               </View>
             </View>
           )}
 
           <Text style={[styles.balanceText, { color: parsedAmount > 0 && !canAfford ? colors.error : colors.textSecondary }]}>
             Your balance: {formatCurrency(agentBalance)}
-          </Text>
-          <Text style={[styles.freeNote, { color: colors.textSecondary }]}>
-            Customer pays nothing for deposits
           </Text>
 
           {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
@@ -213,8 +205,8 @@ export default function AgentCashInScreen() {
 
       {step === 'success' && (
         <View style={styles.section}>
-          <View style={[styles.successIcon, { backgroundColor: '#22c55e15' }]}>
-            <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
+          <View style={[styles.successIcon, { backgroundColor: colors.success + '15' }]}>
+            <Ionicons name="checkmark-circle" size={64} color={colors.success} />
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>Deposit Complete!</Text>
           <Text style={[styles.successRef, { color: colors.textSecondary }]}>Ref: {reference}</Text>
@@ -230,7 +222,7 @@ export default function AgentCashInScreen() {
             </View>
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Your Commission</Text>
-              <Text style={[styles.detailValue, { color: '#22c55e', fontWeight: '700' }]}>+{formatCurrency(commission)}</Text>
+              <Text style={[styles.detailValue, { color: colors.success, fontWeight: '700' }]}>+{formatCurrency(commission)}</Text>
             </View>
           </View>
 

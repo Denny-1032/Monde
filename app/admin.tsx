@@ -78,26 +78,32 @@ export default function AdminDashboardScreen() {
 
   const loadData = useCallback(async () => {
     setError('');
+    const timeout = <T,>(p: Promise<T>, ms = 12000): Promise<T> =>
+      Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error('Request timed out')), ms))]);
     try {
-      const [fees, float] = await Promise.all([
-        getFeeSummary(),
-        getFloatSummary(),
+      const [feesRes, floatRes] = await Promise.allSettled([
+        timeout(getFeeSummary()),
+        timeout(getFloatSummary()),
       ]);
 
-      if (fees.success) setFeeSummary(fees);
-      else setError(fees.error || 'Failed to load fee summary');
+      if (feesRes.status === 'fulfilled' && feesRes.value.success) setFeeSummary(feesRes.value);
+      else if (feesRes.status === 'rejected') setError('Fee data timed out');
+      else if (feesRes.status === 'fulfilled') setError(feesRes.value.error || 'Failed to load fees');
 
-      if (float.success) setFloatSummary(float);
+      if (floatRes.status === 'fulfilled' && floatRes.value.success) setFloatSummary(floatRes.value);
 
-      const details = await getFeeDetails(20, 0, feeFilter);
-      if (details.success) {
-        setFeeDetails(details.data || []);
-        setFeeTotal(details.total);
-      }
+      try {
+        const details = await timeout(getFeeDetails(20, 0, feeFilter));
+        if (details.success) {
+          setFeeDetails(details.data || []);
+          setFeeTotal(details.total);
+        }
+      } catch {}
     } catch (e: any) {
       setError(e.message || 'Failed to load admin data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [feeFilter]);
 
@@ -462,11 +468,11 @@ export default function AdminDashboardScreen() {
 
   const feeTypeColor = (type: string) => {
     switch (type) {
-      case 'topup_fee': return colors.success;
+      case 'topup_fee': return colors.primary;
       case 'withdraw_fee': return colors.secondary;
       case 'payment_fee': return colors.primary;
-      case 'cashout_fee': return '#22c55e';
-      case 'cashin_fee': return '#3b82f6';
+      case 'cashout_fee': return colors.secondary;
+      case 'cashin_fee': return colors.primary;
       default: return colors.textSecondary;
     }
   };
@@ -560,7 +566,7 @@ export default function AdminDashboardScreen() {
                   </Text>
                 </View>
                 <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-                  <View style={[styles.statDot, { backgroundColor: '#22c55e' }]} />
+                  <View style={[styles.statDot, { backgroundColor: colors.secondary }]} />
                   <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cash-Out Fees</Text>
                   <Text style={[styles.statValue, { color: colors.text }]}>
                     {formatCurrency(feeSummary.cashout_fees || 0)}
@@ -569,7 +575,7 @@ export default function AdminDashboardScreen() {
               </View>
               <View style={styles.cardRow}>
                 <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-                  <View style={[styles.statDot, { backgroundColor: '#3b82f6' }]} />
+                  <View style={[styles.statDot, { backgroundColor: colors.primary }]} />
                   <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cash-In Cost</Text>
                   <Text style={[styles.statValue, { color: colors.text }]}>
                     {formatCurrency(Math.abs(feeSummary.cashin_fees || 0))}
@@ -857,7 +863,7 @@ export default function AdminDashboardScreen() {
                             )}
                           </View>
                           <Text style={[styles.userPhone, { color: colors.textSecondary }]}>
-                            {formatPhone(agent.phone)}{agent.handle ? ` · @${agent.handle}` : ''}
+                            {formatPhone(agent.phone)}{agent.handle ? ` · ${agent.handle}` : ''}
                           </Text>
                         </View>
                         <Text style={[styles.userBalance, { color: colors.primary }]}>{formatCurrency(agent.balance)}</Text>
@@ -973,7 +979,7 @@ export default function AdminDashboardScreen() {
                   {/* Agent toggle + Freeze */}
                   <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md }}>
                     <TouchableOpacity
-                      style={[styles.agentToggle, { backgroundColor: selectedUser.is_agent ? '#22c55e15' : colors.surface, borderColor: selectedUser.is_agent ? '#22c55e' : colors.border, marginBottom: 0 }]}
+                      style={[styles.agentToggle, { backgroundColor: selectedUser.is_agent ? colors.primary + '15' : colors.surface, borderColor: selectedUser.is_agent ? colors.primary : colors.border, marginBottom: 0 }]}
                       onPress={() => {
                         const newVal = !selectedUser.is_agent;
                         Alert.alert(
@@ -1000,8 +1006,8 @@ export default function AdminDashboardScreen() {
                         );
                       }}
                     >
-                      <Ionicons name="storefront" size={18} color={selectedUser.is_agent ? '#22c55e' : colors.textSecondary} />
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: selectedUser.is_agent ? '#22c55e' : colors.textSecondary }}>
+                      <Ionicons name="storefront" size={18} color={selectedUser.is_agent ? colors.primary : colors.textSecondary} />
+                      <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: selectedUser.is_agent ? colors.primary : colors.textSecondary }}>
                         {selectedUser.is_agent ? 'Agent ✓' : 'Make Agent'}
                       </Text>
                     </TouchableOpacity>

@@ -113,14 +113,14 @@ export default function AgentTransferScreen() {
 
       {step === 'phone' && (
         <View style={styles.section}>
-          <View style={[styles.badge, { backgroundColor: '#8b5cf615' }]}>
-            <Ionicons name="swap-horizontal" size={32} color="#8b5cf6" />
-            <Text style={[styles.badgeText, { color: '#8b5cf6' }]}>Float Transfer</Text>
+          <View style={[styles.badge, { backgroundColor: colors.secondary + '15' }]}>
+            <Ionicons name="swap-horizontal" size={32} color={colors.secondary} />
+            <Text style={[styles.badgeText, { color: colors.secondary }]}>Agent Transfer</Text>
           </View>
 
           {/* QR-first: primary action */}
           <TouchableOpacity
-            style={[styles.scanBtn, { backgroundColor: '#8b5cf6' }]}
+            style={[styles.scanBtn, { backgroundColor: colors.secondary }]}
             onPress={() => router.push('/scan')}
             activeOpacity={0.7}
           >
@@ -145,26 +145,23 @@ export default function AgentTransferScreen() {
           />
           {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: phone.replace(/[^0-9]/g, '').length >= 9 ? '#8b5cf6' : colors.border }]}
+            style={[styles.actionBtn, { backgroundColor: phone.replace(/[^0-9]/g, '').length >= 9 ? colors.secondary : colors.border }]}
             onPress={handlePhoneNext}
             disabled={phone.replace(/[^0-9]/g, '').length < 9}
           >
             <Text style={[styles.actionBtnText, { color: colors.white }]}>Next</Text>
           </TouchableOpacity>
-          <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            Both parties must be Monde agents. No fee charged.
-          </Text>
         </View>
       )}
 
       {step === 'amount' && (
         <View style={styles.section}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>How much to transfer?</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Amount</Text>
           <Text style={[styles.amountDisplay, { color: colors.text }]}>K{amount || '0'}</Text>
 
           <View style={styles.freeRow}>
-            <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-            <Text style={[styles.freeText, { color: '#22c55e' }]}>No fee — free agent transfer</Text>
+            <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+            <Text style={[styles.freeText, { color: colors.success }]}>No fee</Text>
           </View>
 
           <Text style={[styles.balanceText, { color: parsedAmount > 0 && !canAfford ? colors.error : colors.textSecondary }]}>
@@ -177,7 +174,7 @@ export default function AgentTransferScreen() {
 
           <View style={styles.bottomActions}>
             <TouchableOpacity
-              style={[styles.confirmBtn, { backgroundColor: validAmount && canAfford ? '#8b5cf6' : colors.border }]}
+              style={[styles.confirmBtn, { backgroundColor: validAmount && canAfford ? colors.secondary : colors.border }]}
               onPress={handleProcess}
               disabled={!validAmount || !canAfford || isLoading}
             >
@@ -196,8 +193,8 @@ export default function AgentTransferScreen() {
 
       {step === 'success' && (
         <View style={styles.section}>
-          <View style={[styles.successIcon, { backgroundColor: '#22c55e15' }]}>
-            <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
+          <View style={[styles.successIcon, { backgroundColor: colors.success + '15' }]}>
+            <Ionicons name="checkmark-circle" size={64} color={colors.success} />
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>Transfer Complete!</Text>
           <Text style={[styles.successRef, { color: colors.textSecondary }]}>Ref: {reference}</Text>
@@ -213,11 +210,11 @@ export default function AgentTransferScreen() {
             </View>
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Fee</Text>
-              <Text style={[styles.detailValue, { color: '#22c55e' }]}>FREE</Text>
+              <Text style={[styles.detailValue, { color: colors.success }]}>FREE</Text>
             </View>
           </View>
 
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#8b5cf6', marginTop: Spacing.xl }]} onPress={() => router.back()}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary, marginTop: Spacing.xl }]} onPress={() => router.back()}>
             <Text style={[styles.actionBtnText, { color: colors.white }]}>Done</Text>
           </TouchableOpacity>
         </View>

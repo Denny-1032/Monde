@@ -34,6 +34,7 @@ export type UserProfile = {
   is_admin?: boolean;
   is_agent?: boolean;
   is_frozen?: boolean;
+  agent_code?: string;
   created_at: string;
 };
 

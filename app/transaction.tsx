@@ -52,7 +52,7 @@ export default function TransactionDetailScreen() {
 
   const typeLabel = isAgentTransfer ? 'Agent Transfer' : isCashIn ? 'Cash Deposit' : isCashOut ? 'Get Cash' : isTopUp ? 'Top Up' : isWithdraw ? 'Withdrawal' : isReceive ? 'Received' : isPayment ? 'Payment' : 'Sent';
   const amountPrefix = (isReceive || isTopUp || isCashIn) ? '+' : '-';
-  const amountColor = txn.status === 'pending' ? colors.warning : (isReceive || isTopUp || isCashIn) ? colors.success : isAgentTransfer ? '#8b5cf6' : colors.text;
+  const amountColor = txn.status === 'pending' ? colors.warning : (isReceive || isTopUp || isCashIn) ? colors.success : isAgentTransfer ? colors.secondary : colors.text;
 
   const date = new Date(txn.created_at);
   const formattedDate = date.toLocaleDateString('en-ZM', {
@@ -112,7 +112,7 @@ export default function TransactionDetailScreen() {
           <Avatar
             name={txn.recipient_name}
             size={64}
-            color={isAgentTransfer ? '#8b5cf6' : isCashIn ? '#3b82f6' : isCashOut ? '#22c55e' : isTopUp ? colors.success : isWithdraw ? colors.secondary : isReceive ? colors.success : isPayment ? colors.secondary : colors.primaryLight}
+            color={isAgentTransfer ? colors.secondary : isCashIn ? colors.primary : isCashOut ? colors.success : isTopUp ? colors.success : isWithdraw ? colors.secondary : isReceive ? colors.success : isPayment ? colors.secondary : colors.primaryLight}
           />
           <Text style={[styles.recipientName, { color: colors.text }]}>{txn.recipient_name}</Text>
           {txn.recipient_phone ? (

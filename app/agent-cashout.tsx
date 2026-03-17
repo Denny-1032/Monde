@@ -187,12 +187,12 @@ export default function AgentCashOutScreen() {
             </View>
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Your Commission</Text>
-              <Text style={[styles.detailValue, { color: '#22c55e' }]}>+{formatCurrency(agentCommission)}</Text>
+              <Text style={[styles.detailValue, { color: colors.success }]}>+{formatCurrency(agentCommission)}</Text>
             </View>
             {volumeBonus && (
-              <View style={[styles.bonusBadge, { backgroundColor: '#22c55e15' }]}>
-                <Ionicons name="trophy" size={14} color="#22c55e" />
-                <Text style={[styles.bonusText, { color: '#22c55e' }]}>
+              <View style={[styles.bonusBadge, { backgroundColor: colors.success + '15' }]}>
+                <Ionicons name="trophy" size={14} color={colors.success} />
+                <Text style={[styles.bonusText, { color: colors.success }]}>
                   Volume bonus! 75/25 split ({dailyCount}+ txns today)
                 </Text>
               </View>
@@ -228,8 +228,8 @@ export default function AgentCashOutScreen() {
 
       {step === 'success' && (
         <View style={styles.successSection}>
-          <View style={[styles.successIcon, { backgroundColor: '#22c55e15' }]}>
-            <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
+          <View style={[styles.successIcon, { backgroundColor: colors.success + '15' }]}>
+            <Ionicons name="checkmark-circle" size={64} color={colors.success} />
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>Cash-Out Complete!</Text>
           <Text style={[styles.successRef, { color: colors.textSecondary }]}>Ref: {reference}</Text>
@@ -244,7 +244,7 @@ export default function AgentCashOutScreen() {
             </View>
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Your Commission</Text>
-              <Text style={[styles.detailValue, { color: '#22c55e', fontWeight: '700' }]}>+{formatCurrency(agentCommission)}</Text>
+              <Text style={[styles.detailValue, { color: colors.success, fontWeight: '700' }]}>+{formatCurrency(agentCommission)}</Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={styles.detailRow}>

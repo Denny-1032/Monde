@@ -493,6 +493,7 @@ export async function getProfile(userId: string): Promise<{ data: UserProfile | 
       is_admin: data.is_admin || false,
       is_agent: data.is_agent || false,
       is_frozen: data.is_frozen || false,
+      agent_code: data.agent_code || undefined,
       created_at: data.created_at,
     },
   };
