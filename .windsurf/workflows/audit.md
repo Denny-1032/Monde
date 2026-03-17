@@ -29,14 +29,17 @@ Verify client-side fees in `lib/helpers.ts` match server-side fees in SQL RPCs:
 
 | Transaction | Client Formula | Server RPC | Migration File |
 |---|---|---|---|
-| Top-up | `(amount * 0.01) + 1.00` | `ROUND((p_amount * 0.01) + 1.00, 2)` | `023_fix_topup_fee_logic.sql` |
-| Withdraw | `(amount * 0.015) + 2.00` | `ROUND((p_amount * 0.015) + 2.00, 2)` | `020_monde_admin_fees.sql` |
-| P2P ≤ K500 | `0` | `0` | `020_monde_admin_fees.sql` |
-| P2P > K500 | `amount * 0.005` | `ROUND(p_amount * 0.005, 2)` | `020_monde_admin_fees.sql` |
+| Top-up | `amount * 0.03` | `ROUND(p_amount * 0.03, 2)` | `035_freeze_topup_withdraw_cashout.sql` |
+| Withdraw | `amount * 0.03` | `ROUND(p_amount * 0.03, 2)` | `035_freeze_topup_withdraw_cashout.sql` |
+| P2P ≤ K500 | `0` | `0` | `037_payment_fixes.sql` |
+| P2P > K500 | `amount * 0.005` | `ROUND(p_amount * 0.005, 2)` | `037_payment_fixes.sql` |
+| Cash-in commission | `amount * 0.005` | `ROUND(p_amount * 0.005, 2)` | `037_payment_fixes.sql` |
+| Cash-out | Tiered K2.5–K50, 70/30 split | `calc_get_cash_fee()` | `032_get_cash_agent.sql` |
 
-- Read `lib/helpers.ts` lines 85-100 (calcTopUpFee, calcWithdrawFee, calcPaymentFee)
-- Read `supabase/migrations/023_fix_topup_fee_logic.sql` line 58 (topup fee)
-- Read `supabase/migrations/020_monde_admin_fees.sql` line 269 (withdraw fee) and line 385-387 (payment fee)
+- Read `lib/helpers.ts` (calcTopUpFee, calcWithdrawFee, calcPaymentFee, calcCashInCommission, calcGetCashFee)
+- Read `supabase/migrations/035_freeze_topup_withdraw_cashout.sql` (topup/withdraw fees)
+- Read `supabase/migrations/037_payment_fixes.sql` (P2P payment fee, cash-in commission)
+- Read `supabase/migrations/032_get_cash_agent.sql` (cash-out tiered fees)
 - Confirm all formulas match exactly
 
 ## 4. Transaction Query Audit
@@ -106,8 +109,11 @@ Verify `.env.example` documents all required variables:
 
 ## 10. UI Screen Validation
 Spot-check that key screens reference correct functions and display correct data:
-- `app/top-up.tsx` — uses `calcTopUpFee`, shows "Fee (1% + K1)", calls `store.topUp()`
-- `app/withdraw.tsx` — uses `calcWithdrawFee`, shows "Fee (1.5% + K2)", calls `store.withdraw()`
+- `app/top-up.tsx` — uses `calcTopUpFee`, shows "Fee (3%)", calls `store.topUp()`
+- `app/withdraw.tsx` — uses `calcWithdrawFee`, shows "Fee (3%)", calls `store.withdraw()`
+- `app/agent-cashin.tsx` — uses `calcCashInCommission`, calls `processAgentCashIn()`
+- `app/agent-cashout.tsx` — uses `calcGetCashFee`, calls `processAgentCashOut()`
+- `app/agent-transfer.tsx` — free transfers, calls `agentToAgentTransfer()`
 - `app/payment.tsx` — uses `calcPaymentFee`, calls `store.sendPayment()`
 - `components/TransactionItem.tsx` — displays correct +/- prefix based on `type`
 - `app/(tabs)/history.tsx` — calls `getTransactions` and `loadMoreTransactions`
@@ -120,7 +126,7 @@ dir supabase\migrations\*.sql /b | sort
 ```
 - Check no duplicate numbers
 - Check that later migrations don't recreate functions already overridden by earlier ones
-- Latest function versions: `process_topup` → 023, `process_withdraw` → 020, `process_payment` → 020
+- Latest function versions: `process_topup` → 035, `process_withdraw` → 035, `process_payment` → 037, `process_agent_cash_in` → 037, `agent_to_agent_transfer` → 038, `admin_list_agents` → 038
 
 ## Summary Checklist
 After completing all steps, confirm:

@@ -84,59 +84,70 @@ export const useStore = create<AppState>((set, get) => ({
     if (!isSupabaseConfigured) return;
     set({ isLoading: true });
     try {
-      const { session } = await api.getSession();
-      if (session?.user) {
-        const uid = session.user.id;
-        set({ sessionId: uid, isAuthenticated: true });
-        // Fetch profile, transactions, and linked accounts in parallel
-        const [profileRes, txnRes, accountsRes] = await Promise.all([
-          api.getProfile(uid),
-          api.getTransactions(uid),
-          api.getLinkedAccounts(uid),
-        ]);
-
-        // Handle missing profile: create one from auth metadata
-        if (!profileRes.data) {
-          const authPhone = session.user.phone || session.user.user_metadata?.phone || '';
-          const authName = session.user.user_metadata?.full_name || '';
-          const authProvider = session.user.user_metadata?.provider || 'airtel';
-          if (authPhone) {
-            const createResult = await api.ensureProfileExists(
-              uid, authPhone, authName || 'User', authProvider
-            );
-            if (!createResult.success) {
-              console.error('initSession: profile creation failed:', createResult.error);
-            }
-          }
-          const { data: newProfile } = await api.getProfile(uid);
-          if (newProfile) {
-            set({ user: newProfile });
-          } else {
-            console.error('initSession: profile still missing after creation attempt');
-          }
-        } else {
-          set({ user: profileRes.data });
-        }
-        set({ transactions: txnRes.data, linkedAccounts: accountsRes.data });
-
-        // Subscribe to realtime updates
-        if (realtimeCleanup) realtimeCleanup();
-        const txnSub = api.subscribeToTransactions(uid, (txn) => {
-          // Add incoming transaction if not already present
-          const exists = get().transactions.some((t) => t.id === txn.id);
-          if (!exists) {
-            set((state) => ({ transactions: [txn, ...state.transactions] }));
-          }
-        });
-        const balSub = api.subscribeToBalance(uid, (balance) => {
-          const u = get().user;
-          if (u) set({ user: { ...u, balance } });
-        });
-        realtimeCleanup = () => {
-          txnSub.unsubscribe();
-          balSub.unsubscribe();
-        };
+      // Refresh session first to ensure JWT is valid (prevents stale token issues)
+      const freshToken = await api.ensureFreshSession();
+      if (!freshToken) {
+        // No valid session — clear any stale state
+        set({ user: null, isAuthenticated: false, sessionId: null });
+        return;
       }
+      const { session } = await api.getSession();
+      if (!session?.user) {
+        set({ user: null, isAuthenticated: false, sessionId: null });
+        return;
+      }
+
+      const uid = session.user.id;
+      set({ sessionId: uid, isAuthenticated: true });
+      // Fetch profile, transactions, and linked accounts in parallel
+      const [profileRes, txnRes, accountsRes] = await Promise.all([
+        api.getProfile(uid),
+        api.getTransactions(uid),
+        api.getLinkedAccounts(uid),
+      ]);
+
+      // Handle missing profile: create one from auth metadata
+      if (!profileRes.data) {
+        const authPhone = session.user.phone || session.user.user_metadata?.phone || '';
+        const authName = session.user.user_metadata?.full_name || '';
+        const authProvider = session.user.user_metadata?.provider || 'airtel';
+        if (authPhone) {
+          await api.ensureProfileExists(uid, authPhone, authName || 'User', authProvider);
+          // Small delay to allow replication
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        const { data: newProfile } = await api.getProfile(uid);
+        if (newProfile) {
+          set({ user: newProfile });
+        } else {
+          // Profile truly missing — sign out to prevent broken state
+          console.warn('initSession: profile missing, signing out to reset');
+          await api.signOut().catch(() => {});
+          set({ user: null, isAuthenticated: false, sessionId: null });
+          return;
+        }
+      } else {
+        set({ user: profileRes.data });
+      }
+      set({ transactions: txnRes.data, linkedAccounts: accountsRes.data });
+
+      // Subscribe to realtime updates
+      if (realtimeCleanup) realtimeCleanup();
+      const txnSub = api.subscribeToTransactions(uid, (txn) => {
+        // Add incoming transaction if not already present
+        const exists = get().transactions.some((t) => t.id === txn.id);
+        if (!exists) {
+          set((state) => ({ transactions: [txn, ...state.transactions] }));
+        }
+      });
+      const balSub = api.subscribeToBalance(uid, (balance) => {
+        const u = get().user;
+        if (u) set({ user: { ...u, balance } });
+      });
+      realtimeCleanup = () => {
+        txnSub.unsubscribe();
+        balSub.unsubscribe();
+      };
     } catch (e: any) {
       // Handle stale/invalid refresh tokens by clearing session
       const msg = e?.message || '';
@@ -240,18 +251,18 @@ export const useStore = create<AppState>((set, get) => ({
           const authName = data.user.user_metadata?.full_name || '';
           const authProvider = data.user.user_metadata?.provider || 'airtel';
           if (authPhone) {
-            const createResult = await api.ensureProfileExists(
-              uid, authPhone, authName || 'User', authProvider
-            );
-            if (!createResult.success) {
-              console.error('signIn: profile creation failed:', createResult.error);
-            }
+            await api.ensureProfileExists(uid, authPhone, authName || 'User', authProvider);
+            await new Promise((r) => setTimeout(r, 500));
           }
           const { data: newProfile } = await api.getProfile(uid);
           if (newProfile) {
             set({ user: newProfile });
           } else {
-            console.error('signIn: profile still missing after creation attempt');
+            // Profile truly missing — sign out to prevent broken state
+            console.warn('signIn: profile missing after creation, signing out');
+            await api.signOut().catch(() => {});
+            set({ user: null, isAuthenticated: false, sessionId: null });
+            return { success: false, error: 'Account setup incomplete. Please try signing up again.' };
           }
         } else {
           set({ user: profileRes.data });
@@ -361,11 +372,17 @@ export const useStore = create<AppState>((set, get) => ({
       return { success: true };
     }
 
+    // Normalize phone to +260 format before sending to RPC
+    let normalizedPhone = recipientPhone.replace(/[^0-9+]/g, '');
+    if (normalizedPhone.startsWith('0')) normalizedPhone = '+260' + normalizedPhone.slice(1);
+    else if (normalizedPhone.startsWith('260') && !normalizedPhone.startsWith('+')) normalizedPhone = '+' + normalizedPhone;
+    else if (!normalizedPhone.startsWith('+') && normalizedPhone.length === 9) normalizedPhone = '+260' + normalizedPhone;
+
     set({ isLoading: true });
     try {
       const result = await api.processPayment({
         senderId: sessionId,
-        recipientPhone,
+        recipientPhone: normalizedPhone,
         amount,
         method,
         note,

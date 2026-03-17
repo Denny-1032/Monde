@@ -15,15 +15,16 @@ type Step = 'phone' | 'amount' | 'success';
 export default function AgentCashInScreen() {
   const colors = useColors();
   const router = useRouter();
-  const params = useLocalSearchParams<{ phone?: string; name?: string }>();
+  const params = useLocalSearchParams<{ phone?: string; name?: string; amount?: string }>();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
   const fetchProfile = useStore((s) => s.fetchProfile);
   const fetchTransactions = useStore((s) => s.fetchTransactions);
 
+  const hasPrefilledAmount = !!(params.phone && params.amount && parseFloat(params.amount) > 0);
   const [step, setStep] = useState<Step>(params.phone ? 'amount' : 'phone');
   const [phone, setPhone] = useState(params.phone || '');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(params.amount || '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +39,15 @@ export default function AgentCashInScreen() {
   const canAfford = parsedAmount > 0 && parsedAmount <= agentBalance;
   const validAmount = parsedAmount >= 1 && parsedAmount <= 5000;
   const estimatedCommission = calcCashInCommission(parsedAmount);
+
+  // Auto-trigger confirm when QR provides amount
+  useEffect(() => {
+    if (hasPrefilledAmount && step === 'amount' && validAmount && canAfford && !isLoading) {
+      // Small delay to let screen render, then show confirm
+      const timer = setTimeout(() => handleProcess(), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [hasPrefilledAmount, step]);
 
   // Normalize phone to +260 format
   const normalizePhone = (raw: string): string => {

@@ -352,9 +352,10 @@ export default function AdminDashboardScreen() {
   const loadAgents = useCallback(async () => {
     setAgentsLoading(true);
     const res = await adminListAgents();
-    if (res.success && res.data) {
-      const raw = Array.isArray(res.data) ? res.data : (res.data as any)?.agents || [];
-      setAgents(Array.isArray(raw) ? raw : []);
+    if (res.success) {
+      setAgents(res.data || []);
+    } else {
+      console.warn('[loadAgents] failed:', res.error);
     }
     setAgentsLoading(false);
   }, []);

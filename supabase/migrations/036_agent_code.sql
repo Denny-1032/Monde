@@ -12,6 +12,16 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS agent_code TEXT UNIQUE;
 -- Index for fast lookups
 CREATE INDEX IF NOT EXISTS idx_profiles_agent_code ON profiles(agent_code) WHERE agent_code IS NOT NULL;
 
+-- Update handle format constraint to also allow agent codes (MND-XXXXXX)
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS check_handle_format;
+ALTER TABLE profiles ADD CONSTRAINT check_handle_format CHECK (
+  handle IS NULL OR (
+    length(handle) >= 3
+    AND length(handle) <= 24
+    AND (handle ~ '^[a-z0-9.]+$' OR handle ~ '^MND-[0-9]{6}$')
+  )
+);
+
 -- Helper: generate a unique 6-digit agent code
 CREATE OR REPLACE FUNCTION public.generate_agent_code()
 RETURNS TEXT
@@ -23,7 +33,7 @@ DECLARE
   v_attempts INT := 0;
 BEGIN
   LOOP
-    v_code := 'MND-' || LPAD(FLOOR(RANDOM() * 1000000)::TEXT, 6, '0');
+    v_code := LPAD(FLOOR(RANDOM() * 1000000)::TEXT, 6, '0');
     EXIT WHEN NOT EXISTS (SELECT 1 FROM profiles WHERE agent_code = v_code);
     v_attempts := v_attempts + 1;
     IF v_attempts > 20 THEN
@@ -54,7 +64,7 @@ BEGIN
     IF v_code IS NULL THEN
       v_code := generate_agent_code();
     END IF;
-    UPDATE profiles SET is_agent = true, agent_code = v_code, handle = v_code WHERE id = p_user_id;
+    UPDATE profiles SET is_agent = true, agent_code = v_code WHERE id = p_user_id;
   ELSE
     -- Remove agent status but keep the code for audit trail
     UPDATE profiles SET is_agent = false WHERE id = p_user_id;
@@ -77,7 +87,7 @@ DECLARE
 BEGIN
   FOR r IN SELECT id FROM profiles WHERE is_agent = true AND agent_code IS NULL LOOP
     v_code := generate_agent_code();
-    UPDATE profiles SET agent_code = v_code, handle = v_code WHERE id = r.id;
+    UPDATE profiles SET agent_code = v_code WHERE id = r.id;
   END LOOP;
 END;
 $$;

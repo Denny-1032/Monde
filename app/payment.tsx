@@ -47,6 +47,7 @@ export default function PaymentScreen() {
 
   // Contact & user lookup
   const [suggestions, setSuggestions] = useState<ContactSuggestion[]>([]);
+  const [recentRecipients, setRecentRecipients] = useState<ContactSuggestion[]>([]);
   const [deviceContacts, setDeviceContacts] = useState<ContactSuggestion[]>([]);
   const [lookingUp, setLookingUp] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -55,6 +56,21 @@ export default function PaymentScreen() {
 
   const method = (params.method as 'qr' | 'nfc' | 'manual') || 'manual';
   const canReview = isValidPhone(recipientPhone) && parseFloat(amount) > 0;
+
+  // Build recent recipients from transaction history
+  const transactions = useStore((s) => s.transactions);
+  useEffect(() => {
+    const seen = new Set<string>();
+    const recents: ContactSuggestion[] = [];
+    for (const txn of transactions) {
+      if (txn.type === 'send' && txn.recipient_phone && txn.recipient_name && !seen.has(txn.recipient_phone)) {
+        seen.add(txn.recipient_phone);
+        recents.push({ id: txn.id, name: txn.recipient_name, phone: txn.recipient_phone, source: 'monde' });
+        if (recents.length >= 5) break;
+      }
+    }
+    setRecentRecipients(recents);
+  }, [transactions]);
 
   // Load device contacts on mount
   useEffect(() => {
@@ -255,10 +271,13 @@ export default function PaymentScreen() {
             {lookingUp && (
               <ActivityIndicator size="small" color={colors.primary} style={{ position: 'absolute', right: 12, top: 36 }} />
             )}
-            {/* Suggestions dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
+            {/* Suggestions dropdown — show recent recipients when empty, search results when typing */}
+            {showSuggestions && (suggestions.length > 0 || (recipientPhone.length < 3 && recentRecipients.length > 0)) && (
               <View style={[styles.suggestionsBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                {suggestions.map((s) => (
+                {recipientPhone.length < 3 && suggestions.length === 0 && recentRecipients.length > 0 && (
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textLight, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 }}>Recent</Text>
+                )}
+                {(suggestions.length > 0 ? suggestions : recentRecipients).map((s) => (
                   <TouchableOpacity key={s.id + s.phone} style={[styles.suggestionItem, { borderBottomColor: colors.borderLight }]} onPress={() => selectSuggestion(s)}>
                     <Avatar name={s.name} size={34} imageUrl={s.avatar_url} />
                     <View style={{ flex: 1 }}>

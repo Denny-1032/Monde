@@ -56,10 +56,10 @@ export default function ScanScreen() {
           params: { token: payload.token },
         });
       } else if (isAgent) {
-        // Agents scanning a customer QR → route to deposit (cash-in) with phone pre-filled
+        // Agents scanning a customer QR → route to deposit (cash-in) with phone + amount pre-filled
         router.push({
           pathname: '/agent-cashin' as any,
-          params: { phone: payload.phone, name: payload.name },
+          params: { phone: payload.phone, name: payload.name, amount: payload.amount?.toString() || '' },
         });
       } else {
         router.push({

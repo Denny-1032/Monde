@@ -80,6 +80,15 @@
 | 11bj | **Agent home screen fix** — Removed duplicate Deposit action; Cash-Out now primary quick action; balance card shows "Agent Float" + agent code | ✅ DONE | `(tabs)/index.tsx` |
 | 11bk | **6-digit Monde agent code** — Unique MND-XXXXXX code assigned on agent toggle; stored in `agent_code` column; displayed on home screen + admin | ✅ DONE | `036_agent_code.sql`, `types.ts`, `api.ts`, `index.tsx` |
 | 11bl | **Agent screen text simplification** — Removed verbose descriptions from agent-cashin, agent-transfer, agent-cashout | ✅ DONE | Simplified labels and removed unnecessary hint text |
+| 11bm | **Fix P2P payments** — process_payment RPC had no phone normalization; recipient never found if user typed 0XXX format. Added +260 normalization server+client side. Also rejects if recipient not found instead of silently losing money | ✅ DONE | `037_payment_fixes.sql`, `store/useStore.ts` |
+| 11bn | **Fix agent deposit** — process_agent_cash_in had same phone normalization bug. Also passes QR amount to agent-cashin screen and auto-triggers confirm dialog | ✅ DONE | `037_payment_fixes.sql`, `scan.tsx`, `agent-cashin.tsx` |
+| 11bo | **Swap Deposit ↔ Cash-Out** — Deposit is now primary quick action (big card), Cash-Out moved to secondary row since deposits are more common | ✅ DONE | `(tabs)/index.tsx` |
+| 11bp | **Fix admin agents tab** — adminListAgents wasn't extracting agents array from RPC response; admin_list_agents now includes agent_code in output | ✅ DONE | `api.ts`, `admin.tsx`, `038_security_performance.sql` |
+| 11bq | **Admin search improvements** — Search now covers name/phone/handle/agent_code; short digit queries match agent codes too | ✅ DONE | `api.ts` adminSearchUsers |
+| 11br | **Recent recipients** — Payment screen shows last 5 recent payment recipients when phone field is focused | ✅ DONE | `payment.tsx` |
+| 11bs | **Agent codes digits-only** — Changed from MND-XXXXXX to 6-digit numbers for easier recall; updated generation + display | ✅ DONE | `036_agent_code.sql`, `037_payment_fixes.sql`, `(tabs)/index.tsx` |
+| 11bt | **Security hardening** — Restricted cash_out_requests SELECT policy; added performance indexes on transactions/profiles/cash_out_requests/monde_fees; phone normalization helper; hardened admin_toggle_agent and agent_to_agent_transfer | ✅ DONE | `038_security_performance.sql` |
+| 11bu | **Fee audit** — Verified all fee calculations match client↔server: top-up 3%, withdraw 3%, P2P 0.5%>K500, cash-in 0.5%, cash-out tiered K2.5-K50 | ✅ DONE | Audit confirmed, workflow updated |
 
 ## Phase 2: Core Feature Completion
 

@@ -675,8 +675,15 @@ export async function adminListAgents(): Promise<{ success: boolean; data: any[]
   if (!token) return { success: false, data: [], error: 'Session expired' };
 
   const { data, error } = await supabase.rpc('admin_list_agents');
-  if (error) return { success: false, data: [], error: error.message };
-  return { success: true, data: (data as any) || [] };
+  if (error) {
+    console.error('[adminListAgents] RPC error:', error.message);
+    return { success: false, data: [], error: error.message };
+  }
+  // RPC returns { success, agents: [...] } — extract the agents array
+  const rpcResult = data as any;
+  if (rpcResult?.success === false) return { success: false, data: [], error: rpcResult.error };
+  const agents = rpcResult?.agents || [];
+  return { success: true, data: Array.isArray(agents) ? agents : [] };
 }
 
 // ============================================
@@ -690,6 +697,8 @@ export async function getTransactions(
 ): Promise<{ data: Transaction[]; nextCursor?: string; error?: string }> {
   if (!isSupabaseConfigured) return { data: [] };
 
+  // Each transaction creates mirror records (sender=A for A's view, sender=B for B's view)
+  // So querying by sender_id correctly shows each user's own transaction records
   let query = supabase
     .from('transactions')
     .select('*')
@@ -1136,18 +1145,38 @@ export async function adminSearchUsers(
   const trimmed = query.trim();
   if (trimmed.length < 2) return { data: [] };
 
-  // Search by phone, name, or handle
-  let dbQuery = supabase
-    .from('profiles')
-    .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen')
-    .limit(20);
+  // Search across name, phone, handle, and agent_code simultaneously
+  const digitsOnly = trimmed.replace(/[^0-9]/g, '');
+  let dbQuery;
 
   if (trimmed.startsWith('@')) {
-    dbQuery = dbQuery.ilike('handle', `%${trimmed.slice(1)}%`);
+    // Handle search
+    dbQuery = supabase
+      .from('profiles')
+      .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, agent_code')
+      .ilike('handle', `%${trimmed.slice(1)}%`)
+      .limit(20);
+  } else if (/^\d+$/.test(trimmed) && trimmed.length <= 6) {
+    // Could be agent code or phone fragment — search both
+    dbQuery = supabase
+      .from('profiles')
+      .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, agent_code')
+      .or(`phone.ilike.%${digitsOnly}%,agent_code.ilike.%${trimmed}%`)
+      .limit(20);
   } else if (/^\+?\d+$/.test(trimmed)) {
-    dbQuery = dbQuery.ilike('phone', `%${trimmed.replace(/[^0-9]/g, '')}%`);
+    // Phone number search
+    dbQuery = supabase
+      .from('profiles')
+      .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, agent_code')
+      .ilike('phone', `%${digitsOnly}%`)
+      .limit(20);
   } else {
-    dbQuery = dbQuery.ilike('full_name', `%${trimmed}%`);
+    // Name search
+    dbQuery = supabase
+      .from('profiles')
+      .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, agent_code')
+      .ilike('full_name', `%${trimmed}%`)
+      .limit(20);
   }
 
   const { data, error } = await dbQuery;
