@@ -135,19 +135,19 @@ export default function HomeScreen() {
             <Text style={styles.actionDesc}>Scan to pay or receive</Text>
           </TouchableOpacity>
 
-          {/* Tap to Pay */}
+          {/* Receive */}
           <TouchableOpacity
             style={[styles.actionCard, { backgroundColor: colors.secondary }]}
-            onPress={() => router.push('/tap')}
+            onPress={() => router.push('/receive')}
             activeOpacity={0.8}
-            accessibilityLabel="Tap to pay, hold phones together"
+            accessibilityLabel="Show your QR code to receive money"
             accessibilityRole="button"
           >
             <View style={styles.actionIconCircle}>
-              <Ionicons name="wifi" size={28} color={colors.secondary} />
+              <Ionicons name="arrow-down-circle" size={28} color={colors.secondary} />
             </View>
-            <Text style={styles.actionTitle}>Tap to Pay</Text>
-            <Text style={styles.actionDesc}>Hold phones together</Text>
+            <Text style={styles.actionTitle}>Receive</Text>
+            <Text style={styles.actionDesc}>Show your QR code</Text>
           </TouchableOpacity>
         </View>
 
@@ -171,11 +171,11 @@ export default function HomeScreen() {
             </View>
             <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Withdraw</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/receive')} activeOpacity={0.7} accessibilityLabel="Receive money" accessibilityRole="button">
+          <TouchableOpacity style={styles.secondaryAction} onPress={() => router.push('/linked-accounts')} activeOpacity={0.7} accessibilityLabel="Manage linked accounts" accessibilityRole="button">
             <View style={[styles.secondaryIcon, { backgroundColor: colors.accent + '15' }]}>
-              <Ionicons name="arrow-down-circle" size={22} color={colors.accent} />
+              <Ionicons name="link" size={20} color={colors.accent} />
             </View>
-            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Receive</Text>
+            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>Accounts</Text>
           </TouchableOpacity>
         </View>
       </View>
