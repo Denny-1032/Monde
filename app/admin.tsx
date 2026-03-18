@@ -13,7 +13,7 @@ import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { FeeSummary, FloatSummary, FeeDetail } from '../constants/types';
-import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetUserTransactions, adminToggleAgent, adminFreezeAccount, adminListAgents } from '../lib/api';
+import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetAllAccounts, adminGetUserTransactions, adminToggleAgent, adminFreezeAccount, adminListAgents } from '../lib/api';
 import { Transaction } from '../constants/types';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
 import PinConfirm from '../components/PinConfirm';
@@ -67,6 +67,10 @@ export default function AdminDashboardScreen() {
   const [showPinPrompt, setShowPinPrompt] = useState(false);
   const [pinError, setPinError] = useState('');
   const [pinLoading, setPinLoading] = useState(false);
+
+  // All accounts for accounts tab
+  const [allAccounts, setAllAccounts] = useState<AdminUser[]>([]);
+  const [allAccountsLoading, setAllAccountsLoading] = useState(false);
 
   // Agents tab state
   const [agents, setAgents] = useState<AgentInfo[]>([]);
@@ -364,6 +368,17 @@ export default function AdminDashboardScreen() {
     if (pinVerified && activeTab === 'agents') loadAgents();
   }, [pinVerified, activeTab, loadAgents]);
 
+  const loadAllAccounts = useCallback(async () => {
+    setAllAccountsLoading(true);
+    const res = await adminGetAllAccounts();
+    if (!res.error) setAllAccounts(res.data);
+    setAllAccountsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (pinVerified && activeTab === 'accounts' && allAccounts.length === 0) loadAllAccounts();
+  }, [pinVerified, activeTab, loadAllAccounts]);
+
   const handleFreeze = useCallback(async (userId: string, fullName: string, freeze: boolean) => {
     Alert.alert(
       freeze ? 'Freeze Account?' : 'Unfreeze Account?',
@@ -383,6 +398,7 @@ export default function AdminDashboardScreen() {
               Alert.alert('Done', freeze ? `${fullName}'s account is now frozen.` : `${fullName}'s account has been unfrozen.`);
               if (selectedUser?.id === userId) setSelectedUser({ ...selectedUser, is_frozen: freeze });
               setAgents((prev) => prev.map((a) => a.id === userId ? { ...a, is_frozen: freeze } : a));
+              setAllAccounts((prev) => prev.map((a) => a.id === userId ? { ...a, is_frozen: freeze } : a));
             } else {
               Alert.alert('Error', res.error || 'Failed to update');
             }
@@ -893,21 +909,16 @@ export default function AdminDashboardScreen() {
                         </View>
                       </View>
 
-                      {/* Freeze / Unfreeze */}
+                      {/* Freeze / Unfreeze (icon-only) */}
                       <TouchableOpacity
-                        style={[styles.freezeBtn, { backgroundColor: agent.is_frozen ? colors.success + '15' : colors.error + '10', borderColor: agent.is_frozen ? colors.success : colors.error }]}
+                        style={{ alignSelf: 'flex-end', padding: Spacing.xs }}
                         onPress={() => handleFreeze(agent.id, agent.full_name, !agent.is_frozen)}
                         disabled={freezingId === agent.id}
                       >
                         {freezingId === agent.id ? (
                           <ActivityIndicator size="small" color={agent.is_frozen ? colors.success : colors.error} />
                         ) : (
-                          <>
-                            <Ionicons name={agent.is_frozen ? 'lock-open' : 'snow'} size={16} color={agent.is_frozen ? colors.success : colors.error} />
-                            <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: agent.is_frozen ? colors.success : colors.error }}>
-                              {agent.is_frozen ? 'Unfreeze Account' : 'Freeze Account'}
-                            </Text>
-                          </>
+                          <Ionicons name={agent.is_frozen ? 'lock-open' : 'snow'} size={18} color={agent.is_frozen ? colors.success : colors.error} />
                         )}
                       </TouchableOpacity>
                     </View>
@@ -928,7 +939,14 @@ export default function AdminDashboardScreen() {
                   placeholder="Search by name, phone, or @handle"
                   placeholderTextColor={colors.textLight}
                   value={userSearch}
-                  onChangeText={handleUserSearch}
+                  onChangeText={(q) => {
+                    setUserSearch(q);
+                    if (q.trim().length >= 2) {
+                      handleUserSearch(q);
+                    } else {
+                      setSearchResults([]);
+                    }
+                  }}
                   autoCapitalize="none"
                 />
                 {userSearch.length > 0 && (
@@ -938,35 +956,24 @@ export default function AdminDashboardScreen() {
                 )}
               </View>
 
-              {/* Search results */}
-              {searchLoading && <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: Spacing.sm }} />}
-              {searchResults.length > 0 && (
-                <View style={{ marginBottom: Spacing.md }}>
-                  {searchResults.map((u) => (
-                    <TouchableOpacity
-                      key={u.id}
-                      style={[styles.userResult, { backgroundColor: colors.surface }]}
-                      onPress={() => selectUser(u)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.userName, { color: colors.text }]}>{u.full_name}</Text>
-                        <Text style={[styles.userPhone, { color: colors.textSecondary }]}>
-                          {formatPhone(u.phone)}{u.handle ? ` · @${u.handle}` : ''}
-                        </Text>
-                      </View>
-                      <Text style={[styles.userBalance, { color: colors.primary }]}>{formatCurrency(u.balance)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {/* Selected user header */}
-              {selectedUser && (
+              {/* Selected user detail view */}
+              {selectedUser ? (
                 <>
                   <View style={[styles.selectedUserCard, { backgroundColor: colors.primary }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.selectedUserName}>{selectedUser.full_name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.selectedUserName}>{selectedUser.full_name}</Text>
+                        {selectedUser.is_admin && (
+                          <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                            <Text style={{ fontSize: FontSize.xs, fontWeight: '700', color: '#fff' }}>ADMIN</Text>
+                          </View>
+                        )}
+                        {selectedUser.is_frozen && (
+                          <View style={{ backgroundColor: 'rgba(255,100,100,0.3)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                            <Text style={{ fontSize: FontSize.xs, fontWeight: '700', color: '#fff' }}>FROZEN</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.selectedUserPhone}>
                         {formatPhone(selectedUser.phone)}{selectedUser.handle ? ` · @${selectedUser.handle}` : ''}
                       </Text>
@@ -977,7 +984,7 @@ export default function AdminDashboardScreen() {
                     </View>
                   </View>
 
-                  {/* Agent toggle + Freeze */}
+                  {/* Action icons row: Agent toggle + Freeze */}
                   <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md }}>
                     <TouchableOpacity
                       style={[styles.agentToggle, { backgroundColor: selectedUser.is_agent ? colors.primary + '15' : colors.surface, borderColor: selectedUser.is_agent ? colors.primary : colors.border, marginBottom: 0 }]}
@@ -986,7 +993,7 @@ export default function AdminDashboardScreen() {
                         Alert.alert(
                           newVal ? 'Make Agent?' : 'Remove Agent?',
                           newVal
-                            ? `Grant Monde Agent status to ${selectedUser.full_name}? They will be able to process cash-outs.`
+                            ? `Grant Monde Agent status to ${selectedUser.full_name}? They will be able to process cash-outs and deposits.`
                             : `Remove Agent status from ${selectedUser.full_name}?`,
                           [
                             { text: 'Cancel', style: 'cancel' },
@@ -996,7 +1003,11 @@ export default function AdminDashboardScreen() {
                               onPress: async () => {
                                 const res = await adminToggleAgent(selectedUser.id, newVal);
                                 if (res.success) {
-                                  setSelectedUser({ ...selectedUser, is_agent: newVal });
+                                  const updated = { ...selectedUser, is_agent: newVal };
+                                  setSelectedUser(updated);
+                                  setAllAccounts((prev) => prev.map((a) => a.id === selectedUser.id ? { ...a, is_agent: newVal } : a));
+                                  // Refresh agents list so it stays in sync
+                                  loadAgents();
                                   Alert.alert('Done', newVal ? `${selectedUser.full_name} is now a Monde Agent.` : 'Agent status removed.');
                                 } else {
                                   Alert.alert('Error', res.error || 'Failed to update');
@@ -1014,19 +1025,19 @@ export default function AdminDashboardScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.agentToggle, { backgroundColor: selectedUser.is_frozen ? colors.error + '15' : colors.surface, borderColor: selectedUser.is_frozen ? colors.error : colors.border, marginBottom: 0 }]}
+                      style={[styles.agentToggle, {
+                        backgroundColor: selectedUser.is_frozen ? colors.error + '15' : colors.surface,
+                        borderColor: selectedUser.is_frozen ? colors.error : colors.border,
+                        marginBottom: 0,
+                        paddingHorizontal: Spacing.sm,
+                      }]}
                       onPress={() => handleFreeze(selectedUser.id, selectedUser.full_name, !selectedUser.is_frozen)}
                       disabled={freezingId === selectedUser.id}
                     >
                       {freezingId === selectedUser.id ? (
                         <ActivityIndicator size="small" color={colors.error} />
                       ) : (
-                        <>
-                          <Ionicons name={selectedUser.is_frozen ? 'lock-open' : 'snow'} size={18} color={selectedUser.is_frozen ? colors.error : colors.textSecondary} />
-                          <Text style={{ fontSize: FontSize.sm, fontWeight: '600', color: selectedUser.is_frozen ? colors.error : colors.textSecondary }}>
-                            {selectedUser.is_frozen ? 'Frozen' : 'Freeze'}
-                          </Text>
-                        </>
+                        <Ionicons name={selectedUser.is_frozen ? 'lock-open' : 'snow'} size={18} color={selectedUser.is_frozen ? colors.error : colors.textSecondary} />
                       )}
                     </TouchableOpacity>
                   </View>
@@ -1120,15 +1131,67 @@ export default function AdminDashboardScreen() {
                     <Text style={{ color: colors.textSecondary, fontSize: FontSize.sm }}>Clear selection</Text>
                   </TouchableOpacity>
                 </>
-              )}
-
-              {!selectedUser && searchResults.length === 0 && !searchLoading && (
-                <View style={styles.emptyState}>
-                  <Ionicons name="people-outline" size={48} color={colors.textLight} />
-                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                    Search for a user to view their account history
-                  </Text>
-                </View>
+              ) : (
+                <>
+                  {/* Account list: show search results or all accounts */}
+                  {searchLoading || allAccountsLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: Spacing.lg }} />
+                  ) : (
+                    <>
+                      {(() => {
+                        const displayList = userSearch.trim().length >= 2 ? searchResults : allAccounts;
+                        if (displayList.length === 0) {
+                          return (
+                            <View style={styles.emptyState}>
+                              <Ionicons name="people-outline" size={48} color={colors.textLight} />
+                              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                                {userSearch.trim().length >= 2 ? 'No accounts found' : 'No accounts yet'}
+                              </Text>
+                            </View>
+                          );
+                        }
+                        return (
+                          <>
+                            <Text style={[styles.resultCount, { color: colors.textSecondary }]}>
+                              {displayList.length} account{displayList.length !== 1 ? 's' : ''}
+                            </Text>
+                            {displayList.map((u) => (
+                              <TouchableOpacity
+                                key={u.id}
+                                style={[styles.userResult, { backgroundColor: colors.surface }]}
+                                onPress={() => selectUser(u)}
+                                activeOpacity={0.7}
+                              >
+                                <View style={{ flex: 1 }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <Text style={[styles.userName, { color: colors.text }]}>{u.full_name}</Text>
+                                    {u.is_agent && (
+                                      <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                                        <Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>AGENT</Text>
+                                      </View>
+                                    )}
+                                    {u.is_admin && (
+                                      <View style={{ backgroundColor: colors.warning + '18', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                                        <Text style={{ fontSize: 10, fontWeight: '700', color: colors.warning }}>ADMIN</Text>
+                                      </View>
+                                    )}
+                                    {u.is_frozen && (
+                                      <Ionicons name="snow" size={14} color={colors.error} />
+                                    )}
+                                  </View>
+                                  <Text style={[styles.userPhone, { color: colors.textSecondary }]}>
+                                    {formatPhone(u.phone)}{u.handle ? ` · @${u.handle}` : ''}
+                                  </Text>
+                                </View>
+                                <Text style={[styles.userBalance, { color: colors.primary }]}>{formatCurrency(u.balance)}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </>
               )}
             </>
           )}

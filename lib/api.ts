@@ -1139,6 +1139,24 @@ export async function adminWithdrawRevenue(
 // Admin: User Account Lookup & History
 // ============================================
 
+export async function adminGetAllAccounts(): Promise<{ data: { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean; is_frozen?: boolean }[]; error?: string }> {
+  if (!isSupabaseConfigured) return { data: [] };
+  const token = await ensureFreshSession();
+  if (!token) return { data: [], error: 'Session expired' };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen')
+    .order('handle', { ascending: true, nullsFirst: false })
+    .order('full_name', { ascending: true });
+
+  if (error) return { data: [], error: error.message };
+  // Sort: accounts with handles first (alphabetically), then accounts without handles (alphabetically by name)
+  const withHandle = (data || []).filter((u: any) => u.handle);
+  const withoutHandle = (data || []).filter((u: any) => !u.handle);
+  return { data: [...withHandle, ...withoutHandle] as any[] };
+}
+
 export async function adminSearchUsers(
   query: string,
 ): Promise<{ data: { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean; is_frozen?: boolean }[]; error?: string }> {

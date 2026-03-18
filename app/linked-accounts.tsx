@@ -34,6 +34,14 @@ export default function LinkedAccountsScreen() {
   const [addName, setAddName] = useState('');
   const [addPhone, setAddPhone] = useState('');
   const [addLoading, setAddLoading] = useState(false);
+  const [accountsHidden, setAccountsHidden] = useState(true);
+
+  const maskAccountNumber = (phone: string) => {
+    if (!accountsHidden) return formatPhone(phone);
+    const cleaned = phone.replace(/[^0-9a-zA-Z]/g, '');
+    if (cleaned.length <= 6) return cleaned;
+    return cleaned.slice(0, 3) + ' •••• ' + cleaned.slice(-3);
+  };
 
   useEffect(() => {
     fetchLinkedAccounts();
@@ -114,9 +122,14 @@ export default function LinkedAccountsScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>Linked Accounts</Text>
-        <TouchableOpacity onPress={() => setShowAdd(true)} style={styles.addBtn}>
-          <Ionicons name="add-circle" size={28} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity onPress={() => setAccountsHidden(!accountsHidden)} style={{ padding: 4 }}>
+            <Ionicons name={accountsHidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowAdd(true)} style={styles.addBtn}>
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -146,7 +159,7 @@ export default function LinkedAccountsScreen() {
                   <View style={[styles.providerDot, { backgroundColor: prov?.color || colors.primary }]} />
                   <View style={styles.accountInfo}>
                     <Text style={[styles.accountName, { color: colors.text }]}>{account.account_name}</Text>
-                    <Text style={[styles.accountPhone, { color: colors.textSecondary }]}>{formatPhone(account.account_phone)}</Text>
+                    <Text style={[styles.accountPhone, { color: colors.textSecondary }]}>{maskAccountNumber(account.account_phone)}</Text>
                     <Text style={[styles.accountProvider, { color: colors.textLight }]}>{prov?.name || account.provider}</Text>
                   </View>
                   {account.is_default && (

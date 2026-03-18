@@ -63,9 +63,15 @@ export default function PaymentScreen() {
     const seen = new Set<string>();
     const recents: ContactSuggestion[] = [];
     for (const txn of transactions) {
-      if (txn.type === 'send' && txn.recipient_phone && txn.recipient_name && !seen.has(txn.recipient_phone)) {
-        seen.add(txn.recipient_phone);
-        recents.push({ id: txn.id, name: txn.recipient_name, phone: txn.recipient_phone, source: 'monde' });
+      if (txn.type === 'send' && txn.recipient_phone && txn.recipient_name) {
+        // Normalize to last 9 digits to deduplicate different formats of the same number
+        const digits = txn.recipient_phone.replace(/[^0-9]/g, '');
+        const key = digits.slice(-9);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        // Store in +260 format for consistency
+        const normalizedPhone = '+260' + digits.slice(-9);
+        recents.push({ id: txn.id, name: txn.recipient_name, phone: normalizedPhone, source: 'monde' });
         if (recents.length >= 5) break;
       }
     }
