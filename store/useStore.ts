@@ -230,8 +230,10 @@ export const useStore = create<AppState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
+      console.log('[signIn] Attempting login for:', formattedPhone);
       const { data, error } = await api.signInWithPhone(formattedPhone, password);
       if (error) {
+        console.warn('[signIn] Auth error:', error);
         set({ error: error as string });
         return { success: false, error: error as string };
       }

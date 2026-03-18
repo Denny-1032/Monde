@@ -74,7 +74,9 @@ export default function LoginScreen() {
         setLockoutEnd(Date.now() + LOCKOUT_SECONDS * 1000);
         setError(`Too many attempts. Locked for ${LOCKOUT_SECONDS}s.`);
       } else {
-        setError(`Invalid PIN. ${MAX_ATTEMPTS - newAttempts} attempts remaining.`);
+        // Show actual error from Supabase for better debugging
+        const detail = result.error || 'Invalid PIN';
+        setError(`${detail} (${MAX_ATTEMPTS - newAttempts} attempts left)`);
       }
       setPin('');
     }

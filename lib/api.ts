@@ -282,10 +282,12 @@ export async function signInWithPhone(phone: string, pin: string) {
 
   const formattedPhone = formatPhone(phone);
   const securePassword = pinToPassword(pin);
+  console.log('[signInWithPhone] phone:', formattedPhone, 'pwd length:', securePassword.length);
   const { data, error } = await supabase.auth.signInWithPassword({
     phone: formattedPhone,
     password: securePassword,
   });
+  if (error) console.warn('[signInWithPhone] Supabase error:', error.message, error.status);
   return { data, error: error?.message };
 }
 
