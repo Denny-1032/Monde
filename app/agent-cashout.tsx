@@ -216,7 +216,7 @@ export default function AgentCashOutScreen() {
             ) : (
               <>
                 <Ionicons name="cash-outline" size={22} color={colors.white} />
-                <Text style={[styles.actionBtnText, { color: colors.white }]}>Confirm \u2014 Cash Given</Text>
+                <Text style={[styles.actionBtnText, { color: colors.white }]}>Confirm — Cash Given</Text>
               </>
             )}
           </TouchableOpacity>

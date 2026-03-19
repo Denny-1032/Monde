@@ -1071,38 +1071,55 @@ export default function AdminDashboardScreen() {
                         {userTxnTotal} transaction{userTxnTotal !== 1 ? 's' : ''}
                       </Text>
 
-                      {userTxns.map((txn) => {
-                        const isIn = txn.type === 'receive' || txn.type === 'topup';
-                        const txnColor = txn.status === 'pending' ? colors.warning : isIn ? colors.success : colors.error;
-                        const txnDate = new Date(txn.created_at);
-                        return (
-                          <View key={txn.id} style={[styles.txnRow, { backgroundColor: colors.surface }]}>
-                            <View style={styles.txnRowTop}>
-                              <View style={[styles.txnTypeBadge, { backgroundColor: txnColor + '18' }]}>
-                                <Text style={[styles.txnTypeBadgeText, { color: txnColor }]}>
-                                  {txn.type.charAt(0).toUpperCase() + txn.type.slice(1)}
+                      {(() => {
+                        // Compute running balance: start from current balance, walk newest→oldest
+                        // Each transaction adjusts: inflows add, outflows subtract (reverse to get balance AFTER that txn)
+                        let runBal = selectedUser?.balance || 0;
+                        const balances: number[] = [];
+                        for (const txn of userTxns) {
+                          balances.push(runBal);
+                          const isIn = txn.type === 'receive' || txn.type === 'topup' || txn.type === 'cash_in';
+                          const delta = isIn ? txn.amount : -(txn.amount + (txn.fee || 0));
+                          runBal -= delta; // reverse: go back in time
+                        }
+                        return userTxns.map((txn, idx) => {
+                          const isIn = txn.type === 'receive' || txn.type === 'topup' || txn.type === 'cash_in';
+                          const txnColor = txn.status === 'pending' ? colors.warning : isIn ? colors.success : colors.error;
+                          const txnDate = new Date(txn.created_at);
+                          return (
+                            <View key={txn.id} style={[styles.txnRow, { backgroundColor: colors.surface }]}>
+                              <View style={styles.txnRowTop}>
+                                <View style={[styles.txnTypeBadge, { backgroundColor: txnColor + '18' }]}>
+                                  <Text style={[styles.txnTypeBadgeText, { color: txnColor }]}>
+                                    {txn.type.charAt(0).toUpperCase() + txn.type.slice(1)}
+                                  </Text>
+                                </View>
+                                <Text style={[styles.txnAmount, { color: txnColor }]}>
+                                  {isIn ? '+' : '-'}{formatCurrency(txn.amount)}
                                 </Text>
                               </View>
-                              <Text style={[styles.txnAmount, { color: txnColor }]}>
-                                {isIn ? '+' : '-'}{formatCurrency(txn.amount)}
-                              </Text>
+                              <View style={styles.txnRowBottom}>
+                                <Text style={[styles.txnNote, { color: colors.text }]} numberOfLines={1}>
+                                  {txn.recipient_name || txn.note || '—'}
+                                </Text>
+                                <Text style={[styles.txnDate, { color: colors.textLight }]}>
+                                  {txnDate.getDate()} {MONTH_NAMES[txnDate.getMonth()]} {String(txnDate.getHours()).padStart(2, '0')}:{String(txnDate.getMinutes()).padStart(2, '0')}
+                                </Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                                {txn.fee != null && txn.fee > 0 ? (
+                                  <Text style={[styles.txnFee, { color: colors.textSecondary, marginTop: 0 }]}>
+                                    Fee: {formatCurrency(txn.fee)}
+                                  </Text>
+                                ) : <View />}
+                                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textSecondary }}>
+                                  Bal: {formatCurrency(balances[idx])}
+                                </Text>
+                              </View>
                             </View>
-                            <View style={styles.txnRowBottom}>
-                              <Text style={[styles.txnNote, { color: colors.text }]} numberOfLines={1}>
-                                {txn.recipient_name || txn.note || '—'}
-                              </Text>
-                              <Text style={[styles.txnDate, { color: colors.textLight }]}>
-                                {txnDate.getDate()} {MONTH_NAMES[txnDate.getMonth()]} {String(txnDate.getHours()).padStart(2, '0')}:{String(txnDate.getMinutes()).padStart(2, '0')}
-                              </Text>
-                            </View>
-                            {txn.fee != null && txn.fee > 0 && (
-                              <Text style={[styles.txnFee, { color: colors.textSecondary }]}>
-                                Fee: {formatCurrency(txn.fee)}
-                              </Text>
-                            )}
-                          </View>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
 
                       {/* Export button */}
                       <TouchableOpacity

@@ -47,6 +47,7 @@ export const DarkColors: ColorScheme = {
 };
 
 export const Providers = [
+  { id: 'monde', name: 'Monde Wallet', color: '#6C63FF', prefix: '' },
   { id: 'airtel', name: 'Airtel Money', color: '#ED1C24', prefix: '097' },
   { id: 'mtn', name: 'MTN MoMo', color: '#FFCB05', prefix: '096' },
   { id: 'zamtel', name: 'Zamtel Kwacha', color: '#00A650', prefix: '095' },
