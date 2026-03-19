@@ -2,12 +2,16 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { AppState, AppStateStatus, View, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { Colors } from '../constants/theme';
 import { ThemeProvider, useTheme } from '../constants/ThemeContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useStore } from '../store/useStore';
 import LockScreen from '../components/LockScreen';
 import OfflineBanner from '../components/OfflineBanner';
+
+// Keep the native splash screen visible until we explicitly hide it
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Ionicons font is bundled locally via @expo/vector-icons (no CDN needed)
 // On native: font is loaded from the .ttf in node_modules

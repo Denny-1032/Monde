@@ -121,7 +121,7 @@ export const useStore = create<AppState>((set, get) => ({
           set({ user: newProfile });
         } else {
           // Profile truly missing — sign out to prevent broken state
-          console.warn('initSession: profile missing, signing out to reset');
+          if (__DEV__) console.warn('initSession: profile missing, signing out');
           await api.signOut().catch(() => {});
           set({ user: null, isAuthenticated: false, sessionId: null });
           return;
@@ -152,11 +152,11 @@ export const useStore = create<AppState>((set, get) => ({
       // Handle stale/invalid refresh tokens by clearing session
       const msg = e?.message || '';
       if (msg.includes('Refresh Token') || msg.includes('refresh_token') || msg.includes('Invalid')) {
-        console.warn('Stale session detected, clearing...');
+        if (__DEV__) console.warn('Stale session detected, clearing');
         await api.signOut().catch(() => {});
         set({ user: null, isAuthenticated: false, sessionId: null });
       } else {
-        console.error('Session init error:', e);
+        if (__DEV__) console.error('Session init error:', e);
       }
     } finally {
       set({ isLoading: false });
@@ -230,10 +230,10 @@ export const useStore = create<AppState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const formattedPhone = phone.startsWith('+260') ? phone : `+260${phone.replace(/^0/, '')}`;
-      console.log('[signIn] Attempting login for:', formattedPhone);
+      if (__DEV__) console.log('[signIn] Attempting login');
       const { data, error } = await api.signInWithPhone(formattedPhone, password);
       if (error) {
-        console.warn('[signIn] Auth error:', error);
+        if (__DEV__) console.warn('[signIn] Auth error');
         set({ error: error as string });
         return { success: false, error: error as string };
       }
@@ -261,7 +261,7 @@ export const useStore = create<AppState>((set, get) => ({
             set({ user: newProfile });
           } else {
             // Profile truly missing — sign out to prevent broken state
-            console.warn('signIn: profile missing after creation, signing out');
+            if (__DEV__) console.warn('signIn: profile missing after creation');
             await api.signOut().catch(() => {});
             set({ user: null, isAuthenticated: false, sessionId: null });
             return { success: false, error: 'Account setup incomplete. Please try signing up again.' };
@@ -302,7 +302,7 @@ export const useStore = create<AppState>((set, get) => ({
         set({ user: profile });
       }
     } catch (e) {
-      console.error('Fetch profile error:', e);
+      if (__DEV__) console.error('Fetch profile error:', e);
     }
   },
 
@@ -313,7 +313,7 @@ export const useStore = create<AppState>((set, get) => ({
       const { data, nextCursor } = await api.getTransactions(sessionId);
       set({ transactions: data, transactionCursor: nextCursor || null, hasMoreTransactions: !!nextCursor });
     } catch (e) {
-      console.error('Fetch transactions error:', e);
+      if (__DEV__) console.error('Fetch transactions error:', e);
     }
   },
 
@@ -328,7 +328,7 @@ export const useStore = create<AppState>((set, get) => ({
         hasMoreTransactions: !!nextCursor,
       }));
     } catch (e) {
-      console.error('Load more transactions error:', e);
+      if (__DEV__) console.error('Load more transactions error:', e);
     }
   },
 

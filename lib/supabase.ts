@@ -11,7 +11,7 @@ const ExpoSecureStoreAdapter = {
     try {
       return await SecureStore.getItemAsync(key);
     } catch (e) {
-      console.warn('SecureStore getItem error:', e);
+      if (__DEV__) console.warn('SecureStore getItem error:', e);
       return null;
     }
   },
@@ -23,7 +23,7 @@ const ExpoSecureStoreAdapter = {
     try {
       await SecureStore.setItemAsync(key, value);
     } catch (e) {
-      console.warn('SecureStore setItem error:', e);
+      if (__DEV__) console.warn('SecureStore setItem error:', e);
     }
   },
   removeItem: async (key: string): Promise<void> => {
@@ -34,7 +34,7 @@ const ExpoSecureStoreAdapter = {
     try {
       await SecureStore.deleteItemAsync(key);
     } catch (e) {
-      console.warn('SecureStore removeItem error:', e);
+      if (__DEV__) console.warn('SecureStore removeItem error:', e);
     }
   },
 };
@@ -84,7 +84,7 @@ if (supabase) {
   const authAny = supabase.auth as any;
   if (authAny.initializePromise) {
     authAny.initializePromise.catch?.((err: any) => {
-      console.warn('[supabase] Auth init error (stale token cleared):', err?.message);
+      if (__DEV__) console.warn('[supabase] Auth init error (stale token cleared)');
       supabase.auth.signOut().catch(() => {});
     });
   }
@@ -92,11 +92,11 @@ if (supabase) {
   // 2. Eagerly validate stored session — clear if refresh token is dead
   supabase.auth.getSession().then(({ error }) => {
     if (error) {
-      console.warn('[supabase] Stale session detected, clearing:', error.message);
+      if (__DEV__) console.warn('[supabase] Stale session detected, clearing');
       supabase.auth.signOut().catch(() => {});
     }
   }).catch((err: any) => {
-    console.warn('[supabase] getSession exception, clearing:', err?.message);
+    if (__DEV__) console.warn('[supabase] getSession exception, clearing');
     supabase.auth.signOut().catch(() => {});
   });
 

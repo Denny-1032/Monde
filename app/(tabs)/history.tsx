@@ -128,6 +128,10 @@ export default function HistoryScreen() {
         renderSectionHeader={renderSectionHeader}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        maxToRenderPerBatch={15}
+        windowSize={7}
+        removeClippedSubviews={true}
+        initialNumToRender={10}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />
         }

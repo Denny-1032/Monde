@@ -96,6 +96,11 @@
 | 11bz | **Fix frozen account bypass** — Added is_frozen checks to process_topup, process_withdraw, create_cash_out_request, process_cash_out | ✅ DONE | `042_tiers_limits_freeze_fixes.sql` |
 | 11ca | **Agent commission fix** — admin_list_agents now includes cashin commissions (0.5% deposits) in total earned, not just cashout commissions | ✅ DONE | `042_tiers_limits_freeze_fixes.sql` |
 | 11cb | **Welcome screen update** — Replaced "Tap to Pay" (on hold) with "Send & Receive" feature | ✅ DONE | `welcome.tsx` |
+| 11cc | **Fix handle generation** — `lower()` was applied after stripping `[^a-z]`, causing uppercase first letters to be dropped (e.g. "ohn.oe" instead of "john.doe"). Fixed order + regenerated broken handles | ✅ DONE | `043_fix_handle_generation.sql` |
+| 11cd | **White screen flash fix** — Added `expo-splash-screen` preventAutoHideAsync/hideAsync so native splash stays visible until React renders | ✅ DONE | `_layout.tsx`, `index.tsx` |
+| 11ce | **Remove tier badge from home** — Tier is admin-only info; removed badge from balance card on home screen | ✅ DONE | `(tabs)/index.tsx` |
+| 11cf | **Production logging audit** — Wrapped all console.log/warn/error in `__DEV__` guards across api.ts, supabase.ts, useStore.ts, admin.tsx, index.tsx to prevent leaking tokens, phones, and internal state in production | ✅ DONE | `api.ts`, `supabase.ts`, `useStore.ts`, `admin.tsx`, `index.tsx` |
+| 11cg | **SectionList performance** — Added maxToRenderPerBatch, windowSize, removeClippedSubviews, initialNumToRender to history SectionList for smoother scrolling | ✅ DONE | `history.tsx` |
 
 ## Phase 2: Core Feature Completion
 

@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { Colors, FontSize, Spacing } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import * as SecureStore from 'expo-secure-store';
 
 const ONBOARDING_KEY = 'monde_onboarding_complete';
 
-export default function SplashScreen() {
+export default function MondeSplash() {
   const router = useRouter();
   const { isAuthenticated, initSession } = useStore();
   const [ready, setReady] = useState(false);
@@ -16,6 +17,9 @@ export default function SplashScreen() {
   const textOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Hide the native splash screen now that our custom splash is rendering
+    SplashScreen.hideAsync().catch(() => {});
+
     // Animate splash
     Animated.sequence([
       Animated.parallel([
@@ -29,7 +33,7 @@ export default function SplashScreen() {
       try {
         await initSession();
       } catch (e) {
-        console.error('Session init failed:', e);
+        if (__DEV__) console.error('Session init failed:', e);
       }
       setReady(true);
     };

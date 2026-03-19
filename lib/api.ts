@@ -6,6 +6,10 @@ import { calcTopUpFee, calcWithdrawFee } from './helpers';
 const TEST_PROVIDERS = new Set(['test_deposit', 'test_withdraw']);
 const LIPILA_ENABLED = process.env.EXPO_PUBLIC_LIPILA_ENABLED === 'true';
 
+// Production-safe logger: only logs in development builds
+const devLog = (...args: any[]) => { if (__DEV__) console.log(...args); };
+const devWarn = (...args: any[]) => { if (__DEV__) console.warn(...args); };
+
 /**
  * Refresh the main Supabase client session to ensure a valid JWT.
  * Call this before any RPC or edge-function call that may run after
@@ -29,10 +33,10 @@ export async function ensureFreshSession(): Promise<string | null> {
     // 2. Token missing or expiring soon — refresh it
     const { data, error } = await supabase.auth.refreshSession();
     if (data?.session?.access_token) {
-      console.log('[ensureFreshSession] Refreshed OK, expires_at:', data.session.expires_at);
+      devLog('[ensureFreshSession] Refreshed OK');
       return data.session.access_token;
     }
-    if (error) console.warn('[ensureFreshSession] refresh failed:', error.message);
+    if (error) devWarn('[ensureFreshSession] refresh failed:', error.message);
 
     // 3. Refresh failed — validate the cached token with a real API call
     //    Do NOT blindly return a cached token that the gateway will reject.
@@ -40,15 +44,15 @@ export async function ensureFreshSession(): Promise<string | null> {
     if (cached?.session?.access_token) {
       const { error: userErr } = await supabase.auth.getUser(cached.session.access_token);
       if (!userErr) {
-        console.log('[ensureFreshSession] Cached token validated via getUser');
+        devLog('[ensureFreshSession] Cached token validated via getUser');
         return cached.session.access_token;
       }
-      console.warn('[ensureFreshSession] Cached token rejected by server:', userErr.message);
+      devWarn('[ensureFreshSession] Cached token rejected by server');
     }
 
     return null;
   } catch (e: any) {
-    console.error('[ensureFreshSession] error:', e?.message);
+    devWarn('[ensureFreshSession] error:', e?.message);
     return null;
   }
 }
@@ -101,17 +105,17 @@ async function callLipila(params: {
   destinationPhone?: string;
   note?: string;
 }): Promise<{ success: boolean; referenceId?: string; cardRedirectionUrl?: string; error?: string }> {
-  console.log(`[callLipila] provider=${params.provider}, LIPILA_ENABLED=${LIPILA_ENABLED}, supabaseConfigured=${isSupabaseConfigured}`);
+  devLog(`[callLipila] provider=${params.provider}`);
 
   // Skip Lipila for test providers or when Supabase isn't configured
   if (TEST_PROVIDERS.has(params.provider) || !isSupabaseConfigured) {
-    console.log('[callLipila] Skipping: test provider or Supabase not configured');
+    devLog('[callLipila] Skipping: test provider');
     return { success: true };
   }
 
   // Skip Lipila when not enabled (development/testing mode)
   if (!LIPILA_ENABLED) {
-    console.log('[callLipila] Skipping: EXPO_PUBLIC_LIPILA_ENABLED is not "true"');
+    devLog('[callLipila] Skipping: Lipila not enabled');
     return { success: true };
   }
 
@@ -119,7 +123,7 @@ async function callLipila(params: {
   const isMoMo = LIPILA_MOMO_PROVIDERS.has(params.provider);
   const isBank = LIPILA_BANK_PROVIDERS.has(params.provider);
   if (!isMoMo && !isBank) {
-    console.log(`[callLipila] Skipping: provider "${params.provider}" not supported by Lipila`);
+    devLog(`[callLipila] Skipping: unsupported provider`);
     return { success: true };
   }
 
@@ -130,7 +134,7 @@ async function callLipila(params: {
     paymentMethod = params.action === 'collect' ? 'card' : 'bank';
   }
 
-  console.log(`[callLipila] Calling Edge Function: ${params.action} ${params.amount} via ${params.provider} (${paymentMethod})`);
+  devLog(`[callLipila] ${params.action} ${params.amount} via ${paymentMethod}`);
 
   // Resolve account details from linked account or user profile
   const linkedAccount = await getLinkedAccountDetails(params.userId, params.linkedAccountId);
@@ -175,7 +179,7 @@ async function callLipila(params: {
   // Inner fetch — called up to 2× (retry on 401)
   const doFetch = async (token: string): Promise<{ success: boolean; referenceId?: string; cardRedirectionUrl?: string; error?: string; is401?: boolean }> => {
     try {
-      console.log(`[callLipila] POST ${fnUrl} (token …${token.slice(-8)})`);
+      devLog('[callLipila] POST request');
       const response = await fetch(fnUrl, {
         method: 'POST',
         headers: {
@@ -190,7 +194,7 @@ async function callLipila(params: {
       let data: any = null;
       try { data = rawText ? JSON.parse(rawText) : null; } catch {}
 
-      console.log(`[callLipila] HTTP ${response.status}:`, rawText.substring(0, 500));
+      devLog(`[callLipila] HTTP ${response.status}`);
 
       // Gateway 401 — flag for retry
       if (response.status === 401) {
@@ -217,13 +221,13 @@ async function callLipila(params: {
           detail = `${lipilaMsg}${httpInfo}`;
         }
         if (data?.lipilaResponse) {
-          console.warn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
+          devWarn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
         }
         return { success: false, error: detail || `Unexpected response (HTTP ${response.status}): ${rawText.substring(0, 200)}` };
       }
       return { success: true, referenceId: data?.referenceId, cardRedirectionUrl: data?.cardRedirectionUrl || undefined };
     } catch (err: any) {
-      console.error('[callLipila] Fetch error:', err?.message);
+      devWarn('[callLipila] Fetch error:', err?.message);
       return { success: false, error: err?.message || 'Failed to connect to payment service' };
     }
   };
@@ -234,7 +238,7 @@ async function callLipila(params: {
 
   // Attempt 2 — on 401, force a full session refresh and retry once
   if (first.is401) {
-    console.warn('[callLipila] Got 401 — forcing session refresh and retrying…');
+    devWarn('[callLipila] Got 401 — retrying after refresh');
     const { data: refreshed } = await supabase.auth.refreshSession();
     const retryToken = refreshed?.session?.access_token;
     if (retryToken) {
@@ -282,12 +286,12 @@ export async function signInWithPhone(phone: string, pin: string) {
 
   const formattedPhone = formatPhone(phone);
   const securePassword = pinToPassword(pin);
-  console.log('[signInWithPhone] phone:', formattedPhone, 'pwd length:', securePassword.length);
+  devLog('[signInWithPhone] attempting login');
   const { data, error } = await supabase.auth.signInWithPassword({
     phone: formattedPhone,
     password: securePassword,
   });
-  if (error) console.warn('[signInWithPhone] Supabase error:', error.message, error.status);
+  if (error) devWarn('[signInWithPhone] auth error:', error.message);
   return { data, error: error?.message };
 }
 
@@ -372,12 +376,12 @@ export async function ensureProfileExists(
     if (!error && data && typeof data === 'object' && data.success) {
       return { success: true };
     }
-    if (error) console.warn('ensureProfileExists RPC error:', error.message);
+    if (error) devWarn('ensureProfileExists RPC error:', error.message);
     if (data && typeof data === 'object' && !data.success) {
-      console.warn('ensureProfileExists RPC returned failure:', data.error);
+      devWarn('ensureProfileExists RPC returned failure:', data.error);
     }
   } catch (e: any) {
-    console.warn('ensureProfileExists RPC exception:', e?.message);
+    devWarn('ensureProfileExists RPC exception:', e?.message);
   }
 
   // Try 2: Direct upsert (needs INSERT RLS policy — migration 017)
@@ -393,9 +397,9 @@ export async function ensureProfileExists(
         currency: 'ZMW',
       }, { onConflict: 'id' });
     if (!upsertErr) return { success: true };
-    console.warn('ensureProfileExists upsert error:', upsertErr.message);
+    devWarn('ensureProfileExists upsert error:', upsertErr.message);
   } catch (e: any) {
-    console.warn('ensureProfileExists upsert exception:', e?.message);
+    devWarn('ensureProfileExists upsert exception:', e?.message);
   }
 
   // Try 3: Plain insert as last resort
@@ -411,10 +415,10 @@ export async function ensureProfileExists(
         currency: 'ZMW',
       });
     if (!insertErr) return { success: true };
-    console.warn('ensureProfileExists insert error:', insertErr.message);
+    devWarn('ensureProfileExists insert error:', insertErr.message);
     return { success: false, error: insertErr.message };
   } catch (e: any) {
-    console.warn('ensureProfileExists insert exception:', e?.message);
+    devWarn('ensureProfileExists insert exception:', e?.message);
     return { success: false, error: e?.message || 'Profile creation failed' };
   }
 }
@@ -681,7 +685,7 @@ export async function adminListAgents(): Promise<{ success: boolean; data: any[]
 
   const { data, error } = await supabase.rpc('admin_list_agents');
   if (error) {
-    console.error('[adminListAgents] RPC error:', error.message);
+    devWarn('[adminListAgents] RPC error:', error.message);
     return { success: false, data: [], error: error.message };
   }
   // RPC returns { success, agents: [...] } — extract the agents array
@@ -768,7 +772,7 @@ export async function processPayment(params: {
 
   // Retry once on JWT/auth errors — force a fresh refresh before retrying
   if (rpcResult.error && /jwt|token|auth/i.test(rpcResult.error.message)) {
-    console.warn('[processPayment] RPC auth error, retrying after refresh:', rpcResult.error.message);
+    devWarn('[processPayment] RPC auth error, retrying');
     const { data: refreshed } = await supabase.auth.refreshSession();
     if (refreshed?.session) {
       rpcResult = await supabase.rpc('process_payment', {
@@ -833,7 +837,7 @@ export async function processTopUp(params: {
 
   // Retry once on JWT/auth errors
   if (rpcResult.error && /jwt|token|auth/i.test(rpcResult.error.message)) {
-    console.warn('[processTopUp] RPC auth error, retrying after refresh:', rpcResult.error.message);
+    devWarn('[processTopUp] RPC auth error, retrying');
     const { data: refreshed } = await supabase.auth.refreshSession();
     if (refreshed?.session) {
       rpcResult = await supabase.rpc('create_pending_topup', {
@@ -896,7 +900,7 @@ export async function processWithdraw(params: {
 
   // Retry once on JWT/auth errors — force a fresh refresh before retrying
   if (rpcResult.error && /jwt|token|auth/i.test(rpcResult.error.message)) {
-    console.warn('[processWithdraw] RPC auth error, retrying after refresh:', rpcResult.error.message);
+    devWarn('[processWithdraw] RPC auth error, retrying');
     const { data: refreshed } = await supabase.auth.refreshSession();
     if (refreshed?.session) {
       rpcResult = await supabase.rpc('process_withdraw', {
@@ -921,7 +925,7 @@ export async function processWithdraw(params: {
       .update({ lipila_reference_id: lipilaResult.referenceId })
       .eq('id', data.transaction_id)
       .then(({ error: refErr }) => {
-        if (refErr) console.warn('Failed to store Lipila referenceId:', refErr.message);
+        if (refErr) devWarn('Failed to store Lipila referenceId:', refErr.message);
       });
   }
 

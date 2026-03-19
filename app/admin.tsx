@@ -359,7 +359,7 @@ export default function AdminDashboardScreen() {
     if (res.success) {
       setAgents(res.data || []);
     } else {
-      console.warn('[loadAgents] failed:', res.error);
+      if (__DEV__) console.warn('[loadAgents] failed:', res.error);
     }
     setAgentsLoading(false);
   }, []);
