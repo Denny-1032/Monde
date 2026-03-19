@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -18,16 +18,8 @@ export default function ReceiveScreen() {
   const [amount, setAmount] = useState('');
   const [showAmountEntry, setShowAmountEntry] = useState(false);
 
-  // Block agents — showing a Receive QR enables commission farming
-  useEffect(() => {
-    if (user?.is_agent) {
-      Alert.alert(
-        'Not Available',
-        'Agent accounts use Deposit and Agent Transfer instead of Receive.',
-        [{ text: 'OK', onPress: () => router.back() }],
-      );
-    }
-  }, [user?.is_agent]);
+  // Agents can show their QR for agent-to-agent transfers and identification
+  const isAgent = user?.is_agent === true;
 
   const qrPayload = generateQRData({
     app: 'monde',

@@ -114,9 +114,21 @@ export default function HomeScreen() {
           <Ionicons name={balanceHidden ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.white} style={{ opacity: 0.7 }} />
         </View>
         <Text style={styles.balanceAmount}>{balanceHidden ? 'K ••••••' : formatCurrency(user?.balance || 0)}</Text>
-        {user?.is_agent && user?.agent_code && (
-          <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: FontSize.sm, marginTop: 4, fontWeight: '600' }}>Agent Code: {user.agent_code}</Text>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          {user?.is_agent && user?.agent_code && (
+            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: FontSize.sm, fontWeight: '600' }}>Agent Code: {user.agent_code}</Text>
+          )}
+          {(() => {
+            const tier = user?.account_tier || 'copper';
+            const tierColors: Record<string, string> = { copper: '#B87333', gold: '#FFD700', platinum: '#E5E4E2' };
+            return (
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tierColors[tier] }} />
+                <Text style={{ color: '#fff', fontSize: FontSize.xs, fontWeight: '700' }}>{tier.charAt(0).toUpperCase() + tier.slice(1)}</Text>
+              </View>
+            );
+          })()}
+        </View>
       </TouchableOpacity>
 
       {/* Quick Actions - THE 2 KEY FEATURES */}

@@ -32,11 +32,11 @@ export default function WelcomeScreen() {
 
           <View style={styles.featureRow}>
             <View style={[styles.featureIcon, { backgroundColor: colors.primary + '12' }]}>
-              <Ionicons name="wifi" size={22} color={colors.primary} />
+              <Ionicons name="swap-horizontal" size={22} color={colors.primary} />
             </View>
             <View style={styles.featureText}>
-              <Text style={[styles.featureTitle, { color: colors.text }]}>Tap to Pay</Text>
-              <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>Hold phones together to pay instantly</Text>
+              <Text style={[styles.featureTitle, { color: colors.text }]}>Send & Receive</Text>
+              <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>Transfer money instantly to anyone</Text>
             </View>
           </View>
 

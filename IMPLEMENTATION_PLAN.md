@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2026-03-14 (EAS fix, app icon, NFC UX, PDF export, Lipila go-live, APK build)
+> Last updated: 2026-03-19 (Account tiers, per-agent limits, freeze fixes, agent send block, commission fix, welcome screen update)
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -89,6 +89,13 @@
 | 11bs | **Agent codes digits-only** — Changed from MND-XXXXXX to 6-digit numbers for easier recall; updated generation + display | ✅ DONE | `036_agent_code.sql`, `037_payment_fixes.sql`, `(tabs)/index.tsx` |
 | 11bt | **Security hardening** — Restricted cash_out_requests SELECT policy; added performance indexes on transactions/profiles/cash_out_requests/monde_fees; phone normalization helper; hardened admin_toggle_agent and agent_to_agent_transfer | ✅ DONE | `038_security_performance.sql` |
 | 11bu | **Fee audit** — Verified all fee calculations match client↔server: top-up 3%, withdraw 3%, P2P 0.5%>K500, cash-in 0.5%, cash-out tiered K2.5-K50 | ✅ DONE | Audit confirmed, workflow updated |
+| 11bv | **Block sends to agents** — process_payment now rejects P2P sends to agent accounts; directs users to visit agent for deposits | ✅ DONE | `042_tiers_limits_freeze_fixes.sql` |
+| 11bw | **Agent QR fix** — Removed "Not Available" block on receive.tsx; agents can now show their QR for agent-to-agent transfers | ✅ DONE | `receive.tsx` |
+| 11bx | **Per-agent deposit/withdraw limits** — Max 3 deposits and 3 withdrawals per customer per same agent per 24h; admin can override per user | ✅ DONE | `042_tiers_limits_freeze_fixes.sql`, `admin.tsx` |
+| 11by | **Account tiers** — Copper (K100k/K20k), Gold (K250k/K50k), Platinum (K500k/K100k) balance/daily caps enforced in all RPCs; tier badge on home screen; admin tier management UI | ✅ DONE | `042_tiers_limits_freeze_fixes.sql`, `types.ts`, `api.ts`, `admin.tsx`, `index.tsx` |
+| 11bz | **Fix frozen account bypass** — Added is_frozen checks to process_topup, process_withdraw, create_cash_out_request, process_cash_out | ✅ DONE | `042_tiers_limits_freeze_fixes.sql` |
+| 11ca | **Agent commission fix** — admin_list_agents now includes cashin commissions (0.5% deposits) in total earned, not just cashout commissions | ✅ DONE | `042_tiers_limits_freeze_fixes.sql` |
+| 11cb | **Welcome screen update** — Replaced "Tap to Pay" (on hold) with "Send & Receive" feature | ✅ DONE | `welcome.tsx` |
 
 ## Phase 2: Core Feature Completion
 

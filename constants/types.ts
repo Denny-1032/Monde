@@ -22,6 +22,8 @@ export type Transaction = {
   created_at: string;
 };
 
+export type AccountTier = 'copper' | 'gold' | 'platinum';
+
 export type UserProfile = {
   id: string;
   phone: string;
@@ -35,7 +37,16 @@ export type UserProfile = {
   is_agent?: boolean;
   is_frozen?: boolean;
   agent_code?: string;
+  account_tier?: AccountTier;
+  daily_deposit_limit?: number;
+  daily_withdraw_limit?: number;
   created_at: string;
+};
+
+export const TIER_INFO: Record<AccountTier, { label: string; color: string; balanceCap: number; dailyCap: number }> = {
+  copper: { label: 'Copper', color: '#B87333', balanceCap: 100000, dailyCap: 20000 },
+  gold: { label: 'Gold', color: '#FFD700', balanceCap: 250000, dailyCap: 50000 },
+  platinum: { label: 'Platinum', color: '#E5E4E2', balanceCap: 500000, dailyCap: 100000 },
 };
 
 export type LinkedAccount = {

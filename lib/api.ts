@@ -496,6 +496,9 @@ export async function getProfile(userId: string): Promise<{ data: UserProfile | 
       is_agent: data.is_agent || false,
       is_frozen: data.is_frozen || false,
       agent_code: data.agent_code || undefined,
+      account_tier: data.account_tier || 'copper',
+      daily_deposit_limit: data.daily_deposit_limit ?? 3,
+      daily_withdraw_limit: data.daily_withdraw_limit ?? 3,
       created_at: data.created_at,
     },
   };
@@ -1146,7 +1149,7 @@ export async function adminGetAllAccounts(): Promise<{ data: { id: string; phone
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen')
+    .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, account_tier, daily_deposit_limit, daily_withdraw_limit')
     .order('handle', { ascending: true, nullsFirst: false })
     .order('full_name', { ascending: true });
 
@@ -1274,4 +1277,42 @@ export async function getFeeDetails(
   });
   if (error) return { success: false, error: error.message } as FeeDetailsResponse;
   return data as FeeDetailsResponse;
+}
+
+// ============================================
+// Admin: Tier & Limit Management
+// ============================================
+
+export async function adminSetUserTier(
+  userId: string,
+  tier: 'copper' | 'gold' | 'platinum',
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('admin_set_user_tier', {
+    p_user_id: userId,
+    p_tier: tier,
+  });
+  if (error) return { success: false, error: error.message };
+  return data as any;
+}
+
+export async function adminSetUserLimits(
+  userId: string,
+  depositLimit?: number,
+  withdrawLimit?: number,
+): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { success: false, error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { success: false, error: 'Session expired' };
+
+  const { data, error } = await supabase.rpc('admin_set_user_limits', {
+    p_user_id: userId,
+    p_deposit_limit: depositLimit ?? null,
+    p_withdraw_limit: withdrawLimit ?? null,
+  });
+  if (error) return { success: false, error: error.message };
+  return data as any;
 }

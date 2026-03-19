@@ -13,14 +13,14 @@ import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { FeeSummary, FloatSummary, FeeDetail } from '../constants/types';
-import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetAllAccounts, adminGetUserTransactions, adminToggleAgent, adminFreezeAccount, adminListAgents } from '../lib/api';
+import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetAllAccounts, adminGetUserTransactions, adminToggleAgent, adminFreezeAccount, adminListAgents, adminSetUserTier, adminSetUserLimits } from '../lib/api';
 import { Transaction } from '../constants/types';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
 import PinConfirm from '../components/PinConfirm';
 
 type TabId = 'overview' | 'fees' | 'float' | 'agents' | 'accounts';
 
-type AdminUser = { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean; is_frozen?: boolean };
+type AdminUser = { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean; is_frozen?: boolean; account_tier?: string; daily_deposit_limit?: number; daily_withdraw_limit?: number };
 
 type AgentInfo = {
   id: string; phone: string; full_name: string; handle?: string; balance: number;
@@ -1042,6 +1042,82 @@ export default function AdminDashboardScreen() {
                     </TouchableOpacity>
                   </View>
 
+                  {/* Tier & Limits management */}
+                  <View style={[styles.tierSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Text style={[styles.tierSectionTitle, { color: colors.text }]}>Account Tier</Text>
+                    <View style={styles.tierButtons}>
+                      {(['copper', 'gold', 'platinum'] as const).map((tier) => {
+                        const active = (selectedUser as any).account_tier === tier || (!((selectedUser as any).account_tier) && tier === 'copper');
+                        const tierColors: Record<string, string> = { copper: '#B87333', gold: '#FFD700', platinum: '#E5E4E2' };
+                        const caps: Record<string, string> = { copper: 'K100k / K20k', gold: 'K250k / K50k', platinum: 'K500k / K100k' };
+                        return (
+                          <TouchableOpacity
+                            key={tier}
+                            style={[styles.tierBtn, { borderColor: active ? tierColors[tier] : colors.border, backgroundColor: active ? tierColors[tier] + '20' : 'transparent' }]}
+                            onPress={() => {
+                              if (active) return;
+                              Alert.alert('Change Tier', `Set ${selectedUser.full_name} to ${tier.charAt(0).toUpperCase() + tier.slice(1)} tier?\n\nLimits: ${caps[tier]} (balance/daily)`, [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Confirm', onPress: async () => {
+                                  const res = await adminSetUserTier(selectedUser.id, tier);
+                                  if (res.success) {
+                                    setSelectedUser({ ...selectedUser, account_tier: tier } as any);
+                                    setAllAccounts((prev) => prev.map((a) => a.id === selectedUser.id ? { ...a, account_tier: tier } as any : a));
+                                    Alert.alert('Done', `Tier updated to ${tier.charAt(0).toUpperCase() + tier.slice(1)}`);
+                                  } else Alert.alert('Error', res.error || 'Failed');
+                                }},
+                              ]);
+                            }}
+                          >
+                            <Text style={[styles.tierBtnLabel, { color: active ? tierColors[tier] : colors.textSecondary }]}>
+                              {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                            </Text>
+                            <Text style={{ fontSize: 10, color: colors.textLight }}>{caps[tier]}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    <View style={styles.limitRow}>
+                      <Text style={[styles.limitLabel, { color: colors.textSecondary }]}>Agent limits/24h:</Text>
+                      <TouchableOpacity
+                        style={[styles.limitBadge, { backgroundColor: colors.primary + '12' }]}
+                        onPress={() => {
+                          Alert.prompt ? Alert.prompt('Deposit Limit', 'Max deposits from same agent per 24h:', (val) => {
+                            const n = parseInt(val); if (!n || n < 1) return;
+                            adminSetUserLimits(selectedUser.id, n, undefined).then(r => {
+                              if (r.success) { setSelectedUser({ ...selectedUser, daily_deposit_limit: n } as any); Alert.alert('Done', `Deposit limit: ${n}`); }
+                            });
+                          }, 'plain-text', String((selectedUser as any).daily_deposit_limit || 3)) :
+                          Alert.alert('Set Deposit Limit', `Current: ${(selectedUser as any).daily_deposit_limit || 3}\n\nUse values: 3 (default), 5, 10, etc.`, [
+                            { text: 'Cancel' },
+                            ...([3, 5, 10] as number[]).map(n => ({ text: String(n), onPress: async () => {
+                              const r = await adminSetUserLimits(selectedUser.id, n, undefined);
+                              if (r.success) { setSelectedUser({ ...selectedUser, daily_deposit_limit: n } as any); }
+                            }})),
+                          ]);
+                        }}
+                      >
+                        <Ionicons name="arrow-down-circle-outline" size={14} color={colors.primary} />
+                        <Text style={{ fontSize: FontSize.xs, color: colors.primary, fontWeight: '600' }}>Dep: {(selectedUser as any).daily_deposit_limit || 3}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.limitBadge, { backgroundColor: colors.error + '12' }]}
+                        onPress={() => {
+                          Alert.alert('Set Withdraw Limit', `Current: ${(selectedUser as any).daily_withdraw_limit || 3}\n\nMax cash-outs from same agent per 24h`, [
+                            { text: 'Cancel' },
+                            ...([3, 5, 10] as number[]).map(n => ({ text: String(n), onPress: async () => {
+                              const r = await adminSetUserLimits(selectedUser.id, undefined, n);
+                              if (r.success) { setSelectedUser({ ...selectedUser, daily_withdraw_limit: n } as any); }
+                            }})),
+                          ]);
+                        }}
+                      >
+                        <Ionicons name="arrow-up-circle-outline" size={14} color={colors.error} />
+                        <Text style={{ fontSize: FontSize.xs, color: colors.error, fontWeight: '600' }}>Wdr: {(selectedUser as any).daily_withdraw_limit || 3}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
                   {/* Month picker */}
                   <View style={styles.monthPicker}>
                     <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthArrow}>
@@ -1750,5 +1826,51 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
+  },
+
+  // Tier section
+  tierSection: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  tierSectionTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    marginBottom: Spacing.sm,
+  },
+  tierButtons: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  tierBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+  },
+  tierBtnLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+  },
+  limitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  limitLabel: {
+    fontSize: FontSize.xs,
+    flex: 1,
+  },
+  limitBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
   },
 });
