@@ -8,7 +8,7 @@ import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatCurrency, formatPhone, calcPaymentFee } from '../lib/helpers';
 import { sanitizeText, validateAmount, isValidPhone } from '../lib/validation';
-import { searchProfilesByPhone, lookupByHandle } from '../lib/api';
+import { searchProfilesByPhone, lookupByHandle, searchByHandle } from '../lib/api';
 import Button from '../components/Button';
 import Avatar from '../components/Avatar';
 import * as Contacts from 'expo-contacts';
@@ -20,6 +20,7 @@ type ContactSuggestion = {
   phone: string;
   source: 'monde' | 'contact';
   avatar_url?: string;
+  handle?: string;
 };
 
 export default function PaymentScreen() {
@@ -57,7 +58,7 @@ export default function PaymentScreen() {
   const method = (params.method as 'qr' | 'nfc' | 'manual') || 'manual';
   const canReview = isValidPhone(recipientPhone) && parseFloat(amount) > 0;
 
-  // Build recent recipients from transaction history
+  // Build recent recipients from transaction history, then look up handles
   const transactions = useStore((s) => s.transactions);
   useEffect(() => {
     const seen = new Set<string>();
@@ -75,7 +76,20 @@ export default function PaymentScreen() {
         if (recents.length >= 5) break;
       }
     }
-    setRecentRecipients(recents);
+    // Look up handles for recent recipients
+    if (recents.length > 0) {
+      Promise.all(
+        recents.map(async (r) => {
+          const { data } = await searchProfilesByPhone(r.phone);
+          if (data.length > 0 && data[0].handle) {
+            r.handle = data[0].handle;
+          }
+          return r;
+        })
+      ).then(setRecentRecipients);
+    } else {
+      setRecentRecipients(recents);
+    }
   }, [transactions]);
 
   // Load device contacts on mount
@@ -135,6 +149,7 @@ export default function PaymentScreen() {
             phone: result.phone!,
             source: 'monde',
             avatar_url: result.avatar_url,
+            handle: result.handle,
           });
           setRecipientName(result.full_name!);
           setRecipientPhone(result.phone!);
@@ -150,7 +165,7 @@ export default function PaymentScreen() {
       ).slice(0, 5);
       results.push(...contactMatches);
 
-      // Search Monde users by phone (single call — reuse for both suggestions and auto-fill)
+      // Search Monde users by phone
       if (/^\d{3,}$/.test(cleaned)) {
         setLookingUp(true);
         const { data } = await searchProfilesByPhone(cleaned);
@@ -163,12 +178,32 @@ export default function PaymentScreen() {
               phone: p.phone,
               source: 'monde',
               avatar_url: p.avatar_url,
+              handle: p.handle,
             });
           }
         }
         // Auto-fill name if exact Monde match
         if (isValidPhone(cleaned) && data.length === 1 && data[0].id !== user?.id) {
           setRecipientName(data[0].full_name);
+        }
+      }
+
+      // Search Monde users by handle (for text input without @ prefix)
+      if (/[a-zA-Z]/.test(cleaned) && !cleaned.startsWith('@') && cleaned.length >= 3) {
+        setLookingUp(true);
+        const { data } = await searchByHandle(cleaned);
+        setLookingUp(false);
+        for (const p of data) {
+          if (p.id !== user?.id && !results.find((r) => r.phone === p.phone)) {
+            results.push({
+              id: p.id,
+              name: p.full_name,
+              phone: p.phone,
+              source: 'monde',
+              avatar_url: p.avatar_url,
+              handle: p.handle,
+            });
+          }
         }
       }
 
@@ -261,7 +296,7 @@ export default function PaymentScreen() {
         <ScrollView style={styles.stepContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* Phone / Contact search */}
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>To (phone or name)</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>To (phone, name, or @handle)</Text>
             <TextInput
               ref={phoneRef}
               style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
@@ -292,7 +327,7 @@ export default function PaymentScreen() {
                     </View>
                     {s.source === 'monde' && (
                       <View style={styles.mondeBadge}>
-                        <Text style={styles.mondeBadgeText}>Monde</Text>
+                        <Text style={styles.mondeBadgeText}>{s.handle ? `@${s.handle}` : 'Monde'}</Text>
                       </View>
                     )}
                   </TouchableOpacity>

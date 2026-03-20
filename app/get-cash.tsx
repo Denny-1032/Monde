@@ -8,7 +8,8 @@ import { Colors, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { generateQRData, formatCurrency, calcGetCashFee } from '../lib/helpers';
-import { createCashOutRequest, cancelCashOutRequest } from '../lib/api';
+import { createCashOutRequest, cancelCashOutRequest, checkCashOutStatus } from '../lib/api';
+import { preventScreenCapture } from '../lib/security';
 import { CashOutQRPayload } from '../constants/types';
 import NumPad from '../components/NumPad';
 
@@ -54,6 +55,12 @@ export default function GetCashScreen() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Polling ref for cash-out status
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // M2: Prevent screenshots on get-cash screen (shows QR code)
+  useEffect(() => preventScreenCapture(), []);
+
   const parsedAmount = parseFloat(amount) || 0;
   const feeInfo = calcGetCashFee(parsedAmount);
   const balance = user?.balance || 0;
@@ -63,6 +70,7 @@ export default function GetCashScreen() {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
@@ -117,6 +125,27 @@ export default function GetCashScreen() {
     timerRef.current = setInterval(() => {
       setSecondsLeft((prev) => Math.max(prev - 1, 0));
     }, 1000);
+
+    // Poll for completion every 3 seconds
+    const rid = result.request_id!;
+    pollRef.current = setInterval(async () => {
+      const status = await checkCashOutStatus(rid);
+      if (status.status === 'completed') {
+        if (pollRef.current) clearInterval(pollRef.current);
+        if (timerRef.current) clearInterval(timerRef.current);
+        pollRef.current = null;
+        timerRef.current = null;
+        fetchProfile();
+        router.replace({
+          pathname: '/success',
+          params: {
+            amount: parsedAmount.toString(),
+            recipientName: 'Cash Out',
+            type: 'cashout',
+          },
+        });
+      }
+    }, 3000);
   };
 
   const handleCancel = async () => {
@@ -124,6 +153,8 @@ export default function GetCashScreen() {
       await cancelCashOutRequest(requestId);
     }
     if (timerRef.current) clearInterval(timerRef.current);
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = null;
     setStep('amount');
     setToken(null);
     setRequestId(null);

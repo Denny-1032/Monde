@@ -7,6 +7,7 @@ import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useColors } from '../../constants/useColors';
 import { useStore } from '../../store/useStore';
 import { isValidPhone } from '../../lib/validation';
+import { preventScreenCapture } from '../../lib/security';
 
 const LAST_PHONE_KEY = 'monde_last_phone';
 const MAX_ATTEMPTS = 5;
@@ -23,6 +24,9 @@ export default function LoginScreen() {
   const [loadingPhone, setLoadingPhone] = useState(true);
   const [attempts, setAttempts] = useState(0);
   const [lockoutEnd, setLockoutEnd] = useState(0);
+
+  // M2: Prevent screenshots on PIN entry screen
+  useEffect(() => preventScreenCapture(), []);
 
   useEffect(() => {
     (async () => {

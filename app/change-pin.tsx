@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useStore } from '../store/useStore';
 import { isValidPin, pinToPassword } from '../lib/validation';
 import { verifyPin } from '../lib/api';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { preventScreenCapture } from '../lib/security';
 
 type Step = 'current' | 'new' | 'confirm';
 
@@ -17,6 +18,9 @@ export default function ChangePinScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
+
+  // M2: Prevent screenshots on PIN change screen
+  useEffect(() => preventScreenCapture(), []);
 
   const [step, setStep] = useState<Step>('current');
   const [currentPin, setCurrentPin] = useState('');

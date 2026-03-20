@@ -555,7 +555,23 @@ export async function checkHandleAvailable(handle: string): Promise<boolean> {
   return !data;
 }
 
-export async function searchProfilesByPhone(phone: string): Promise<{ data: { id: string; phone: string; full_name: string; avatar_url?: string }[] }> {
+export async function searchByHandle(query: string): Promise<{ data: { id: string; phone: string; full_name: string; handle: string; avatar_url?: string }[] }> {
+  if (!isSupabaseConfigured) return { data: [] };
+  const clean = query.replace(/^@/, '').toLowerCase().replace(/[^a-z0-9._]/g, '');
+  if (clean.length < 2) return { data: [] };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, phone, full_name, handle, avatar_url')
+    .not('handle', 'is', null)
+    .ilike('handle', `%${clean}%`)
+    .limit(5);
+
+  if (error) return { data: [] };
+  return { data: (data || []).filter((p: any) => p.handle) };
+}
+
+export async function searchProfilesByPhone(phone: string): Promise<{ data: { id: string; phone: string; full_name: string; avatar_url?: string; handle?: string }[] }> {
   if (!isSupabaseConfigured) return { data: [] };
 
   const formatted = phone.startsWith('+260') ? phone : phone.startsWith('260') ? `+${phone}` : `+260${phone.replace(/^0/, '')}`;
@@ -565,7 +581,7 @@ export async function searchProfilesByPhone(phone: string): Promise<{ data: { id
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, phone, full_name, avatar_url')
+    .select('id, phone, full_name, handle, avatar_url')
     .ilike('phone', `%${last9}%`)
     .limit(5);
 
@@ -611,6 +627,22 @@ export async function processCashOut(
   const { data, error } = await supabase.rpc('process_cash_out', { p_request_id: requestId });
   if (error) return { success: false, error: error.message };
   return data as any;
+}
+
+export async function checkCashOutStatus(
+  requestId: string,
+): Promise<{ status: string; error?: string }> {
+  if (!isSupabaseConfigured) return { status: 'unknown', error: 'Not configured' };
+  const token = await ensureFreshSession();
+  if (!token) return { status: 'unknown', error: 'Session expired' };
+
+  const { data, error } = await supabase
+    .from('cash_out_requests')
+    .select('status')
+    .eq('id', requestId)
+    .maybeSingle();
+  if (error) return { status: 'unknown', error: error.message };
+  return { status: data?.status || 'unknown' };
 }
 
 export async function cancelCashOutRequest(

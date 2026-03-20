@@ -11,6 +11,7 @@ import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { formatPhone } from '../lib/helpers';
 import Button from '../components/Button';
+import { preventScreenCapture } from '../lib/security';
 
 const BANK_PROVIDERS = new Set(['fnb', 'zanaco', 'absa']);
 const BANK_SWIFT_CODES: Record<string, string> = {
@@ -23,6 +24,9 @@ export default function LinkedAccountsScreen() {
   const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // M2: Prevent screenshots on linked accounts screen
+  useEffect(() => preventScreenCapture(), []);
+
   const linkedAccounts = useStore((s) => s.linkedAccounts);
   const fetchLinkedAccounts = useStore((s) => s.fetchLinkedAccounts);
   const addLinkedAccount = useStore((s) => s.addLinkedAccount);

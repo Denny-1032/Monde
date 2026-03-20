@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,11 +16,47 @@ export default function ReceiveScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useStore((s) => s.user);
+  const transactions = useStore((s) => s.transactions);
+  const fetchTransactions = useStore((s) => s.fetchTransactions);
+  const fetchProfile = useStore((s) => s.fetchProfile);
   const [amount, setAmount] = useState('');
   const [showAmountEntry, setShowAmountEntry] = useState(false);
 
   // M2: Prevent screenshots on QR code screen
   useEffect(() => preventScreenCapture(), []);
+
+  // Poll for incoming payment to auto-close QR and prevent duplicate scans
+  const initialTxnCount = useRef(transactions.length);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    initialTxnCount.current = transactions.length;
+    pollRef.current = setInterval(async () => {
+      await fetchTransactions();
+    }, 4000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  // Watch for new receive transaction → auto-navigate to success
+  useEffect(() => {
+    if (transactions.length > initialTxnCount.current) {
+      const newest = transactions[0];
+      if (newest && newest.type === 'receive') {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+        fetchProfile();
+        router.replace({
+          pathname: '/success',
+          params: {
+            amount: newest.amount.toString(),
+            recipientName: newest.recipient_name || 'Someone',
+            type: 'receive',
+          },
+        });
+      }
+    }
+  }, [transactions.length]);
 
   // Agents can show their QR for agent-to-agent transfers and identification
   const isAgent = user?.is_agent === true;

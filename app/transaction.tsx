@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
-import { formatCurrency, formatPhone } from '../lib/helpers';
+import { formatCurrency, formatPhone, calcGetCashFee } from '../lib/helpers';
 import Avatar from '../components/Avatar';
 
 export default function TransactionDetailScreen() {
@@ -16,6 +16,8 @@ export default function TransactionDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const transactions = useStore((s) => s.transactions);
   const cancelPendingTopUp = useStore((s) => s.cancelPendingTopUp);
+  const user = useStore((s) => s.user);
+  const isAgent = user?.is_agent === true;
   const txn = transactions.find((t) => t.id === params.id);
   const [cancelling, setCancelling] = useState(false);
 
@@ -174,6 +176,16 @@ export default function TransactionDetailScreen() {
           <DetailRow label="Method" value={txn.method === 'wallet' ? 'Wallet Transfer' : txn.method === 'qr' ? 'QR Code' : txn.method === 'nfc' ? 'Tap to Pay' : 'Manual'} icon={txn.method === 'wallet' ? 'wallet-outline' : txn.method === 'qr' ? 'qr-code-outline' : txn.method === 'nfc' ? 'wifi-outline' : 'send-outline'} />
           <DetailRow label="Provider" value={provider?.name || txn.provider} dotColor={provider?.color} />
           {txn.fee && txn.fee > 0 ? <DetailRow label="Fee" value={formatCurrency(txn.fee)} /> : null}
+          {/* Show commission breakdown for agent cash-out transactions */}
+          {isCashOut && isAgent && txn.status === 'completed' && (() => {
+            const feeInfo = calcGetCashFee(txn.amount);
+            return (
+              <>
+                <DetailRow label="Commission" value={`+${formatCurrency(feeInfo.agentCommission)}`} valueColor={colors.success} />
+                <DetailRow label="Total Credited" value={formatCurrency(txn.amount + feeInfo.agentCommission)} valueColor={colors.primary} />
+              </>
+            );
+          })()}
           <DetailRow label="Date" value={formattedDate} />
           <DetailRow label="Time" value={formattedTime} />
           <DetailRow label="Transaction ID" value={txn.id} mono />
@@ -216,12 +228,13 @@ export default function TransactionDetailScreen() {
   );
 }
 
-function DetailRow({ label, value, icon, dotColor, mono }: {
+function DetailRow({ label, value, icon, dotColor, mono, valueColor }: {
   label: string;
   value: string;
   icon?: string;
   dotColor?: string;
   mono?: boolean;
+  valueColor?: string;
 }) {
   const colors = useColors();
   return (
@@ -230,7 +243,7 @@ function DetailRow({ label, value, icon, dotColor, mono }: {
       <View style={styles.detailValueRow}>
         {dotColor ? <View style={[styles.providerDot, { backgroundColor: dotColor }]} /> : null}
         {icon ? <Ionicons name={icon as any} size={14} color={colors.textSecondary} /> : null}
-        <Text style={[styles.detailValue, { color: colors.text }, mono && styles.mono]} numberOfLines={1}>{value}</Text>
+        <Text style={[styles.detailValue, { color: valueColor || colors.text }, mono && styles.mono]} numberOfLines={1}>{value}</Text>
       </View>
     </View>
   );

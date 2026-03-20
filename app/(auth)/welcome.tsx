@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useColors } from '../../constants/useColors';
 import Button from '../../components/Button';
+import { preventScreenCapture } from '../../lib/security';
 
 export default function WelcomeScreen() {
   const colors = useColors();
   const router = useRouter();
+
+  // M2: Prevent screenshots on welcome screen
+  useEffect(() => preventScreenCapture(), []);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
