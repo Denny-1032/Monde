@@ -38,6 +38,15 @@
       "ios": {
         "autoIncrement": true
       }
+    },
+    "production-apk": {
+      "env": {
+        "APP_ENV": "production"
+      },
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
