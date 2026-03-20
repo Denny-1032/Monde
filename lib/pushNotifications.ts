@@ -60,7 +60,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   //   });
   // }
 
-  console.log('[Push] Registered (placeholder)');
+  if (__DEV__) console.log('[Push] Registered (placeholder)');
   return expoPushToken;
 }
 

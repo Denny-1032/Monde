@@ -22,7 +22,7 @@ export function initAnalytics() {
   // mixpanel.init();
 
   isInitialized = true;
-  console.log('[Analytics] Initialized (placeholder)');
+  if (__DEV__) console.log('[Analytics] Initialized (placeholder)');
 }
 
 export function trackEvent(event: string, properties?: Record<string, any>) {

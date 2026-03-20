@@ -16,9 +16,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // }
 // ============================================
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type",
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "null",
+  "Access-Control-Allow-Headers": "content-type, x-callback-secret, x-webhook-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -27,6 +27,41 @@ function json(data: unknown, status = 200) {
     status,
     headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
+}
+
+// Verify transaction status directly with Lipila API (defense-in-depth)
+async function verifyWithLipila(referenceId: string): Promise<{ verified: boolean; status?: string }> {
+  const mode = (Deno.env.get("LIPILA_MODE") || "sandbox").toLowerCase();
+  const isSandbox = mode !== "live";
+  const baseUrl = isSandbox
+    ? (Deno.env.get("LIPILA_SANDBOX_URL") || "https://api.lipila.dev")
+    : (Deno.env.get("LIPILA_LIVE_URL") || "https://blz.lipila.io");
+  const apiKey = isSandbox
+    ? (Deno.env.get("LIPILA_SANDBOX_API_KEY") || "")
+    : (Deno.env.get("LIPILA_LIVE_API_KEY") || "");
+
+  if (!apiKey) {
+    console.warn("[lipila-callback] No API key configured — cannot verify callback with Lipila");
+    return { verified: false };
+  }
+
+  // Try collections first, then disbursements
+  for (const path of ["collections", "disbursements"]) {
+    try {
+      const url = `${baseUrl.replace(/\/$/, "")}/api/v1/${path}/check-status?referenceId=${encodeURIComponent(referenceId)}`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { accept: "application/json", "x-api-key": apiKey },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.referenceId === referenceId) {
+          return { verified: true, status: data.status };
+        }
+      }
+    } catch {}
+  }
+  return { verified: false };
 }
 
 Deno.serve(async (req: Request) => {
@@ -38,6 +73,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // SECURITY: Validate callback authenticity via shared secret header
+    const callbackSecret = Deno.env.get("LIPILA_CALLBACK_SECRET") || "";
+    if (callbackSecret) {
+      const providedSecret = req.headers.get("x-callback-secret") || req.headers.get("x-webhook-secret") || "";
+      if (providedSecret !== callbackSecret) {
+        console.warn("[lipila-callback] Invalid or missing callback secret");
+        return json({ error: "Unauthorized" }, 401);
+      }
+    }
+
     const body = await req.json();
 
     const {
@@ -66,6 +111,23 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Missing referenceId or status" }, 400);
     }
 
+    // SECURITY: Verify the callback status with Lipila API directly
+    // This prevents forged callbacks from crediting wallets or reversing withdrawals
+    const normalizedStatus = status.toLowerCase();
+    const isFinancialAction = normalizedStatus === "successful" || normalizedStatus === "failed";
+    if (isFinancialAction) {
+      const verification = await verifyWithLipila(referenceId);
+      if (verification.verified) {
+        const verifiedStatus = (verification.status || "").toLowerCase();
+        if (verifiedStatus !== normalizedStatus) {
+          console.error(`[lipila-callback] STATUS MISMATCH: callback says "${status}" but Lipila API says "${verification.status}" for ${referenceId}`);
+          return json({ received: true, referenceId, status: "rejected", reason: "Status mismatch with Lipila API" });
+        }
+      } else {
+        console.warn(`[lipila-callback] Could not verify referenceId=${referenceId} with Lipila API — proceeding with caution`);
+      }
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
@@ -78,12 +140,12 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const normalizedStatus = status.toLowerCase();
     const isSuccess = normalizedStatus === "successful";
     const isFailed = normalizedStatus === "failed";
 
     // Log the callback for audit purposes
-    console.log(`[lipila-callback] referenceId=${referenceId} status=${status} type=${type} paymentType=${paymentType} amount=${amount} identifier=${identifier}`);
+    const maskedAccount = accountNumber ? accountNumber.slice(0, 3) + '****' + accountNumber.slice(-2) : '(none)';
+    console.log(`[lipila-callback] ref=${referenceId} status=${status} type=${type} paymentType=${paymentType} account=${maskedAccount}`);
 
     // Try to find the transaction by lipila_reference_id (primary) or reference (fallback)
     let txn: any = null;

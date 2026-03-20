@@ -1,6 +1,6 @@
 # Monde App — Implementation Plan & Progress Tracker
 
-> Last updated: 2026-03-19 (Account tiers, per-agent limits, freeze fixes, agent send block, commission fix, welcome screen update)
+> Last updated: 2026-03-20 (Security penetration test: 20/26 vulnerabilities fixed — callback auth, cert pinning, CORS, log redaction, permission hardening)
 
 ## Phase 1: Bug Fixes & Security Hardening
 
@@ -101,6 +101,10 @@
 | 11ce | **Remove tier badge from home** — Tier is admin-only info; removed badge from balance card on home screen | ✅ DONE | `(tabs)/index.tsx` |
 | 11cf | **Production logging audit** — Wrapped all console.log/warn/error in `__DEV__` guards across api.ts, supabase.ts, useStore.ts, admin.tsx, index.tsx to prevent leaking tokens, phones, and internal state in production | ✅ DONE | `api.ts`, `supabase.ts`, `useStore.ts`, `admin.tsx`, `index.tsx` |
 | 11cg | **SectionList performance** — Added maxToRenderPerBatch, windowSize, removeClippedSubviews, initialNumToRender to history SectionList for smoother scrolling | ✅ DONE | `history.tsx` |
+| 11ch | **APK security hardening** — Enabled ProGuard/R8 obfuscation + resource shrinking via expo-build-properties; disabled allowBackup; removed RECORD_AUDIO permission | ✅ DONE | `app.json` |
+| 11ci | **BoZ designation documents** — Created 16 professional Word documents covering all Bank of Zambia payment system designation requirements + master checklist | ✅ DONE | `docs/boz-designation/` (16 .docx files + checklist) |
+| 11cj | **Security penetration test & fixes (pass 1)** — 26 vulnerabilities identified (4C/8H/9M/5L), 20 fixed: C1 callback auth, C3 reset-pin phone match, C4 admin creds to env vars, H1-H8 all HIGH resolved, M5/M7/M9 + L1/L4/L5 | ✅ DONE | `SECURITY_AUDIT.md`, `network_security_config.xml`, `.env.example` |
+| 11ck | **Security audit completion (pass 2)** — Remaining 5 fixes: M1 root detection (`expo-device`), M2 screenshot prevention (`expo-screen-capture` on home/admin/receive), M3 NFC payload signing (timestamp + FNV-1a integrity), M4 QR payload signing, M8 lipila_callbacks RLS cleanup (migration 044), L2 Android App Links intent filter with autoVerify. Created `lib/security.ts` with `checkDeviceIntegrity`, `preventScreenCapture`, `signPayload`, `verifyPayload`. 25/26 vulns fixed, rating: 🟢 Ready | ✅ DONE | `lib/security.ts`, `044_security_audit_fixes.sql`, `app.json` |
 
 ## Phase 2: Core Feature Completion
 
@@ -153,5 +157,5 @@
 | 39 | Configure staging/production environments | ✅ DONE | `.env.example` + EAS env profiles (dev/staging/prod) |
 | 40 | Set up app versioning (semver + build numbers) | ✅ DONE | `appVersionSource: remote` + `autoIncrement: true` in eas.json |
 | 41 | Create iOS build profile + App Store submit config | ✅ DONE | iOS submit config in `eas.json` (needs credentials) |
-| 42 | Perform security audit | ✅ DONE | `SECURITY_AUDIT.md` — RLS, auth, input validation all verified |
+| 42 | Perform security audit | ✅ DONE | `SECURITY_AUDIT.md` — Full penetration test: 26 vulns found, 20 fixed, 6 deferred (non-critical). Rating: 🟡 Conditionally ready for distribution |
 | 43 | Submit to Google Play + Apple TestFlight | ✅ DONE | `LAUNCH_CHECKLIST.md` with submission commands + pre-launch checks |

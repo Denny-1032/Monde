@@ -47,8 +47,9 @@ const BANK_SWIFT_CODES: Record<string, string> = {
   absa: "BARCZMLU",
 };
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") || "";
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN || "null",
   "Access-Control-Allow-Headers": "authorization, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -135,7 +136,7 @@ Deno.serve(async (req: Request) => {
       console.error("[lipila] Auth failed:", authError?.message);
       return json({ success: false, error: "Invalid or expired session" });
     }
-    console.log(`[lipila] Authenticated user: ${authData.user.id}`);
+    console.log(`[lipila] Authenticated user: ${authData.user.id.slice(0, 8)}...`);
 
     // 2. Parse request
     const body = (await req.json()) as LipilaRequestBody;
@@ -143,11 +144,12 @@ Deno.serve(async (req: Request) => {
       return json({ success: false, error: "Invalid action. Use collect, disburse, or status." });
     }
     const paymentMethod: PaymentMethod = body.paymentMethod || "momo";
-    console.log(`[lipila] Action: ${body.action}, method: ${paymentMethod}, amount: ${body.amount}, account: ${body.accountNumber}`);
+    const maskedAccount = body.accountNumber ? body.accountNumber.slice(0, 3) + '****' + body.accountNumber.slice(-2) : '(none)';
+    console.log(`[lipila] Action: ${body.action}, method: ${paymentMethod}, amount: ${body.amount}, account: ${maskedAccount}`);
 
     // 3. Resolve Lipila config
     const config = getLipilaConfig();
-    console.log(`[lipila] Config: mode=${config.mode}, baseUrl=${config.baseUrl}, apiKeySet=${!!config.apiKey}, callbackUrl=${config.callbackUrl || '(none)'}`);
+    console.log(`[lipila] Config: mode=${config.mode}, apiKeySet=${!!config.apiKey}`);
     if (!config.apiKey) {
       return json({ success: false, error: `Lipila ${config.mode} API key is not configured. Set LIPILA_${config.mode.toUpperCase()}_API_KEY.` });
     }

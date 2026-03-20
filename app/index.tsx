@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Colors, FontSize, Spacing } from '../constants/theme';
 import { useStore } from '../store/useStore';
 import * as SecureStore from 'expo-secure-store';
+import { checkDeviceIntegrity } from '../lib/security';
 
 const ONBOARDING_KEY = 'monde_onboarding_complete';
 
@@ -31,6 +32,7 @@ export default function MondeSplash() {
 
     const bootstrap = async () => {
       try {
+        checkDeviceIntegrity();
         await initSession();
       } catch (e) {
         if (__DEV__) console.error('Session init failed:', e);

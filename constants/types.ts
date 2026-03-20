@@ -80,6 +80,8 @@ export type QRPayload = {
   provider: string;
   amount?: number;
   note?: string;
+  ts?: number;
+  sig?: string;
 };
 
 export type CashOutQRPayload = {
@@ -90,6 +92,8 @@ export type CashOutQRPayload = {
   phone: string;
   name: string;
   amount?: number;
+  ts?: number;
+  sig?: string;
 };
 
 export type CashOutRequest = {
@@ -108,11 +112,6 @@ export type CashOutRequest = {
 };
 
 // Admin types
-// MONDE_FEE_ACCOUNT_ID is the ledger account that collects fees (not a login account)
-export const MONDE_FEE_ACCOUNT_ID = '00000000-0000-0000-0000-000000000000';
-// Legacy alias for backwards compatibility
-export const MONDE_ADMIN_ID = MONDE_FEE_ACCOUNT_ID;
-
 export type FeeSummary = {
   success: boolean;
   total_fees_collected: number;

@@ -11,11 +11,13 @@ function phoneToEmail(phone: string): string {
   return `${phone.replace(/[^0-9]/g, "")}@monde.app`;
 }
 
+const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") || "null";
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
         "Access-Control-Allow-Headers": "authorization, content-type",
       },
     });
@@ -67,6 +69,17 @@ Deno.serve(async (req: Request) => {
     });
 
     const formattedPhone = phone.startsWith("+") ? phone : `+${phone.replace(/[^0-9]/g, "")}`;
+
+    // SECURITY: Verify the caller's phone matches the target phone
+    // Prevents an attacker with a valid OTP session from resetting another user's PIN
+    const callerPhone = callerUser.phone || "";
+    if (callerPhone !== formattedPhone) {
+      return new Response(JSON.stringify({ error: "Phone number does not match your session." }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const newPassword = pinToPassword(newPin);
 
     // Look up the profile by phone — profiles.id === auth.users.id (same UUID)

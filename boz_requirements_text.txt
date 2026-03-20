@@ -1,0 +1,415 @@
+REQUIREMENTS FOR 
+DESIGNATING A PAYMENT 
+SYSTEM 
+FEBRUARY 2025
+---PAGE BREAK---
+2  BoZ - Action Plan To Reduce Digital Financial Services Frauds
+
+---PAGE BREAK---
+BoZ - Action Plan To Reduce Digital Financial Services Frauds  3  
+Head Office
+Bank of Zambia, Bank Square, Cairo Road
+P. O. Box 30080, Lusaka, 10101, Zambia
+Tel: (+260) 211 399300
+E-mail: info@boz.zm
+Website: www.boz.zmREGISTERED OFFICES
+Regional Office
+Bank of Zambia, Buteko Avenue
+P. O. Box 71511, Ndola, Zambia
+Tel: (+260) 212 399600
+E-mail: info@boz.zm
+Website: www.boz.zm
+---PAGE BREAK---
+4  Boz - Requirements for Designation of a Payment System - February 2025REQUIREMENTS FOR DESIGNATION OF A PAYMENT 
+SYSTEM
+The National Payment System Act 1 2007 (NPSA) defines a Payment System as ‘a  clearing and 
+settlement system operating under clearing house rules.’
+Section 5 (1) of the NPSA stipulates that ‘The Bank of Zambia shall regulate and oversee the operations 
+of payment systems in order to ensure the integrity, effectiveness, efficiency, competitiveness and security 
+of the payment system so as to promote the stability and safety of the Zambian financial system’.
+Section 5 (2) further stipulates that ‘the Bank of Zambia may, for the effective performance of its 
+functions, under subsection (1), designate a particular payment system or such other payment systems as 
+it considers necessary for the purpose of this Act.’
+The NPSA in Section 6 indicates that ‘The Bank of Zambia shall prescribe the requirements to be 
+complied with by an applicant who intends to operate a payment system that is to be designated under the 
+Act.’ The Act also provides under Section 7 (1) that any person who intends to operate a payment system 
+shall apply to the Bank of Zambia in the prescribed manner and form.
+---PAGE BREAK---
+Boz - Requirements for Designation of a Payment System - February 2025  5  PART I            7
+1. Application requirements          7
+1.1. Stage 1: Pre-engagement for product understanding       7
+1.2. Stage 2: Name Clearance          7
+1.3. Stage 3: Submission of Application         7
+1.4. Documentation for the Application        8
+1.5. Governance Structure          9
+1.6. Legal Basis           10
+1.7. Risk Management Framework         11
+1.8. Disaster Recovery Plan          11
+1.9. Anti-money Laundering          11
+PART II            12
+2. Applicants licensed under the banking & financial services act    12
+2.1. Requirements            12
+PART III            12
+3. Information requests          12
+3.1. Additional Information the Bank of Zambia may Require     12
+PART IV             13
+4. Determination of application         13
+4.1. Determination            13
+4.2. Designating an Applicant          13
+PART V            13
+5. Withdrawal of application         13
+5.1. Withdrawal           13
+5.2. Declining an Application          13
+PART VI            14
+6. Contact details           14TABLE OF CONTENTS
+---PAGE BREAK---
+6  Boz - Requirements for Designation of a Payment System - February 2025
+
+---PAGE BREAK---
+Boz - Requirements for Designation of a Payment System - February 2025  7  PART I
+1. APPLICATION REQUIREMENTS
+1.1. Stage 1: Pre-engagement for product understanding 
+1.1.1. Prospective applicants to contact the Bank of Zambia’s Payment Systems Department to 
+arrange a preliminary meeting to:
+a. Discuss licensing requirements; and
+b. Introduce the proposed product proposition. (Applicant to make PowerPoint presentation 
+on proposed product description, process flows, system architecture, integration, 
+security measures, settlement processes, cybersecurity measures and any other relevant 
+information); and
+1.1.2. Enquiries and pre-engagement arrangements should be sent to psd@boz.zm  
+1.2. Stage 2: Name Clearance 
+1.2.1. Any Applicant that intends to offer or conduct payment system business shall be required to 
+check for the suitability of the proposed company name and or product name with the Bank. 
+The Applicant shall submit the proposed name of the company and where applicable, the 
+name of the product for clearance.
+1.2.2. The proposed name shall: 
+1.2.2.1. Suggests that the company shall be offering payment services; 
+1.2.2.2. Is not identical with that of another payment service provider; 
+1.2.2.3. Does not resemble the name of another payment service provider in a way that the 
+proposed company name can deceive the public; and 
+1.2.2.4. Is not considered inappropriate by the Bank. 
+1.2.3. The applicant shall submit three names for the company or product in order of preference.  
+The Name Clearance application should be addressed to:
+Director – Payment Systems
+Bank of Zambia 
+Bank Square
+Cairo Road
+P. O. Box 30080
+Lusaka
+ZAMBIA 
+1.2.4. Once the name is cleared, the applicant intending to operate payment system services shall 
+proceed to register the entity with the Patents and Companies Registration Agency (PACRA). 
+Should the company already be registered with PACRA, the name will be considered in 
+line with the procedures for name clearance and if the name is acceptable, the applicant can 
+proceed to submit an application for licensing. 
+Where the company name registered at PACRA is not acceptable to the Bank, the applicant 
+will be guided to perform a name change at PACRA with a Bank approved name.
+An approved name shall be valid for a period of six (6) months subject to submission of an 
+application for licensing. However, an applicant may request for an extension of the approval 
+prior to its expiration.
+1.3. Stage 3: Submission of Application 
+1.3.1. The applicant who proposes to operate a payment system shall fill in an application form, 
+which can be obtained from the Bank of Zambia website (https://www .boz.zm/designation-
+---PAGE BREAK---
+8  Boz - Requirements for Designation of a Payment System - February 2025of-payment-systems.htm). An application made for designation as a payment system shall 
+be accompanied by documentation and will include information as may be prescribed by the 
+Bank of Zambia.
+1.3.2. The Application should be addressed to:
+Deputy Governor
+Bank of Zambia 
+Bank Square
+Cairo Road
+P. O. Box 30080
+Lusaka
+ZAMBIA 
+1.4. Documentation for the Application
+The documentation and information shall include but not limited to the following:
+1.4.1. The legal name, trade name or any name to be used by the applicant in conducting its business 
+and business address of the applicant; 
+1.4.2. Address of the head office of the applicant including all branches at which it intends to 
+conduct business;
+1.4.3. Certified copies of its Articles of Association and Certificate of Incorporation of the company 
+from PACRA;
+1.4.4. The name and address of the applicant’s auditors, who shall be registered under the Zambia 
+Institute of Chartered Accountants (ZICA);
+1.4.5. The names and addresses of the applicant’s bankers in Zambia;
+1.4.6. A detailed description of the system/platform and its operations. This should include but not 
+limited to:
+a. Diagrammatic presentation of the System architecture;
+b. Consumer on-boarding process including Customer Due Diligence (CDD) procedures 
+supported with process flow diagrams;
+c. Settlement process supported with process flow diagrams; and
+d. Integration of the system with other third-party support systems (i.e. electronic money 
+issuers, banks and other technology providers where applicable).
+1.4.7. Detailed description of the security features of the system including user access control 
+mechanisms, data encryption in transit and at rest, firewalls, physical security , database and 
+records management among others; 
+1.4.8. Details of the proposed product pricing and fee structure for the services to be offered;
+1.4.9. Business plan with three year projected financial statements which demonstrate that the 
+applicant is able to employ appropriate and proportionate systems, resources and procedures 
+to operate as a viable entity. Further, the business plan must contain the projected volumes and 
+values of transactions and the expected customer base over a three-year period. The projected 
+financials should clearly highlight the underlying assumptions and include notes to support 
+the projections. The financial projections should be denominated in Zambian Kwacha;
+1.4.10. Evidence that the applicant holds initial capital, the sources of funds and state the amount to 
+be invested as capital:
+a. The evidence of the capital in the form of cash should be reflected in a bank statement 
+or any other relevant traceable documentation of a licensed bank or financial institution 
+indicating the isolated funds;
+b. The documentation above may be in the name of the company, the promoters or 
+shareholders of the company;
+---PAGE BREAK---
+Boz - Requirements for Designation of a Payment System - February 2025  9  c. The evidence should be confirmed by a certified auditor or legal practitioner or confirmed 
+by the licensed bank or financial institution in which the funds are held; 
+d. The Bank of Zambia shall verify the authenticity of the bank statement directly from the 
+licensed bank or financial institution.
+1.4.11. A description of the internal control mechanisms which the applicant has established in order 
+to comply with the Bank of Zambia Anti Money Laundering Directives and the Financial 
+Intelligence Centre Act;
+1.4.12. A description of the applicant’s organisational structure, including, where applicable, a 
+description of the intended use of branches and a description of outsourcing arrangements and 
+of its participation in a national or international payment system;
+1.4.13. Policies and procedures for transacting with a customer; and
+1.4.14. A description of the measures implemented for safeguarding funds for money transmission 
+services, the arrangements the applicant has set up with a view of taking all reasonable steps 
+to protect the interests of its payment system business users and to ensure continuity and 
+reliability in the performance of the payment system.
+1.5. Governance Structure
+1.5.1. An applicant shall describe the governance arrangements and internal control mechanisms 
+of the entity, which demonstrates that such arrangements, mechanisms and procedures are 
+proportionate, appropriate, sound and adequate to ensure the safety and efficiency of the 
+payment services. 
+1.5.2. The applicant shall conduct due diligence in relation to the appointment of directors who 
+shall be appropriately skilled and experienced to execute their responsibilities. The role of the 
+directors shall include but not limited to monitoring and overseeing the implementation of the 
+strategic objectives, management of risk, financial performance, good governance practices 
+and corporate values, and culture and compliance of the entity with all relevant regulatory 
+requirements.
+1.5.3. The applicant shall provide details of direct or indirect shareholding of the entity . This shall 
+include the name of ultimate beneficial owners (shareholders) and number of shares held by 
+each shareholder; evidence of their suitability taking into account the need to ensure the sound 
+and prudent management of a payment system.
+1.5.4. The applicant shall provide details and identity of board of directors, which board shall 
+comply with the following requirements: 
+a. The entity shall have a minimum of three (3) board members. The Bank reserves the right 
+to prescribe a higher number of board members;
+b. The majority of appointed directors shall be held in the non-executive capacity; and
+c. Majority of the number of appointed directors shall be resident in Zambia.
+1.5.5. The applicant shall provide details of senior management of the entity who will be responsible 
+for the management of the payment system. Senior management officers of the entity shall at 
+the minimum include the following positions: 
+a. Chief Executive Officer
+b. Chief Financial Officer
+c. Chief Compliance Officer 
+d. Chief Information Technology Officer
+An officer of the payment service provider shall not hold more than one position at any particular time. 
+The applicant shall provide evidence that the officers selected to hold the senior management positions 
+possess the appropriate knowledge and experience to effectively undertake the functions in their 
+respective roles. The applicant must provide evidence of senior management staff taking into account the 
+need to ensure the sound and prudent management of a payment system. 
+---PAGE BREAK---
+10  Boz - Requirements for Designation of a Payment System - February 2025The officers of an applicant shall be engaged in compliance with the Employment Act and other relevant 
+labour laws. 
+1.5.6. Where the proposed officer is an expatriate, part of the fit and proper test will require the 
+applicant to fulfil all the applicable immigration requirements before their appointment. The 
+Bank will require an applicant to submit for consideration a certified permit issued by the 
+Zambian Department of Immigration.
+1.5.7. The applicant shall submit certified photocopies of identity document (i.e. Zambian National 
+Registration Card or the first four pages of the passport) for all significant shareholders, 
+Directors’ and senior management.
+1.5.8. Where the ultimate beneficial shareholder, director or senior management officer is not 
+Zambian, the applicant shall provide security screening results from the country of origin or 
+residence. In the case of the senior management officers, the applicant shall provide certified 
+copies of immigration and non-resident work permit.
+1.5.9. The applicant shall submit a Director’s Questionnaire for its significant shareholders, directors 
+and senior management officers in the format prescribed by the Bank of Zambia.
+1.5.10. The applicant shall submit detailed curriculum vitae with three (3) traceable references 
+including reachable phone number for each of the significant Shareholders, Directors and 
+senior management.
+1.5.11. The applicant shall submit duly completed vital statistics form for significant Shareholders, 
+Directors and senior management in a format prescribed by the Bank of Zambia.
+1.5.12. A person shall not be a director of more than one payment system without prior written 
+approval of the Bank of Zambia.
+1.5.13. Where the applicant is an established business, the applicant shall submit audited financial 
+statements for the previous two years.
+1.5.14. The applicant shall submit a list of countries in which it is licensed to provide payment 
+services together with accompanying copies of licences.
+1.5.15. Where applicable, the applicant shall submit details of any regulatory sanctions such as 
+license/designation revocations, suspensions, or other disciplinary action taken against the 
+applicant in Zambia and in other countries.
+1.5.16. The applicant shall provide information concerning any bankruptcy or receivership 
+proceedings affecting the applicant.
+1.5.17. The applicant must satisfy the Bank of Zambia that:
+a. Any persons holding shares in it are fit and proper persons having regard to the need to 
+ensure the sound and prudent conduct of the affairs of a designated payment system;
+b. The directors and persons responsible for the management of payment system are of good 
+repute and possess appropriate knowledge and experience to provide payment system 
+services;
+c. It has taken adequate measures for the purpose of safeguarding customer funds;
+d. It has procedures in place to prevent potential conflict of interest arising in the conduct of 
+different types of activities; and
+e. International payment systems should submit details of the supervisory authority in the 
+country of origin.
+1.5.18. Any other information the Bank of Zambia may require.
+1.6. Legal Basis
+1.6.1. The application shall be submitted in line with the requirements of the National Payment 
+Systems Act. An entity applying for a payment system license and intends to partner with 
+other third parties shall submit the following documents where applicable:
+a. Draft agreements with all third-party technology providers including relevant service level 
+---PAGE BREAK---
+Boz - Requirements for Designation of a Payment System - February 2025  11  agreements (SLAs);
+b. Draft agreement with other financial service providers (FSPs) or payment service 
+providers (PSPs);
+c. Draft Merchant agreements that will integrate into the system;
+d. Draft agreements with settlement agents i.e. commercial banks and/or electronic money 
+issuers;
+e. Payment System Rules including failure to settle arrangements; and
+f. Any other relevant agreements or contracts pertaining to provision of the proposed 
+payment services.
+1.7. Risk Management Framework
+1.7.1. Any person who proposes to operate a payment system shall put in place a comprehensive 
+risk management framework, which shall be submitted to the Bank of Zambia. The risk 
+management framework shall at a minimum address the following risks, among others:
+a. Cybersecurity risk;
+b. Operational risk;
+c. Credit risk;
+d. Liquidity risk;
+e. Money Laundering/ Terrorism Financing and Proliferation risk.
+1.7.2. The applicant shall be required to undertake a detailed risk assessment to identify key risk 
+pertaining to its operations and proposed payment services and provide mitigation measures 
+in terms of policies, controls, product and infrastructure design to address identified risks.
+1.7.3. As part of its risk management processes, the applicant shall be required to develop 
+appropriate organizational policies to manage different types of risks. These shall include the 
+following policies;
+a. Information and Cyber Security; 
+b. Anti-money laundering and countering the financing of terrorism (AML/CFT); 
+c. Business Continuity Management Plan; 
+d. Complaints Handling and Resolution; and
+e. Any other policy that the Bank may require from the applicant. 
+1.8. Disaster Recovery Plan
+1.8.1. An applicant who proposes to operate a payment system shall submit to the Bank of Zambia a 
+framework for business continuity management. The framework should, among other things, 
+clearly state the Recovery Time Objective (RTO) and Recovery Point Objective (RPO).
+1.9. Anti-money Laundering
+1.9.1. The applicant must satisfy the Bank of Zambia that it has Know Your Customer (KYC) and 
+client verification procedures in place that ensure the payment system exercises care and 
+caution and avoids entering into transactions, that may involve or facilitate money laundering 
+and terrorist or proliferation financing; and 
+1.9.2. The applicant must ensure that it complies with all applicable Anti-money Laundering 
+regulations or directives and that its employees and/or Agents receive appropriate training to 
+enable them to operate the payment services in line with Anti-money Laundering regulation/
+directives.
+---PAGE BREAK---
+12  Boz - Requirements for Designation of a Payment System - February 2025PART II
+2. APPLICANTS LICENSED UNDER THE BANKING & FINANCIAL SERVICES ACT
+2.1. Requirements 
+2.1.1. For applicants that are licensed under the Banking and Financial Services Act (BFSA) the 
+following will be required:
+a. A copy of the license obtained from the Bank of Zambia;
+b. Detailed business plan for the payment system that will include:
+i. Detailed description of the payment system;
+ii. Details of structure and partnerships with draft Agreements;
+iii. Detailed product pricing and fee structure;
+iv. Description of the system and the security around it;
+v. Details of internal controls for the payment system;
+vi. Details of anti-money laundering procedures;
+vii. Details of the charges to be levied for transactions;
+viii. Three year projected audited financial statements;
+ix. Forecasted volumes and values of transactions and the expected customer base over a 
+three-year period;
+x. Information and Cyber Security Policy
+xi. Policy on anti-money laundering and countering of terrorism finance (AML/CFT)
+xii. Business Continuity Management Plan clearly stating the Recovery Time Objective 
+(RTO) and Recovery Point Objective (RPO); and 
+xiii. Risk management framework to address the risks related to the proposed system 
+including but not limited to Cybersecurity risk, Operational risk, Credit risk, 
+Liquidity risk and other relevant risks; 
+c. Updated list of shareholders, Directors or senior management
+d. The names and addresses of the applicant’s bankers where applicable;
+e. A description of any payment system services previously provided by the applicant and 
+any other services that the applicant seeks to provide;
+f. Any license/designation revocations, suspensions, or other disciplinary action taken 
+against the applicant in another Jurisdiction;
+g. Information concerning any bankruptcy or receivership proceedings 
+affecting the applicant;
+h. A list of countries in which the applicant is licensed to engage in or provide payment 
+services; and 
+i. Any other information the Bank of Zambia may require with respect to the applicant.
+PART III
+3. INFORMATION REQUESTS
+3.1. Additional Information the Bank of Zambia may Require
+3.1.1. The Bank of Zambia may also require the following information in facilitating the designation 
+process of a Payment System:
+a. Any adverse information available on the promoters from the Credit Reference Bureau 
+and law enforcement agencies;
+b. Details of supervisory authority and regulatory status for a payment system designated in 
+another country;
+c. Police Clearance from the Zambia Police Service for all Non-Zambian Directors who have 
+---PAGE BREAK---
+Boz - Requirements for Designation of a Payment System - February 2025  13  lived in Zambia for over six months; and 
+d. Any other information the Bank of Zambia may require with respect to the applicant.
+PART IV
+4. DETERMINATION OF APPLICATION
+4.1. Determination 
+4.1.1. The Bank of Zambia shall determine an application for designation for a payment system 
+within a period of ninety (90) days from the date of receipt of the duly completed application. 
+An application shall be deemed complete only after the Bank of Zambia gives written notice 
+to that effect. The Notice of completion shall mean all required documents highlighted in Part 
+I above have been submitted. 
+4.1.2. Where the application submitted is incomplete, the Bank shall request the applicant to collect 
+the application. The applicant shall be required to incorporate any missing information prior 
+to making a re-submission of the application.
+4.1.3. At any time after receiving an application during its assessment, the Bank of Zambia may 
+require the applicant to provide it with such additional information as it may consider 
+necessary to enable it to determine the application. The applicant will provide the required 
+information within thirty (30) days failure to which the Bank of Zambia may reject the 
+application due to insufficient information.
+4.2. Designating an Applicant 
+4.2.1. Where the Bank of Zambia is satisfied that the applicant has met the requirements for 
+designation, the Bank of Zambia shall approve the application for designation. 
+4.2.2. The Bank of Zambia will, where an application is approved and upon payment of the annual 
+designation fee by the applicant, issue the applicant with a designation certificate.
+4.2.3. The designation certificate authorizes its holder to conduct the payment system at the place or 
+places of business authorized by the Bank of Zambia.
+4.2.4. A designation certificate may be issued subject to such terms and conditions as the Bank of 
+Zambia may impose in accordance with the National Payment Systems Act and other relevant 
+Regulations.
+4.2.5. Provided an annual designation fee is paid, a designation certificate shall remain valid until it 
+is revoked or surrendered to the Bank of Zambia.
+4.2.6. The Bank of Zambia may, before granting designation cause an inspection of the place 
+proposed for the business to be conducted. Further, the Bank of Zambia reserves every right 
+to inspect the premises after designation has been granted.
+PART V
+5. WITHDRAWAL OF APPLICATION
+5.1. Withdrawal
+5.1.1. The applicant may withdraw its application, by giving the Bank of Zambia notice, at any time 
+before the Bank of Zambia application is determined.
+5.2. Declining an Application
+5.2.1. The Bank may decline an application where the applicant fails to meet the requirements for 
+designation or where the Bank deems it necessary not to grant designation.
+5.2.2. If the Bank of Zambia decides to reject the application or to impose a requirement, the 
+applicant may appeal against the decision in accordance with Section forty-one of the 
+National Payment Systems Act 01 of 2007.
+---PAGE BREAK---
+14  Boz - Requirements for Designation of a Payment System - February 2025PART VI
+6. CONTACT DETAILS
+Further queries relating to requirements, application for and conducting of a designated payment system 
+should be addressed to:
+Director - Payment Systems
+Bank of Zambia 
+Bank Square
+Cairo Road
+P. O. Box 30080
+Lusaka
+ZAMBIA 
+Telephone +260- 211-399300 
+e-mail – psd@boz.zm 
+Information on the requirements for designation of a payment system is also available on the Bank of 
+Zambia website: www.boz.zm 
+---PAGE BREAK---
+Boz - Requirements for Designation of a Payment System - February 2025  15  
+
+---PAGE BREAK---
+www.boz.zm
+
+---PAGE BREAK---

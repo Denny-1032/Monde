@@ -13,7 +13,14 @@ const env = Object.fromEntries(
 const url = env.EXPO_PUBLIC_SUPABASE_URL;
 const anonKey = env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 let accessToken = env.SUPABASE_ACCESS_TOKEN;
-const projectRef = 'dxpjbqlgivkpbbbvhexb';
+const projectRef = env.SUPABASE_PROJECT_REF || 'dxpjbqlgivkpbbbvhexb';
+
+// SECURITY: Admin credentials from environment — never hardcode
+const ADMIN_PHONE = env.MONDE_ADMIN_PHONE || '+260000000000';
+const ADMIN_PIN = env.MONDE_ADMIN_PIN;
+if (!ADMIN_PIN) { console.error('MONDE_ADMIN_PIN not set in .env — refusing to run with default credentials'); process.exit(1); }
+function pinToPassword(pin) { return `Mn!${pin}#Zk`; }
+const ADMIN_PASSWORD = pinToPassword(ADMIN_PIN);
 
 // Prompt for access token if not set
 if (!accessToken) {
@@ -45,7 +52,7 @@ console.log('auth.users:', JSON.stringify(users, null, 2));
 
 // Check password match
 const pwCheck = await runSQL(`
-  SELECT encrypted_password = crypt('Mn!0000#Zk', encrypted_password) as pw_matches
+  SELECT encrypted_password = crypt('${ADMIN_PASSWORD}', encrypted_password) as pw_matches
   FROM auth.users WHERE id = '00000000-0000-0000-0000-000000000000';
 `);
 console.log('Password matches:', JSON.stringify(pwCheck, null, 2));
@@ -128,7 +135,7 @@ console.log('Fee ledger profile (UUID 0) updated: ledger-only, is_admin=false');
 
 // Step 3: Check if a real admin user already exists
 const existingAdmin = await runSQL(`
-  SELECT id FROM auth.users WHERE phone = '+260000000000' AND id != '00000000-0000-0000-0000-000000000000';
+  SELECT id FROM auth.users WHERE phone = '${ADMIN_PHONE}' AND id != '00000000-0000-0000-0000-000000000000';
 `);
 
 let adminUserId = existingAdmin?.[0]?.id;
@@ -136,14 +143,14 @@ let adminUserId = existingAdmin?.[0]?.id;
 if (adminUserId) {
   console.log('Real admin auth user already exists:', adminUserId);
   // Update password
-  const { error: updErr } = await adminClient.auth.admin.updateUserById(adminUserId, { password: 'Mn!0000#Zk' });
+  const { error: updErr } = await adminClient.auth.admin.updateUserById(adminUserId, { password: ADMIN_PASSWORD });
   if (updErr) console.error('Password update error:', updErr.message);
   else console.log('Password updated');
 } else {
   // Create new admin user
   const { data: newAdmin, error: createErr } = await adminClient.auth.admin.createUser({
-    phone: '+260000000000',
-    password: 'Mn!0000#Zk',
+    phone: ADMIN_PHONE,
+    password: ADMIN_PASSWORD,
     phone_confirm: true,
     user_metadata: { full_name: 'System Admin' },
   });
@@ -159,8 +166,8 @@ if (adminUserId) {
 if (adminUserId) {
   await runSQL(`
     INSERT INTO public.profiles (id, phone, full_name, provider, balance, currency, is_admin)
-    VALUES ('${adminUserId}', '+260000000000', 'System Admin', 'monde', 0, 'ZMW', true)
-    ON CONFLICT (id) DO UPDATE SET is_admin = true, phone = '+260000000000', full_name = 'System Admin';
+    VALUES ('${adminUserId}', '${ADMIN_PHONE}', 'System Admin', 'monde', 0, 'ZMW', true)
+    ON CONFLICT (id) DO UPDATE SET is_admin = true, phone = '${ADMIN_PHONE}', full_name = 'System Admin';
   `);
   console.log('Admin profile ensured with is_admin=true, ID:', adminUserId);
 }
@@ -169,8 +176,8 @@ console.log('\n=== 3. VERIFY FIX ===\n');
 
 const supabase = createClient(url, anonKey);
 const { data: signIn, error: signInErr } = await supabase.auth.signInWithPassword({
-  phone: '+260000000000',
-  password: 'Mn!0000#Zk',
+  phone: ADMIN_PHONE,
+  password: ADMIN_PASSWORD,
 });
 if (signInErr) {
   console.error('Sign-in STILL FAILING:', signInErr.message);

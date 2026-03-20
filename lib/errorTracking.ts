@@ -26,7 +26,7 @@ export function initErrorTracking() {
   // });
 
   isInitialized = true;
-  console.log('[ErrorTracking] Sentry initialized (placeholder)');
+  if (__DEV__) console.log('[ErrorTracking] Sentry initialized (placeholder)');
 }
 
 export function captureException(error: Error, context?: Record<string, any>) {

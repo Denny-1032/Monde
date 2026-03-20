@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { generateQRData, formatCurrency } from '../lib/helpers';
 import NumPad from '../components/NumPad';
+import { preventScreenCapture } from '../lib/security';
 
 export default function ReceiveScreen() {
   const colors = useColors();
@@ -17,6 +18,9 @@ export default function ReceiveScreen() {
   const user = useStore((s) => s.user);
   const [amount, setAmount] = useState('');
   const [showAmountEntry, setShowAmountEntry] = useState(false);
+
+  // M2: Prevent screenshots on QR code screen
+  useEffect(() => preventScreenCapture(), []);
 
   // Agents can show their QR for agent-to-agent transfers and identification
   const isAgent = user?.is_agent === true;

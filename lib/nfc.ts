@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import NfcManager, { NfcTech, Ndef, NfcEvents, TagEvent } from 'react-native-nfc-manager';
+import { signPayload, verifyPayload } from './security';
 
 // Monde NFC payment protocol
 // NDEF message format: monde://pay?phone={phone}&name={name}&amount={amount}
@@ -20,10 +21,10 @@ export async function isNfcSupported(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {
     const supported = await NfcManager.isSupported();
-    console.log('[NFC] isSupported:', supported);
+    if (__DEV__) console.log('[NFC] isSupported:', supported);
     return supported;
   } catch (e: any) {
-    console.warn('[NFC] isSupported check failed:', e?.message || e,
+    if (__DEV__) console.warn('[NFC] isSupported check failed:', e?.message || e,
       '— If running in Expo Go, NFC requires a development build (expo prebuild / EAS Build).');
     return false;
   }
@@ -67,6 +68,10 @@ export function encodePayload(payload: NfcPayload): number[] {
   if (payload.amount !== undefined) {
     params.set('amount', payload.amount.toString());
   }
+  // M3: Add timestamp + integrity signature
+  const { ts, sig } = signPayload(payload.phone, payload.amount);
+  params.set('ts', ts.toString());
+  params.set('sig', sig);
   const uri = `${MONDE_URI_PREFIX}${params.toString()}`;
   return Ndef.encodeMessage([Ndef.textRecord(uri)]);
 }
@@ -85,10 +90,19 @@ export function decodePayload(tag: TagEvent): NfcPayload | null {
         const name = params.get('name');
         if (!phone || !name) return null;
         const amountStr = params.get('amount');
+        const amount = amountStr ? parseFloat(amountStr) : undefined;
+        // M3: Verify payload integrity if signature is present
+        const tsStr = params.get('ts');
+        const sig = params.get('sig');
+        if (tsStr && sig) {
+          if (!verifyPayload(phone, amount, parseInt(tsStr, 10), sig)) {
+            return null; // Tampered or expired NFC payload
+          }
+        }
         return {
           phone,
           name,
-          amount: amountStr ? parseFloat(amountStr) : undefined,
+          amount,
         };
       }
     }

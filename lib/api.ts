@@ -999,10 +999,14 @@ export async function updateLinkedAccount(
 ): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Not authenticated' };
+
   const { error } = await supabase
     .from('linked_accounts')
     .update(updates)
-    .eq('id', accountId);
+    .eq('id', accountId)
+    .eq('user_id', user.id);
 
   if (error) return { success: false, error: error.message };
   return { success: true };
@@ -1011,10 +1015,14 @@ export async function updateLinkedAccount(
 export async function deleteLinkedAccount(accountId: string): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) return { success: false, error: 'Supabase not configured' };
 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Not authenticated' };
+
   const { error } = await supabase
     .from('linked_accounts')
     .delete()
-    .eq('id', accountId);
+    .eq('id', accountId)
+    .eq('user_id', user.id);
 
   if (error) return { success: false, error: error.message };
   return { success: true };
@@ -1164,6 +1172,11 @@ export async function adminGetAllAccounts(): Promise<{ data: { id: string; phone
   return { data: [...withHandle, ...withoutHandle] as any[] };
 }
 
+// Escape ILIKE special characters to prevent unexpected pattern matching
+function escapeIlike(input: string): string {
+  return input.replace(/[%_\\]/g, '\\$&');
+}
+
 export async function adminSearchUsers(
   query: string,
 ): Promise<{ data: { id: string; phone: string; full_name: string; balance: number; handle?: string; is_admin?: boolean; is_agent?: boolean; is_frozen?: boolean }[]; error?: string }> {
@@ -1174,35 +1187,38 @@ export async function adminSearchUsers(
 
   // Search across name, phone, handle, and agent_code simultaneously
   const digitsOnly = trimmed.replace(/[^0-9]/g, '');
+  const safeDigits = escapeIlike(digitsOnly);
+  const safeTrimmed = escapeIlike(trimmed);
   let dbQuery;
 
   if (trimmed.startsWith('@')) {
     // Handle search
+    const safeHandle = escapeIlike(trimmed.slice(1));
     dbQuery = supabase
       .from('profiles')
       .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, agent_code')
-      .ilike('handle', `%${trimmed.slice(1)}%`)
+      .ilike('handle', `%${safeHandle}%`)
       .limit(20);
   } else if (/^\d+$/.test(trimmed) && trimmed.length <= 6) {
     // Could be agent code or phone fragment — search both
     dbQuery = supabase
       .from('profiles')
       .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, agent_code')
-      .or(`phone.ilike.%${digitsOnly}%,agent_code.ilike.%${trimmed}%`)
+      .or(`phone.ilike.%${safeDigits}%,agent_code.ilike.%${safeTrimmed}%`)
       .limit(20);
   } else if (/^\+?\d+$/.test(trimmed)) {
     // Phone number search
     dbQuery = supabase
       .from('profiles')
       .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, agent_code')
-      .ilike('phone', `%${digitsOnly}%`)
+      .ilike('phone', `%${safeDigits}%`)
       .limit(20);
   } else {
     // Name search
     dbQuery = supabase
       .from('profiles')
       .select('id, phone, full_name, balance, handle, is_admin, is_agent, is_frozen, agent_code')
-      .ilike('full_name', `%${trimmed}%`)
+      .ilike('full_name', `%${safeTrimmed}%`)
       .limit(20);
   }
 

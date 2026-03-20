@@ -17,6 +17,7 @@ import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, ve
 import { Transaction } from '../constants/types';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
 import PinConfirm from '../components/PinConfirm';
+import { preventScreenCapture } from '../lib/security';
 
 type TabId = 'overview' | 'fees' | 'float' | 'agents' | 'accounts';
 
@@ -38,6 +39,9 @@ export default function AdminDashboardScreen() {
   const user = useStore((s) => s.user);
 
   const fetchProfile = useStore((s) => s.fetchProfile);
+
+  // M2: Prevent screenshots on admin dashboard
+  useEffect(() => preventScreenCapture(), []);
 
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [refreshing, setRefreshing] = useState(false);

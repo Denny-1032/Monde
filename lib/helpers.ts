@@ -1,4 +1,5 @@
 import { QRPayload, CashOutQRPayload } from '../constants/types';
+import { signPayload, verifyPayload } from './security';
 
 export function formatCurrency(amount: number, currency: string = 'ZMW'): string {
   return `K${amount.toLocaleString('en-ZM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -29,7 +30,8 @@ export function formatDate(dateStr: string): string {
 }
 
 export function generateQRData(payload: QRPayload | CashOutQRPayload): string {
-  return JSON.stringify(payload);
+  const { ts, sig } = signPayload(payload.phone, payload.amount);
+  return JSON.stringify({ ...payload, ts, sig });
 }
 
 export function parseQRData(data: string): (QRPayload | CashOutQRPayload) | null {
@@ -54,6 +56,14 @@ export function parseQRData(data: string): (QRPayload | CashOutQRPayload) | null
       };
     }
 
+    // Verify payload integrity if signature is present
+    const amount = typeof parsed.amount === 'number' && parsed.amount > 0 && parsed.amount <= 50000 ? parsed.amount : undefined;
+    if (parsed.ts && parsed.sig) {
+      if (!verifyPayload(phone, amount, parsed.ts, parsed.sig)) {
+        return null; // Tampered or expired QR code
+      }
+    }
+
     // Standard payment QR
     return {
       app: 'monde',
@@ -61,7 +71,7 @@ export function parseQRData(data: string): (QRPayload | CashOutQRPayload) | null
       phone,
       name: typeof parsed.name === 'string' ? parsed.name.replace(/[<>{}]/g, '').slice(0, 100) : '',
       provider: typeof parsed.provider === 'string' ? parsed.provider.slice(0, 20) : '',
-      amount: typeof parsed.amount === 'number' && parsed.amount > 0 && parsed.amount <= 50000 ? parsed.amount : undefined,
+      amount,
     };
   } catch {
     return null;
