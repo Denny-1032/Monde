@@ -448,11 +448,6 @@ export const useStore = create<AppState>((set, get) => ({
         linkedAccountId,
       });
       if (!result.success) {
-        // Session errors → silent logout, no alert
-        if (/session|expired|jwt|token/i.test(result.error || '')) {
-          get().logout();
-          return { success: false };
-        }
         return { success: false, error: result.error || 'Top-up failed' };
       }
       // Top-up is now PENDING — balance updates via realtime when callback confirms.
@@ -511,11 +506,6 @@ export const useStore = create<AppState>((set, get) => ({
         linkedAccountId,
       });
       if (!result.success) {
-        // Session errors → silent logout, no alert
-        if (/session|expired|jwt|token/i.test(result.error || '')) {
-          get().logout();
-          return { success: false };
-        }
         return { success: false, error: result.error || 'Withdrawal failed' };
       }
       await Promise.all([get().fetchProfile(), get().fetchTransactions()]);

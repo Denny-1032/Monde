@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, FontSize, Spacing, BorderRadius, Providers } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
-import { formatCurrency, formatPhone, calcGetCashFee } from '../lib/helpers';
+import { formatCurrency, formatPhone } from '../lib/helpers';
 import Avatar from '../components/Avatar';
 
 export default function TransactionDetailScreen() {
@@ -175,17 +175,14 @@ export default function TransactionDetailScreen() {
           <DetailRow label="Type" value={typeLabel} />
           <DetailRow label="Method" value={txn.method === 'wallet' ? 'Wallet Transfer' : txn.method === 'qr' ? 'QR Code' : txn.method === 'nfc' ? 'Tap to Pay' : 'Manual'} icon={txn.method === 'wallet' ? 'wallet-outline' : txn.method === 'qr' ? 'qr-code-outline' : txn.method === 'nfc' ? 'wifi-outline' : 'send-outline'} />
           <DetailRow label="Provider" value={provider?.name || txn.provider} dotColor={provider?.color} />
-          {txn.fee && txn.fee > 0 ? <DetailRow label="Fee" value={formatCurrency(txn.fee)} /> : null}
-          {/* Show commission breakdown for agent cash-out transactions */}
-          {isCashOut && isAgent && txn.status === 'completed' && (() => {
-            const feeInfo = calcGetCashFee(txn.amount);
-            return (
-              <>
-                <DetailRow label="Commission" value={`+${formatCurrency(feeInfo.agentCommission)}`} valueColor={colors.success} />
-                <DetailRow label="Total Credited" value={formatCurrency(txn.amount + feeInfo.agentCommission)} valueColor={colors.primary} />
-              </>
-            );
-          })()}
+          {txn.fee != null && txn.fee > 0 ? <DetailRow label="Fee" value={formatCurrency(txn.fee)} /> : null}
+          {/* Show commission for agent transactions (negative fee = commission earned) */}
+          {txn.fee != null && txn.fee < 0 && txn.status === 'completed' ? (
+            <>
+              <DetailRow label="Commission Earned" value={`+${formatCurrency(Math.abs(txn.fee))}`} valueColor="#f59e0b" />
+              <DetailRow label="Total Credited" value={formatCurrency(txn.amount + Math.abs(txn.fee))} valueColor={colors.primary} />
+            </>
+          ) : null}
           <DetailRow label="Date" value={formattedDate} />
           <DetailRow label="Time" value={formattedTime} />
           <DetailRow label="Transaction ID" value={txn.id} mono />

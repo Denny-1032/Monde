@@ -63,6 +63,11 @@ function TransactionItem({ transaction, onPress }: Props) {
         <Text style={[styles.amount, { color: amountColor }]}>
           {amountPrefix}{formatCurrency(transaction.amount)}
         </Text>
+        {transaction.fee != null && transaction.fee < 0 && (
+          <Text style={{ fontSize: FontSize.xs - 1, fontWeight: '700', color: '#f59e0b', marginTop: 1 }}>
+            +{formatCurrency(Math.abs(transaction.fee))} commission
+          </Text>
+        )}
         {transaction.balance_after != null && (
           <Text style={[styles.balanceAfter, { color: colors.textLight }]}>
             Bal: {formatCurrency(transaction.balance_after)}
