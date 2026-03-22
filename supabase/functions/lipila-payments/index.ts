@@ -274,16 +274,23 @@ Deno.serve(async (req: Request) => {
       "Content-Type": "application/json",
       "x-api-key": config.apiKey,
     };
-    if (config.callbackUrl) {
+    if (config.callbackUrl && body.action === "collect") {
       headers["callbackUrl"] = config.callbackUrl;
     }
 
     // 6. Call Lipila API
+    console.log(`[lipila] Calling: ${ep.method} ${ep.url}`);
     const lipilaRes = await fetch(ep.url, {
       method: ep.method,
       headers,
       body: JSON.stringify(lipilaBody),
     });
+
+    // Detect redirect (fetch follows automatically but strips custom headers like x-api-key)
+    const wasRedirected = lipilaRes.url && lipilaRes.url !== ep.url;
+    if (wasRedirected) {
+      console.warn(`[lipila] REDIRECT detected: ${ep.url} -> ${lipilaRes.url}`);
+    }
 
     const rawText = await lipilaRes.text();
     let lipilaData: any = null;
@@ -297,11 +304,11 @@ Deno.serve(async (req: Request) => {
 
     if (!lipilaRes.ok) {
       console.error(`[lipila] Lipila API error: HTTP ${lipilaRes.status}`, lipilaData);
+      console.error(`[lipila] Request URL: ${ep.url}, method: ${ep.method}`);
       return json({
         success: false,
         error: lipilaData?.message || `Lipila ${body.action} failed (HTTP ${lipilaRes.status})`,
         lipilaStatusCode: lipilaRes.status,
-        lipilaResponse: lipilaData,
       });
     }
 

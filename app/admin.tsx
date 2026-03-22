@@ -13,7 +13,7 @@ import { FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { useColors } from '../constants/useColors';
 import { useStore } from '../store/useStore';
 import { FeeSummary, FloatSummary, FeeDetail } from '../constants/types';
-import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetAllAccounts, adminGetUserTransactions, adminToggleAgent, adminFreezeAccount, adminListAgents, adminSetUserTier, adminSetUserLimits } from '../lib/api';
+import { getFeeSummary, getFloatSummary, getFeeDetails, adminWithdrawRevenue, verifyPin, adminSearchUsers, adminGetAllAccounts, adminGetUserTransactions, adminToggleAgent, adminFreezeAccount, adminListAgents, adminSetUserTier } from '../lib/api';
 import { Transaction } from '../constants/types';
 import { formatCurrency, formatDate, formatPhone } from '../lib/helpers';
 import PinConfirm from '../components/PinConfirm';
@@ -1082,43 +1082,14 @@ export default function AdminDashboardScreen() {
                       })}
                     </View>
                     <View style={styles.limitRow}>
-                      <Text style={[styles.limitLabel, { color: colors.textSecondary }]}>Agent limits/24h:</Text>
-                      <TouchableOpacity
-                        style={[styles.limitBadge, { backgroundColor: colors.primary + '12' }]}
-                        onPress={() => {
-                          Alert.prompt ? Alert.prompt('Deposit Limit', 'Max deposits from same agent per 24h:', (val) => {
-                            const n = parseInt(val); if (!n || n < 1) return;
-                            adminSetUserLimits(selectedUser.id, n, undefined).then(r => {
-                              if (r.success) { setSelectedUser({ ...selectedUser, daily_deposit_limit: n } as any); Alert.alert('Done', `Deposit limit: ${n}`); }
-                            });
-                          }, 'plain-text', String((selectedUser as any).daily_deposit_limit || 3)) :
-                          Alert.alert('Set Deposit Limit', `Current: ${(selectedUser as any).daily_deposit_limit || 3}\n\nUse values: 3 (default), 5, 10, etc.`, [
-                            { text: 'Cancel' },
-                            ...([3, 5, 10] as number[]).map(n => ({ text: String(n), onPress: async () => {
-                              const r = await adminSetUserLimits(selectedUser.id, n, undefined);
-                              if (r.success) { setSelectedUser({ ...selectedUser, daily_deposit_limit: n } as any); }
-                            }})),
-                          ]);
-                        }}
-                      >
-                        <Ionicons name="arrow-down-circle-outline" size={14} color={colors.primary} />
-                        <Text style={{ fontSize: FontSize.xs, color: colors.primary, fontWeight: '600' }}>Dep: {(selectedUser as any).daily_deposit_limit || 3}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.limitBadge, { backgroundColor: colors.error + '12' }]}
-                        onPress={() => {
-                          Alert.alert('Set Withdraw Limit', `Current: ${(selectedUser as any).daily_withdraw_limit || 3}\n\nMax cash-outs from same agent per 24h`, [
-                            { text: 'Cancel' },
-                            ...([3, 5, 10] as number[]).map(n => ({ text: String(n), onPress: async () => {
-                              const r = await adminSetUserLimits(selectedUser.id, undefined, n);
-                              if (r.success) { setSelectedUser({ ...selectedUser, daily_withdraw_limit: n } as any); }
-                            }})),
-                          ]);
-                        }}
-                      >
-                        <Ionicons name="arrow-up-circle-outline" size={14} color={colors.error} />
-                        <Text style={{ fontSize: FontSize.xs, color: colors.error, fontWeight: '600' }}>Wdr: {(selectedUser as any).daily_withdraw_limit || 3}</Text>
-                      </TouchableOpacity>
+                      <Text style={[styles.limitLabel, { color: colors.textSecondary }]}>Per-agent limit/24h:</Text>
+                      <View style={[styles.limitBadge, { backgroundColor: colors.primary + '12' }]}>
+                        <Ionicons name="swap-vertical" size={14} color={colors.primary} />
+                        <Text style={{ fontSize: FontSize.xs, color: colors.primary, fontWeight: '600' }}>
+                          {(() => { const t = (selectedUser as any).account_tier || 'copper'; return t === 'platinum' ? 10 : t === 'gold' ? 7 : 5; })()} txns
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 11, color: colors.textLight, fontStyle: 'italic' }}>Set by tier</Text>
                     </View>
                   </View>
 
@@ -1272,6 +1243,15 @@ export default function AdminDashboardScreen() {
                                         <Text style={{ fontSize: 10, fontWeight: '700', color: colors.warning }}>ADMIN</Text>
                                       </View>
                                     )}
+                                    {(() => {
+                                      const tier = (u as any).account_tier || 'copper';
+                                      const tierColor = tier === 'platinum' ? '#E5E4E2' : tier === 'gold' ? '#DAA520' : '#B87333';
+                                      return (
+                                        <View style={{ backgroundColor: tierColor + '25', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                                          <Text style={{ fontSize: 10, fontWeight: '700', color: tierColor }}>{tier.toUpperCase()}</Text>
+                                        </View>
+                                      );
+                                    })()}
                                     {u.is_frozen && (
                                       <Ionicons name="snow" size={14} color={colors.error} />
                                     )}

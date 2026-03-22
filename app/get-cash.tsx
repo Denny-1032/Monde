@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -181,15 +181,19 @@ export default function GetCashScreen() {
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
-  const qrPayload: CashOutQRPayload | null = token ? {
-    app: 'monde',
-    v: 1,
-    type: 'cashout',
-    token,
-    phone: user?.phone || '',
-    name: user?.full_name || '',
-    amount: parsedAmount,
-  } : null;
+  const qrData = useMemo(() => {
+    if (!token) return null;
+    const payload: CashOutQRPayload = {
+      app: 'monde',
+      v: 1,
+      type: 'cashout',
+      token,
+      phone: user?.phone || '',
+      name: user?.full_name || '',
+      amount: parsedAmount,
+    };
+    return generateQRData(payload);
+  }, [token]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 10, backgroundColor: colors.background }]}>
@@ -264,10 +268,10 @@ export default function GetCashScreen() {
         <View style={styles.codeSection}>
           {/* QR Code */}
           <View style={[styles.qrCard, { backgroundColor: colors.surface }]}>
-            {qrPayload && (
+            {qrData && (
               <View style={styles.qrWrapper}>
                 <QRCode
-                  value={generateQRData(qrPayload)}
+                  value={qrData}
                   size={180}
                   color={Colors.text}
                   backgroundColor={Colors.white}

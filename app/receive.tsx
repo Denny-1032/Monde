@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,14 +61,14 @@ export default function ReceiveScreen() {
   // Agents can show their QR for agent-to-agent transfers and identification
   const isAgent = user?.is_agent === true;
 
-  const qrPayload = generateQRData({
+  const qrPayload = useMemo(() => generateQRData({
     app: 'monde',
     v: 1,
     phone: user?.phone || '',
     name: user?.full_name || '',
     provider: user?.provider || '',
     amount: amount ? parseFloat(amount) : undefined,
-  });
+  }), [user?.phone, user?.full_name, user?.provider, amount]);
 
   const handleKeyPress = (key: string) => {
     if (key === '.' && amount.includes('.')) return;

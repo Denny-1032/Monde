@@ -1,4 +1,4 @@
-import { supabase, supabaseVerify, isSupabaseConfigured } from './supabase';
+import { supabase, supabaseVerify, isSupabaseConfigured, supabaseProjectUrl, supabaseProjectKey } from './supabase';
 import { Transaction, UserProfile, LinkedAccount, FeeSummary, FloatSummary, FeeDetailsResponse } from '../constants/types';
 import { pinToPassword, sanitizeText } from './validation';
 import { calcTopUpFee, calcWithdrawFee } from './helpers';
@@ -148,15 +148,16 @@ async function callLipila(params: {
     params.note ||
     (params.action === 'collect' ? `Monde top-up via ${params.provider}` : `Monde withdrawal via ${params.provider}`);
 
-  // Ensure fresh session
+  // Get token safely — ensureFreshSession checks freshness before refreshing,
+  // avoiding the race condition with auto-refresh that can trigger SIGNED_OUT.
+  // NEVER call refreshSession() directly here — it can destroy the session.
   const accessToken = await ensureFreshSession();
   if (!accessToken) {
-    return { success: false, error: 'Not authenticated. Please sign in again.' };
+    return { success: false, error: 'Session expired. Please sign in again.' };
   }
 
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-  const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-  const fnUrl = `${supabaseUrl}/functions/v1/lipila-payments`;
+  const fnUrl = `${supabaseProjectUrl}/functions/v1/lipila-payments`;
+  devLog(`[callLipila] fnUrl=${fnUrl}, keyLen=${supabaseProjectKey.length}, tokenLen=${accessToken.length}`);
 
   // Build request body — add bank-specific fields when needed
   const bodyObj: Record<string, unknown> = {
@@ -176,7 +177,7 @@ async function callLipila(params: {
 
   const requestBody = JSON.stringify(bodyObj);
 
-  // Inner fetch — called up to 2× (retry on 401)
+  // Inner fetch helper — returns parsed result with 401 flag for retry
   const doFetch = async (token: string): Promise<{ success: boolean; referenceId?: string; cardRedirectionUrl?: string; error?: string; is401?: boolean }> => {
     try {
       devLog('[callLipila] POST request');
@@ -185,7 +186,7 @@ async function callLipila(params: {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'apikey': anonKey,
+          'apikey': supabaseProjectKey,
         },
         body: requestBody,
       });
@@ -199,6 +200,7 @@ async function callLipila(params: {
       // Gateway 401 — flag for retry
       if (response.status === 401) {
         const msg401 = data?.msg || data?.message || 'Session expired';
+        devWarn(`[callLipila] Gateway 401: ${msg401}`);
         return { success: false, error: msg401, is401: true };
       }
 
@@ -210,20 +212,17 @@ async function callLipila(params: {
       // Edge function returned JSON (should be HTTP 200 with success flag)
       if (!data?.success) {
         const errorMsg = data?.error || data?.message || data?.msg || '';
-        const lipilaMsg = data?.lipilaResponse?.message || data?.lipilaResponse?.error || '';
-        const httpInfo = data?.lipilaStatusCode ? ` (HTTP ${data.lipilaStatusCode})` : '';
-        let detail = '';
-        if (errorMsg && lipilaMsg && lipilaMsg !== errorMsg) {
-          detail = `${errorMsg} — ${lipilaMsg}${httpInfo}`;
-        } else if (errorMsg) {
-          detail = `${errorMsg}${httpInfo}`;
-        } else if (lipilaMsg) {
-          detail = `${lipilaMsg}${httpInfo}`;
+        // Detect Edge Function auth errors — retry like gateway 401
+        const isEdgeFnAuth = /session|expired|jwt|token/i.test(errorMsg) && !data?.lipilaStatusCode;
+        if (isEdgeFnAuth) {
+          devWarn('[callLipila] Edge Function auth error:', errorMsg);
+          return { success: false, error: errorMsg, is401: true };
         }
-        if (data?.lipilaResponse) {
-          devWarn('[callLipila] Lipila detail:', JSON.stringify(data.lipilaResponse));
-        }
-        return { success: false, error: detail || `Unexpected response (HTTP ${response.status}): ${rawText.substring(0, 200)}` };
+        const httpCode = data?.lipilaStatusCode;
+        const alreadyHasCode = httpCode && errorMsg.includes(`(HTTP ${httpCode})`);
+        const httpInfo = (httpCode && !alreadyHasCode) ? ` (HTTP ${httpCode})` : '';
+        const detail = errorMsg ? `${errorMsg}${httpInfo}` : '';
+        return { success: false, error: detail || `Unexpected response (HTTP ${response.status})` };
       }
       return { success: true, referenceId: data?.referenceId, cardRedirectionUrl: data?.cardRedirectionUrl || undefined };
     } catch (err: any) {
@@ -236,17 +235,22 @@ async function callLipila(params: {
   const first = await doFetch(accessToken);
   if (first.success) return first;
 
-  // Attempt 2 — on 401, force a full session refresh and retry once
+  // Attempt 2 — on 401, check if auto-refresh already updated the token.
+  // Use getSession() (safe, never triggers SIGNED_OUT) instead of refreshSession().
   if (first.is401) {
-    devWarn('[callLipila] Got 401 — retrying after refresh');
-    const { data: refreshed } = await supabase.auth.refreshSession();
-    const retryToken = refreshed?.session?.access_token;
-    if (retryToken) {
+    devWarn('[callLipila] Got 401 — checking for updated token');
+    // Brief pause to let auto-refresh complete if it was in flight
+    await new Promise(r => setTimeout(r, 1000));
+    const { data: latest } = await supabase.auth.getSession();
+    const retryToken = latest?.session?.access_token;
+    if (retryToken && retryToken !== accessToken) {
+      devLog('[callLipila] Token changed, retrying');
       const second = await doFetch(retryToken);
       if (second.success) return second;
       return { success: false, error: second.error || 'Payment service rejected session after retry' };
     }
-    return { success: false, error: 'Session expired. Please log out and log back in.' };
+    // Token unchanged — the JWT is genuinely being rejected
+    return { success: false, error: first.error || 'Payment service authentication failed' };
   }
 
   return { success: false, error: first.error || 'Payment service error' };

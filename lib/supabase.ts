@@ -113,3 +113,5 @@ if (supabase) {
 
 export { supabase, supabaseVerify };
 export const isSupabaseConfigured = supabaseUrl !== 'https://placeholder.supabase.co';
+export const supabaseProjectUrl = supabaseUrl;
+export const supabaseProjectKey = supabaseAnonKey;
